@@ -8,7 +8,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "verify:models": "tsx scripts/verify-models.ts"
   },
   "keywords": [
     "athletiq",
