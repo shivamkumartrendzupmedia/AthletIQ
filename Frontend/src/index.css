@@ -1,0 +1,210 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+
+  --color-deep-purple: #171044;
+  --color-purple-primary: #4B2A9B;
+  --color-electric-lime: #D8F500;
+  --color-athletic-orange: #FF5A00;
+  --color-warm-offwhite: #F7F1E8;
+  --color-athletic-black: #111111;
+  --color-pure-white: #FFFFFF;
+
+  --color-surface-card: #FFFFFF;
+  --color-surface-muted: #EFE8DD;
+  --color-border-subtle: rgba(23, 16, 68, 0.08);
+
+  --shadow-athletic: 0 10px 30px -10px rgba(23, 16, 68, 0.12);
+  --shadow-athletic-lg: 0 20px 40px -15px rgba(23, 16, 68, 0.18);
+  --shadow-orange-glow: 0 10px 25px -5px rgba(255, 90, 0, 0.35);
+  --shadow-lime-glow: 0 10px 25px -5px rgba(216, 245, 0, 0.4);
+}
+
+:root {
+  --deep-purple: #171044;
+  --purple-primary: #4B2A9B;
+  --electric-lime: #D8F500;
+  --athletic-orange: #FF5A00;
+  --warm-offwhite: #F7F1E8;
+  --athletic-black: #111111;
+  --pure-white: #FFFFFF;
+
+  --font-heading: 'Outfit', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--warm-offwhite);
+  color: var(--athletic-black);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: var(--font-heading);
+}
+
+/* Custom Design System Components & Utilities */
+
+/* Graphic Accents */
+.accent-plus {
+  color: var(--athletic-orange);
+  font-weight: 700;
+  margin-left: 0.25rem;
+  display: inline-block;
+}
+
+.athletic-gradient-text {
+  background: linear-gradient(135deg, var(--athletic-black) 0%, var(--purple-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.orange-gradient-text {
+  background: linear-gradient(135deg, #FF5A00 0%, #FF8A00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glassmorphism & Surface Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.glass-panel-dark {
+  background: rgba(23, 16, 68, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Card Base Classes */
+.athletic-card {
+  background-color: var(--pure-white);
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(23, 16, 68, 0.06);
+  box-shadow: 0 10px 30px -10px rgba(23, 16, 68, 0.08);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.athletic-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -12px rgba(23, 16, 68, 0.14);
+}
+
+.athletic-card-dark {
+  background-color: var(--deep-purple);
+  color: var(--pure-white);
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 15px 35px -10px rgba(17, 10, 44, 0.3);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.athletic-card-dark:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 25px 45px -10px rgba(17, 10, 44, 0.45);
+}
+
+/* Buttons */
+.btn-athletic-primary {
+  background-color: var(--athletic-orange);
+  color: var(--pure-white);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  padding: 0.75rem 1.75rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 20px -4px rgba(255, 90, 0, 0.4);
+  cursor: pointer;
+  border: none;
+}
+
+.btn-athletic-primary:hover {
+  background-color: #E04F00;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 25px -4px rgba(255, 90, 0, 0.5);
+}
+
+.btn-athletic-secondary {
+  background-color: var(--deep-purple);
+  color: var(--pure-white);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  padding: 0.75rem 1.75rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  border: none;
+}
+
+.btn-athletic-secondary:hover {
+  background-color: var(--purple-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(23, 16, 68, 0.3);
+}
+
+.btn-athletic-lime {
+  background-color: var(--electric-lime);
+  color: var(--deep-purple);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  padding: 0.75rem 1.75rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 8px 20px -4px rgba(216, 245, 0, 0.4);
+}
+
+.btn-athletic-lime:hover {
+  background-color: #C6E000;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 25px -4px rgba(216, 245, 0, 0.55);
+}
+
+.btn-athletic-outline {
+  background-color: transparent;
+  color: var(--athletic-black);
+  border: 2px solid rgba(23, 16, 68, 0.15);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  padding: 0.7rem 1.5rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.btn-athletic-outline:hover {
+  border-color: var(--deep-purple);
+  background-color: rgba(23, 16, 68, 0.04);
+  transform: translateY(-2px);
+}
