@@ -17,6 +17,9 @@ export interface IUser extends Document {
   phone?: string;
   isActive: boolean;
   lastLoginAt?: Date;
+  failedLoginAttempts: number;
+  lockUntil?: Date;
+  passwordChangedAt?: Date;
   refreshTokens: IRefreshToken[];
   createdAt: Date;
   updatedAt: Date;
@@ -81,6 +84,16 @@ const userSchema = new Schema<IUser>(
     lastLoginAt: {
       type: Date,
     },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+    },
+    passwordChangedAt: {
+      type: Date,
+    },
     refreshTokens: {
       type: [refreshTokenSchema],
       select: false,
@@ -97,6 +110,9 @@ const userSchema = new Schema<IUser>(
         delete ret.__v;
         delete ret.passwordHash;
         delete ret.refreshTokens;
+        delete ret.failedLoginAttempts;
+        delete ret.lockUntil;
+        delete ret.passwordChangedAt;
         return ret;
       },
     },
