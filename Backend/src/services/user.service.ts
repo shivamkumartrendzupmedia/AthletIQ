@@ -1,5 +1,7 @@
 import { Types } from 'mongoose';
 import { User, type IUser } from '../models/User.js';
+import { Coach } from '../models/Coach.js';
+import { Athlete } from '../models/Athlete.js';
 import { AuditLog, type IAuditLog } from '../models/AuditLog.js';
 import { ApiError } from '../utils/ApiError.js';
 import { hashPassword } from '../utils/password.js';
@@ -166,6 +168,27 @@ export class UserService {
       previousIsActive &&
       ((input.role !== undefined && input.role !== 'Admin') ||
         input.isActive === false);
+
+    // Orphan profile protection: cannot change role away from Coach or Athlete if linked profile exists
+    if (input.role !== undefined && input.role !== previousRole) {
+      if (previousRole === 'Coach') {
+        const coachExists = await Coach.exists({ user: targetUser._id });
+        if (coachExists) {
+          throw new ApiError(
+            409,
+            'Cannot change user role: a linked Coach profile exists. Remove or reassign the coach profile first.'
+          );
+        }
+      } else if (previousRole === 'Athlete') {
+        const athleteExists = await Athlete.exists({ user: targetUser._id });
+        if (athleteExists) {
+          throw new ApiError(
+            409,
+            'Cannot change user role: a linked Athlete profile exists. Remove or reassign the athlete profile first.'
+          );
+        }
+      }
+    }
 
     // Apply updates
     if (input.name !== undefined) targetUser.name = input.name;

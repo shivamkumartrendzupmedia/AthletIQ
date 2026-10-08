@@ -144,11 +144,14 @@ const athleteSchema = new Schema<IAthlete>(
     timestamps: true,
     toJSON: {
       virtuals: true,
-      transform: (_doc, ret: Record<string, unknown>) => {
+      transform: (doc, ret: Record<string, unknown>) => {
         ret.id = String(ret._id);
         delete ret._id;
         delete ret.__v;
-        delete ret.medicalNotes;
+        const docWithSelect = doc as unknown as { isSelected?: (field: string) => boolean };
+        if (typeof docWithSelect.isSelected === 'function' && !docWithSelect.isSelected('medicalNotes')) {
+          delete ret.medicalNotes;
+        }
         return ret;
       },
     },

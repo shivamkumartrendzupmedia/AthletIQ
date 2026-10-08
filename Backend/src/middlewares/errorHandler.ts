@@ -12,7 +12,7 @@ interface ErrorResponse {
 
 /**
  * Global error handling middleware enforcing standard error response shape:
- * { success: false, message: string, errors?: any }
+ * { success: false, message: string, errors?: unknown }
  */
 export const errorHandler = (
   err: Error,

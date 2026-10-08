@@ -12,6 +12,7 @@
     "verify:models": "tsx scripts/verify-models.ts",
     "verify:auth": "tsx scripts/verify-auth.ts",
     "verify:rbac": "tsx scripts/verify-rbac.ts",
+    "verify:academy": "tsx scripts/verify-academy.ts",
     "create:user": "tsx scripts/create-user.ts"
   },
   "keywords": [
