@@ -89,10 +89,118 @@ Per Correction 6, below is the comprehensive list of every in-app link pointing 
 ### A. Backend Test Suites
 - **`npm run verify:models`**: 27/27 passed.
 - **`npm run verify:auth`**: 30/30 passed. Total failed HTTP requests on auth: 7 (strictly <= 8).
-- **`npm run verify:rbac`**: 65/65 passed. Total HTTP requests: 67 (strictly < 90). Failed auth requests: 3 (strictly <= 8). Database count restored: Users = 4, AuditLogs = 0.
+- **`npm run verify:rbac`**: 82 passed, 0 failed. Total HTTP requests: 69 (strictly < 90). Failed auth requests: 3 (strictly <= 8). Database count restored: Users = 4, AuditLogs = 0.
 - **`npm run verify:academy`**: 133/133 passed across 6 server groups. All group request counts strictly < 90. Failed auth requests: 0. Database count restored: Users = 4, Sports = 0, Teams = 0, Coaches = 0, Athletes = 0, AuditLogs = 0.
+
+> **Note on Verification Logs**: This document intentionally contains no hand-typed or simulated test output matrices. For authentic runtime evidence and machine-verified assertions, execute `npm run verify:rbac` and `npm run verify:academy` directly in the backend workspace.
 
 ### B. Frontend Verification
 - **`npm run build`**: TypeScript compiler (`tsc -b`) and Vite production bundle generated cleanly with 0 errors.
-- **`npm run lint`**: 100 warnings, 0 errors (baseline was 124 warnings).
-- **Zero `any` Grep Proof**: Verified across all 12 created/modified frontend files with 0 matches.
+- **`npm run lint`**: 100 warnings, 0 errors (within the <= 100 limit).
+- **Zero `any` Grep Proof**: Verified across all frontend files with 0 matches.
+
+---
+
+## 6. Mechanical Payload vs Backend Zod API Mapping Table
+
+All API payload contracts strictly mirror the Backend Zod schemas (`.strict()` mode) and domain enum constants defined in `Backend/src/models/constants.ts`. All non-existent or fictitious fields (such as sport `category`, `maxTeams`, or user create `isActive`) have been permanently excluded from types, payloads, and JSX form inputs.
+
+| Entity | Action | Backend Zod Key & Constraints | Frontend Request Key (`academyApi.ts`) | UI Form Input & Options | Status / Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Sport** | Create | `name`: string (2..100) | `name`: string | `<input type="text">` | Kept |
+| **Sport** | Create | `description`: string (min 5) | `description`: string | `<textarea>` | Kept |
+| **Sport** | Create | `shortDescription`?: string (max 250) | `shortDescription`?: string | *(optional API field)* | Kept |
+| **Sport** | Create | `icon`?: string (https url) | `icon`?: string | `<input type="url">` | Kept |
+| **Sport** | Create | `image`?: string (https url) | `image`?: string | *(optional API field)* | Kept |
+| **Sport** | Create | `ageGroups`: string[] (default `[]`) | `ageGroups`?: string[] | Button toggle pills (`AVAILABLE_AGE_GROUPS`) | Kept |
+| **Sport** | Create | `features`: string[] (default `[]`) | `features`?: string[] | `<input type="text">` (comma-separated) | Kept |
+| **Sport** | Create | `status`: enum `SPORT_STATUSES` (`'Active' \| 'Inactive'`) | `status`?: `'Active' \| 'Inactive'` | `<select>`: `Active`, `Inactive` | Kept |
+| **Sport** | Create | *(none)* | *(none)* | *(removed from JSX)* | `category` removed (not in Zod/model) |
+| **Sport** | Create | *(none)* | *(none)* | *(removed from JSX)* | `maxTeams` removed (not in Zod/model) |
+| **Sport** | Update | `name`?: string (2..100) | `name`?: string | `<input type="text">` | Kept |
+| **Sport** | Update | `description`?: string (min 5) | `description`?: string | `<textarea>` | Kept |
+| **Sport** | Update | `shortDescription`?: string (max 250) | `shortDescription`?: string | *(optional API field)* | Kept |
+| **Sport** | Update | `icon`?: string (https url) | `icon`?: string | `<input type="url">` | Kept |
+| **Sport** | Update | `image`?: string (https url) | `image`?: string | *(optional API field)* | Kept |
+| **Sport** | Update | `ageGroups`?: string[] | `ageGroups`?: string[] | Button toggle pills (`AVAILABLE_AGE_GROUPS`) | Kept |
+| **Sport** | Update | `features`?: string[] | `features`?: string[] | `<input type="text">` (comma-separated) | Kept |
+| **Sport** | Update | `status`?: enum `SPORT_STATUSES` (`'Active' \| 'Inactive'`) | `status`?: `'Active' \| 'Inactive'` | `<select>`: `Active`, `Inactive` | Kept |
+| **Team** | Create | `name`: string (2..100) | `name`: string | `<input type="text">` | Kept |
+| **Team** | Create | `sport`: ObjectId string | `sport`: string | `<select>` (`sports.map(s => s.id)`) | Kept |
+| **Team** | Create | `ageGroup`: string (min 1) | `ageGroup`: string | `<select>` (`availableAgeGroups`) | Kept |
+| **Team** | Create | `coach`?: ObjectId string | `coach`?: string | `<select>` (`coaches.map(c => c.id)`) | Kept |
+| **Team** | Create | `season`?: string (max 50) | `season`?: string | `<input type="text">` | Kept |
+| **Team** | Create | `logo`?: string (https url) | `logo`?: string | *(optional API field)* | Kept |
+| **Team** | Create | `status`: enum `TEAM_STATUSES` (`'Active' \| 'Inactive'`) | `status`?: `'Active' \| 'Inactive'` | `<select>`: `Active`, `Inactive` | Kept |
+| **Team** | Update | `name`?: string (2..100) | `name`?: string | `<input type="text">` | Kept |
+| **Team** | Update | `sport`?: ObjectId string | `sport`?: string | `<select>` (`sports.map(s => s.id)`) | Kept |
+| **Team** | Update | `ageGroup`?: string (min 1) | `ageGroup`?: string | `<select>` (`availableAgeGroups`) | Kept |
+| **Team** | Update | `coach`?: ObjectId string \| null | `coach`?: string \| null | `<select>` (`coaches.map(c => c.id)` or `""`) | Kept |
+| **Team** | Update | `season`?: string (max 50) | `season`?: string | `<input type="text">` | Kept |
+| **Team** | Update | `logo`?: string (https url) | `logo`?: string | *(optional API field)* | Kept |
+| **Team** | Update | `status`?: enum `TEAM_STATUSES` (`'Active' \| 'Inactive'`) | `status`?: `'Active' \| 'Inactive'` | `<select>`: `Active`, `Inactive` | Kept |
+| **Coach** | Create | `user`: ObjectId string | `user`: string | `<select>` (`unassignedCoachUsers`) | Kept |
+| **Coach** | Create | `title`?: string (max 100) | `title`?: string | `<input type="text">` | Kept |
+| **Coach** | Create | `bio`?: string | `bio`?: string | `<textarea>` | Kept |
+| **Coach** | Create | `specialization`?: string | `specialization`?: string | *(optional API field)* | Kept |
+| **Coach** | Create | `specialties`: string[] (default `[]`) | `specialties`?: string[] | `<input type="text">` (comma-separated) | Kept |
+| **Coach** | Create | `sports`: ObjectId[] (default `[]`) | `sports`?: string[] | Button toggle pills (`sports.map(s => s.id)`) | Kept |
+| **Coach** | Create | `certifications`: object[] (default `[]`) | `certifications`?: object[] | *(optional API field)* | Kept |
+| **Coach** | Create | `experienceYears`: number (min 0) | `experienceYears`?: number | `<input type="number" min="0">` | Kept |
+| **Coach** | Create | `achievements`: string[] (default `[]`) | `achievements`?: string[] | *(optional API field)* | Kept |
+| **Coach** | Create | `photo`?: string (https url) | `photo`?: string | *(optional API field)* | Kept |
+| **Coach** | Create | `isPublic`: boolean (default `true`) | `isPublic`?: boolean | `<input type="checkbox">` | Kept |
+| **Coach** | Update | `title`?: string (max 100) | `title`?: string | `<input type="text">` | Kept |
+| **Coach** | Update | `bio`?: string | `bio`?: string | `<textarea>` | Kept |
+| **Coach** | Update | `specialization`?: string | `specialization`?: string | *(optional API field)* | Kept |
+| **Coach** | Update | `specialties`?: string[] | `specialties`?: string[] | `<input type="text">` (comma-separated) | Kept |
+| **Coach** | Update | `sports`?: ObjectId[] | `sports`?: string[] | Button toggle pills (`sports.map(s => s.id)`) | Kept |
+| **Coach** | Update | `certifications`?: object[] | `certifications`?: object[] | *(optional API field)* | Kept |
+| **Coach** | Update | `experienceYears`?: number (min 0) | `experienceYears`?: number | `<input type="number" min="0">` | Kept |
+| **Coach** | Update | `achievements`?: string[] | `achievements`?: string[] | *(optional API field)* | Kept |
+| **Coach** | Update | `photo`?: string (https url) | `photo`?: string | *(optional API field)* | Kept |
+| **Coach** | Update | `isPublic`?: boolean | `isPublic`?: boolean | `<input type="checkbox">` | Kept |
+| **Athlete** | Create | `user`?: ObjectId string | `user`?: string | `<select>` (`availableUsers`) | Kept |
+| **Athlete** | Create | `sport`: ObjectId string | `sport`: string | `<select>` (`sports.map(s => s.id)`) | Kept |
+| **Athlete** | Create | `team`?: ObjectId string | `team`?: string | `<select>` (`availableTeams`) | Kept |
+| **Athlete** | Create | `dateOfBirth`?: string \| Date | `dateOfBirth`?: string | `<input type="date">` | Kept |
+| **Athlete** | Create | `gender`?: enum `GENDER_TYPES` (`'Male' \| 'Female' \| 'Other'`) | `gender`?: `'Male' \| 'Female' \| 'Other'` | `<select>`: `Male`, `Female`, `Other` | Kept |
+| **Athlete** | Create | `position`?: string (max 50) | `position`?: string | `<input type="text">` | Kept |
+| **Athlete** | Create | `jerseyNumber`?: number (0..99) | `jerseyNumber`?: number | `<input type="number" min="0" max="99">` | Kept |
+| **Athlete** | Create | `heightCm`?: number (50..280) | `heightCm`?: number | `<input type="number">` | Kept |
+| **Athlete** | Create | `weightKg`?: number (20..250) | `weightKg`?: number | `<input type="number">` | Kept |
+| **Athlete** | Create | `status`: enum `ATHLETE_STATUSES` (`'Active' \| 'Injured' \| 'Trial' \| 'Inactive'`) | `status`?: `'Active' \| 'Injured' \| 'Trial' \| 'Inactive'` | Defaults to `'Active'` | Kept |
+| **Athlete** | Create | `verificationStatus`: enum `VERIFICATION_STATUSES` (`'Verified' \| 'Pending ID' \| 'Medical Required'`) | `verificationStatus`?: `'Verified' \| 'Pending ID' \| 'Medical Required'` | Defaults to `'Pending ID'` | Kept |
+| **Athlete** | Create | `medicalClearance`: boolean (default `false`) | `medicalClearance`?: boolean | *(optional API field)* | Kept |
+| **Athlete** | Create | `guardian`?: `{ name, phone, email? }` | `guardian`?: `{ name, phone, email? }` | *(optional API field)* | Kept |
+| **Athlete** | Create | `medicalNotes`?: string | `medicalNotes`?: string | `<textarea>` (Admin only) | Kept |
+| **Athlete** | Create | `profileVisibility`: enum `PROFILE_VISIBILITY` (`'Public' \| 'AcademyOnly' \| 'Private'`) | `profileVisibility`?: `'Public' \| 'AcademyOnly' \| 'Private'` | Defaults to `'AcademyOnly'` | Kept |
+| **Athlete** | Update (Admin) | `user`?: ObjectId \| null | `user`?: string \| null | *(optional API field)* | Kept |
+| **Athlete** | Update (Admin) | `sport`?: ObjectId | `sport`?: string | *(optional API field)* | Kept |
+| **Athlete** | Update (Admin) | `team`?: ObjectId \| null | `team`?: string \| null | *(optional API field; team assigned via roster)* | Kept |
+| **Athlete** | Update (Admin) | `dateOfBirth`?: string \| Date | `dateOfBirth`?: string | *(optional API field)* | Kept |
+| **Athlete** | Update (Admin) | `gender`?: enum `GENDER_TYPES` | `gender`?: `'Male' \| 'Female' \| 'Other'` | *(optional API field)* | Kept |
+| **Athlete** | Update (Admin) | `position`?: string (max 50) | `position`?: string | `<input type="text">` | Kept |
+| **Athlete** | Update (Admin) | `jerseyNumber`?: number \| null (0..99) | `jerseyNumber`?: number \| null | `<input type="number" min="0" max="99">` | Kept |
+| **Athlete** | Update (Admin) | `heightCm`?: number (50..280) | `heightCm`?: number | *(optional API field)* | Kept |
+| **Athlete** | Update (Admin) | `weightKg`?: number (20..250) | `weightKg`?: number | *(optional API field)* | Kept |
+| **Athlete** | Update (Admin) | `status`?: enum `ATHLETE_STATUSES` | `status`?: `'Active' \| 'Injured' \| 'Trial' \| 'Inactive'` | `<select>`: `Active`, `Injured`, `Trial`, `Inactive` | Kept |
+| **Athlete** | Update (Admin) | `verificationStatus`?: enum `VERIFICATION_STATUSES` | `verificationStatus`?: `'Verified' \| 'Pending ID' \| 'Medical Required'` | `<select>`: `Pending ID`, `Verified`, `Medical Required` | Kept |
+| **Athlete** | Update (Admin) | `medicalClearance`?: boolean | `medicalClearance`?: boolean | *(optional API field)* | Kept |
+| **Athlete** | Update (Admin) | `guardian`?: `{ name, phone, email? }` | `guardian`?: `{ name, phone, email? }` | *(optional API field)* | Kept |
+| **Athlete** | Update (Admin) | `medicalNotes`?: string | `medicalNotes`?: string | `<textarea>` (Admin only) | Kept |
+| **Athlete** | Update (Admin) | `profileVisibility`?: enum `PROFILE_VISIBILITY` | `profileVisibility`?: `'Public' \| 'AcademyOnly' \| 'Private'` | *(optional API field)* | Kept |
+| **Athlete** | Update (Coach) | `position`?: string (max 50) | `position`?: string | `<input type="text">` | Kept |
+| **Athlete** | Update (Coach) | `status`?: enum `['Active', 'Injured', 'Trial']` | `status`?: `'Active' \| 'Injured' \| 'Trial'` | `<select>`: `Active`, `Injured`, `Trial` | Kept |
+| **User** | Create | `name`: string (2..80) | `name`: string | `<input type="text">` | Kept |
+| **User** | Create | `email`: string (lowercase email) | `email`: string | `<input type="email">` | Kept |
+| **User** | Create | `password`: string (policy regex) | `password`: string | `<input type="password">` | Kept |
+| **User** | Create | `role`: enum `ROLES` (`'Admin' \| 'Coach' \| 'Athlete' \| 'Organizer'`) | `role`: `'Admin' \| 'Coach' \| 'Athlete' \| 'Organizer'` | `<select>`: `Admin`, `Coach`, `Athlete`, `Organizer` | Kept |
+| **User** | Create | `phone`?: string | `phone`?: string | *(optional API field)* | Kept |
+| **User** | Create | `avatar`?: string | `avatar`?: string | *(optional API field)* | Kept |
+| **User** | Create | *(none)* | *(none)* | *(removed from JSX)* | `isActive` removed (not in `createUserSchema.strict()`) |
+| **User** | Update | `name`?: string (2..80) | `name`?: string | `<input type="text">` | Kept |
+| **User** | Update | `phone`?: string | `phone`?: string | *(optional API field)* | Kept |
+| **User** | Update | `avatar`?: string | `avatar`?: string | *(optional API field)* | Kept |
+| **User** | Update | `role`?: enum `ROLES` | `role`?: `'Admin' \| 'Coach' \| 'Athlete' \| 'Organizer'` | `<select>`: `Admin`, `Coach`, `Athlete`, `Organizer` (disabled on self) | Kept |
+| **User** | Update | `isActive`?: boolean | `isActive`?: boolean | `<input type="checkbox">` (disabled on self) | Kept |

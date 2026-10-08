@@ -19,6 +19,7 @@ import {
   type TeamItem,
   type AdminUserItem,
   type PaginationMeta,
+  mapFieldErrors,
 } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
 
@@ -68,9 +69,9 @@ export const AthleteManagementPage: React.FC = () => {
   // Form states (Edit - Admin full / Coach limited)
   const [editPosition, setEditPosition] = useState('');
   const [editJerseyNumber, setEditJerseyNumber] = useState('');
-  const [editStatus, setEditStatus] = useState<'Active' | 'Inactive' | 'Injured' | 'Suspended'>('Active');
+  const [editStatus, setEditStatus] = useState<'Active' | 'Injured' | 'Trial' | 'Inactive'>('Active');
   const [editMedicalNotes, setEditMedicalNotes] = useState('');
-  const [editVerificationStatus, setEditVerificationStatus] = useState<'Pending' | 'Verified' | 'Rejected'>('Pending');
+  const [editVerificationStatus, setEditVerificationStatus] = useState<'Verified' | 'Pending ID' | 'Medical Required'>('Pending ID');
 
   // Accessible unique IDs
   const createUserIdInput = useId();
@@ -155,8 +156,12 @@ export const AthleteManagementPage: React.FC = () => {
     setCreateMedicalNotes('');
     setCreateHeightCm('');
     setCreateWeightKg('');
+    setCreateFieldErrors({});
     setShowCreateModal(true);
   };
+
+  const [createFieldErrors, setCreateFieldErrors] = useState<Record<string, string>>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
 
   const openEditModal = (a: AthleteItem) => {
     setEditingAthlete(a);
@@ -165,6 +170,7 @@ export const AthleteManagementPage: React.FC = () => {
     setEditStatus(a.status);
     setEditMedicalNotes(a.medicalNotes || '');
     setEditVerificationStatus(a.verificationStatus);
+    setEditFieldErrors({});
   };
 
   const openViewModal = async (a: AthleteItem) => {
@@ -178,7 +184,17 @@ export const AthleteManagementPage: React.FC = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createSportId || !createDOB) return;
+    setCreateFieldErrors({});
+    const clientErrors: Record<string, string> = {};
+    if (!createSportId) clientErrors.sport = 'Sport selection is required';
+    if (!createDOB) clientErrors.dateOfBirth = 'Date of birth is required';
+
+    if (Object.keys(clientErrors).length > 0) {
+      setCreateFieldErrors(clientErrors);
+      setErrorBanner('Please fill in all required fields marked below.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorBanner(null);
     try {
@@ -199,6 +215,10 @@ export const AthleteManagementPage: React.FC = () => {
       setSuccessBanner('Athlete enrolled successfully.');
       fetchAthletes();
     } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      if (Object.keys(mapped).length > 0) {
+        setCreateFieldErrors(mapped);
+      }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to enroll athlete.';
       setErrorBanner(msg);
     } finally {
@@ -209,6 +229,7 @@ export const AthleteManagementPage: React.FC = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAthlete) return;
+    setEditFieldErrors({});
     setSubmitting(true);
     setErrorBanner(null);
     try {
@@ -228,6 +249,10 @@ export const AthleteManagementPage: React.FC = () => {
       setSuccessBanner('Athlete details updated.');
       fetchAthletes();
     } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      if (Object.keys(mapped).length > 0) {
+        setEditFieldErrors(mapped);
+      }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to update athlete.';
       setErrorBanner(msg);
     } finally {
@@ -329,9 +354,9 @@ export const AthleteManagementPage: React.FC = () => {
           >
             <option value="">All Statuses</option>
             <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
             <option value="Injured">Injured</option>
-            <option value="Suspended">Suspended</option>
+            <option value="Trial">Trial</option>
+            <option value="Inactive">Inactive</option>
           </select>
         </div>
       </Card>
@@ -409,7 +434,7 @@ export const AthleteManagementPage: React.FC = () => {
                           variant={
                             ath.verificationStatus === 'Verified'
                               ? 'lime'
-                              : ath.verificationStatus === 'Pending'
+                              : ath.verificationStatus === 'Pending ID'
                               ? 'orange'
                               : 'dark'
                           }
@@ -426,6 +451,8 @@ export const AthleteManagementPage: React.FC = () => {
                               ? 'text-green-700'
                               : ath.status === 'Injured'
                               ? 'text-amber-700'
+                              : ath.status === 'Trial'
+                              ? 'text-blue-700'
                               : 'text-red-600'
                           }`}
                         >
@@ -435,6 +462,8 @@ export const AthleteManagementPage: React.FC = () => {
                                 ? 'bg-green-500'
                                 : ath.status === 'Injured'
                                 ? 'bg-amber-500'
+                                : ath.status === 'Trial'
+                                ? 'bg-blue-500'
                                 : 'bg-red-500'
                             }`}
                           />
@@ -626,21 +655,29 @@ export const AthleteManagementPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor={createSportIdInput} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                    Sport Discipline
+                    Sport Discipline <span className="text-red-500">*</span>
                   </label>
                   <select
                     id={createSportIdInput}
-                    required
                     value={createSportId}
-                    onChange={(e) => setCreateSportId(e.target.value)}
-                    className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
+                    onChange={(e) => {
+                      setCreateSportId(e.target.value);
+                      if (createFieldErrors.sport) setCreateFieldErrors((prev) => ({ ...prev, sport: '' }));
+                    }}
+                    className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm font-semibold outline-none ${
+                      createFieldErrors.sport ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
                   >
+                    <option value="">Select Sport...</option>
                     {sports.map((sp) => (
                       <option key={sp.id} value={sp.id}>
                         {sp.name}
                       </option>
                     ))}
                   </select>
+                  {createFieldErrors.sport && (
+                    <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.sport}</p>
+                  )}
                 </div>
 
                 <div>
@@ -660,6 +697,9 @@ export const AthleteManagementPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {createFieldErrors.team && (
+                    <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.team}</p>
+                  )}
                 </div>
               </div>
 
@@ -676,6 +716,9 @@ export const AthleteManagementPage: React.FC = () => {
                     onChange={(e) => setCreatePosition(e.target.value)}
                     className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                   />
+                  {createFieldErrors.position && (
+                    <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.position}</p>
+                  )}
                 </div>
 
                 <div>
@@ -691,22 +734,32 @@ export const AthleteManagementPage: React.FC = () => {
                     onChange={(e) => setCreateJerseyNumber(e.target.value)}
                     className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                   />
+                  {createFieldErrors.jerseyNumber && (
+                    <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.jerseyNumber}</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor={createDOBInput} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                    Date of Birth
+                    Date of Birth <span className="text-red-500">*</span>
                   </label>
                   <input
                     id={createDOBInput}
                     type="date"
-                    required
                     value={createDOB}
-                    onChange={(e) => setCreateDOB(e.target.value)}
-                    className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                    onChange={(e) => {
+                      setCreateDOB(e.target.value);
+                      if (createFieldErrors.dateOfBirth) setCreateFieldErrors((prev) => ({ ...prev, dateOfBirth: '' }));
+                    }}
+                    className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                      createFieldErrors.dateOfBirth ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
                   />
+                  {createFieldErrors.dateOfBirth && (
+                    <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.dateOfBirth}</p>
+                  )}
                 </div>
 
                 <div>
@@ -808,6 +861,9 @@ export const AthleteManagementPage: React.FC = () => {
                   onChange={(e) => setEditPosition(e.target.value)}
                   className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                 />
+                {editFieldErrors.position && (
+                  <p className="mt-1 text-xs text-red-600 font-medium">{editFieldErrors.position}</p>
+                )}
               </div>
 
               <div>
@@ -818,14 +874,14 @@ export const AthleteManagementPage: React.FC = () => {
                   id={editStatusInput}
                   value={editStatus}
                   onChange={(e) =>
-                    setEditStatus(e.target.value as 'Active' | 'Inactive' | 'Injured' | 'Suspended')
+                    setEditStatus(e.target.value as 'Active' | 'Injured' | 'Trial' | 'Inactive')
                   }
                   className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
                 >
                   <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
                   <option value="Injured">Injured</option>
-                  <option value="Suspended">Suspended</option>
+                  <option value="Trial">Trial</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
@@ -844,6 +900,9 @@ export const AthleteManagementPage: React.FC = () => {
                       onChange={(e) => setEditJerseyNumber(e.target.value)}
                       className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                     />
+                    {editFieldErrors.jerseyNumber && (
+                      <p className="mt-1 text-xs text-red-600 font-medium">{editFieldErrors.jerseyNumber}</p>
+                    )}
                   </div>
 
                   <div>
@@ -854,13 +913,13 @@ export const AthleteManagementPage: React.FC = () => {
                       id={editVerificationInput}
                       value={editVerificationStatus}
                       onChange={(e) =>
-                        setEditVerificationStatus(e.target.value as 'Pending' | 'Verified' | 'Rejected')
+                        setEditVerificationStatus(e.target.value as 'Verified' | 'Pending ID' | 'Medical Required')
                       }
                       className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
                     >
-                      <option value="Pending">Pending</option>
+                      <option value="Pending ID">Pending ID</option>
                       <option value="Verified">Verified</option>
-                      <option value="Rejected">Rejected</option>
+                      <option value="Medical Required">Medical Required</option>
                     </select>
                   </div>
 

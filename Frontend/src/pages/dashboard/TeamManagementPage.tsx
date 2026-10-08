@@ -7,6 +7,7 @@ import {
   type TeamItem,
   type SportItem,
   type CoachItem,
+  mapFieldErrors,
 } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
 
@@ -82,6 +83,9 @@ export const TeamManagementPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [fetchData]);
 
+  const [createFieldErrors, setCreateFieldErrors] = useState<Record<string, string>>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
+
   const selectedSportObj = sports.find((s) => s.id === formSportId);
   const availableAgeGroups = selectedSportObj?.ageGroups || ['U14', 'U16', 'U18', 'Senior'];
 
@@ -94,6 +98,7 @@ export const TeamManagementPage: React.FC = () => {
     setFormSeason('2026');
     setFormCoachId('');
     setFormStatus('Active');
+    setCreateFieldErrors({});
     setShowCreateModal(true);
   };
 
@@ -107,11 +112,23 @@ export const TeamManagementPage: React.FC = () => {
     const cId = t.coach?.id || '';
     setFormCoachId(cId);
     setFormStatus(t.status);
+    setEditFieldErrors({});
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !formSportId || !formAgeGroup) return;
+    setCreateFieldErrors({});
+    const clientErrors: Record<string, string> = {};
+    if (!formName.trim()) clientErrors.name = 'Team name is required';
+    if (!formSportId) clientErrors.sport = 'Sport is required';
+    if (!formAgeGroup) clientErrors.ageGroup = 'Age group is required';
+
+    if (Object.keys(clientErrors).length > 0) {
+      setCreateFieldErrors(clientErrors);
+      setErrorBanner('Please fill in all required fields marked below.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorBanner(null);
     try {
@@ -128,6 +145,10 @@ export const TeamManagementPage: React.FC = () => {
       setSuccessBanner(`Team "${formName}" created successfully.`);
       fetchData();
     } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      if (Object.keys(mapped).length > 0) {
+        setCreateFieldErrors(mapped);
+      }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to create team.';
       setErrorBanner(msg);
     } finally {
@@ -138,6 +159,18 @@ export const TeamManagementPage: React.FC = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTeam) return;
+    setEditFieldErrors({});
+    const clientErrors: Record<string, string> = {};
+    if (!formName.trim()) clientErrors.name = 'Team name cannot be empty';
+    if (!formSportId) clientErrors.sport = 'Sport is required';
+    if (!formAgeGroup) clientErrors.ageGroup = 'Age group is required';
+
+    if (Object.keys(clientErrors).length > 0) {
+      setEditFieldErrors(clientErrors);
+      setErrorBanner('Please fill in all required fields marked below.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorBanner(null);
     try {
@@ -154,6 +187,10 @@ export const TeamManagementPage: React.FC = () => {
       setSuccessBanner(`Team "${formName}" updated successfully.`);
       fetchData();
     } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      if (Object.keys(mapped).length > 0) {
+        setEditFieldErrors(mapped);
+      }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to update team.';
       setErrorBanner(msg);
     } finally {
@@ -323,37 +360,46 @@ export const TeamManagementPage: React.FC = () => {
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
                 <label htmlFor={createNameId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Team Name
+                  Team Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   id={createNameId}
                   type="text"
-                  required
                   placeholder="e.g. U16 Strikers Football"
                   value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormName(e.target.value);
+                    if (createFieldErrors.name) setCreateFieldErrors((prev) => ({ ...prev, name: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    createFieldErrors.name ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {createFieldErrors.name && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.name}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor={createSportId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                    Sport Discipline
+                    Sport Discipline <span className="text-red-500">*</span>
                   </label>
                   <select
                     id={createSportId}
-                    required
                     value={formSportId}
                     onChange={(e) => {
                       const newSportId = e.target.value;
                       setFormSportId(newSportId);
+                      if (createFieldErrors.sport) setCreateFieldErrors((prev) => ({ ...prev, sport: '' }));
                       const sp = sports.find((s) => s.id === newSportId);
                       if (sp && sp.ageGroups && sp.ageGroups.length > 0) {
                         setFormAgeGroup(sp.ageGroups[0]);
                       }
                     }}
-                    className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
+                    className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm font-semibold outline-none ${
+                      createFieldErrors.sport ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
                   >
                     {sports.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -361,18 +407,25 @@ export const TeamManagementPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {createFieldErrors.sport && (
+                    <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.sport}</p>
+                  )}
                 </div>
 
                 <div>
                   <label htmlFor={createAgeGroupId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                    Age Group
+                    Age Group <span className="text-red-500">*</span>
                   </label>
                   <select
                     id={createAgeGroupId}
-                    required
                     value={formAgeGroup}
-                    onChange={(e) => setFormAgeGroup(e.target.value)}
-                    className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
+                    onChange={(e) => {
+                      setFormAgeGroup(e.target.value);
+                      if (createFieldErrors.ageGroup) setCreateFieldErrors((prev) => ({ ...prev, ageGroup: '' }));
+                    }}
+                    className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm font-semibold outline-none ${
+                      createFieldErrors.ageGroup ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
                   >
                     {availableAgeGroups.map((ag) => (
                       <option key={ag} value={ag}>
@@ -380,6 +433,9 @@ export const TeamManagementPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {createFieldErrors.ageGroup && (
+                    <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.ageGroup}</p>
+                  )}
                 </div>
               </div>
 
@@ -462,36 +518,45 @@ export const TeamManagementPage: React.FC = () => {
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
                 <label htmlFor={editNameId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Team Name
+                  Team Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   id={editNameId}
                   type="text"
-                  required
                   value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormName(e.target.value);
+                    if (editFieldErrors.name) setEditFieldErrors((prev) => ({ ...prev, name: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    editFieldErrors.name ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {editFieldErrors.name && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.name}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor={editSportId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                    Sport Discipline
+                    Sport Discipline <span className="text-red-500">*</span>
                   </label>
                   <select
                     id={editSportId}
-                    required
                     value={formSportId}
                     onChange={(e) => {
                       const newSportId = e.target.value;
                       setFormSportId(newSportId);
+                      if (editFieldErrors.sport) setEditFieldErrors((prev) => ({ ...prev, sport: '' }));
                       const sp = sports.find((s) => s.id === newSportId);
                       if (sp && sp.ageGroups && sp.ageGroups.length > 0) {
                         setFormAgeGroup(sp.ageGroups[0]);
                       }
                     }}
-                    className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
+                    className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm font-semibold outline-none ${
+                      editFieldErrors.sport ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
                   >
                     {sports.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -499,18 +564,25 @@ export const TeamManagementPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {editFieldErrors.sport && (
+                    <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.sport}</p>
+                  )}
                 </div>
 
                 <div>
                   <label htmlFor={editAgeGroupId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                    Age Group
+                    Age Group <span className="text-red-500">*</span>
                   </label>
                   <select
                     id={editAgeGroupId}
-                    required
                     value={formAgeGroup}
-                    onChange={(e) => setFormAgeGroup(e.target.value)}
-                    className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
+                    onChange={(e) => {
+                      setFormAgeGroup(e.target.value);
+                      if (editFieldErrors.ageGroup) setEditFieldErrors((prev) => ({ ...prev, ageGroup: '' }));
+                    }}
+                    className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm font-semibold outline-none ${
+                      editFieldErrors.ageGroup ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
                   >
                     {availableAgeGroups.map((ag) => (
                       <option key={ag} value={ag}>
@@ -518,6 +590,9 @@ export const TeamManagementPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {editFieldErrors.ageGroup && (
+                    <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.ageGroup}</p>
+                  )}
                 </div>
               </div>
 

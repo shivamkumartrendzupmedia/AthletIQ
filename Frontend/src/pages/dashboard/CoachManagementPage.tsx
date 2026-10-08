@@ -6,6 +6,7 @@ import {
   type CoachItem,
   type SportItem,
   type AdminUserItem,
+  mapFieldErrors,
 } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
 
@@ -78,6 +79,9 @@ export const CoachManagementPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [fetchData]);
 
+  const [createFieldErrors, setCreateFieldErrors] = useState<Record<string, string>>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
+
   const openCreateModal = () => {
     // Find candidate users who don't already have coach profile
     const existingCoachUserIds = new Set(coaches.map((c) => c.user?.id));
@@ -90,6 +94,7 @@ export const CoachManagementPage: React.FC = () => {
     setFormExpYears('5');
     setFormBio('Dedicated academy coach focused on youth athlete progression.');
     setFormIsPublic(true);
+    setCreateFieldErrors({});
     setShowCreateModal(true);
   };
 
@@ -102,6 +107,7 @@ export const CoachManagementPage: React.FC = () => {
     setFormExpYears(String(c.experienceYears ?? 5));
     setFormBio(c.bio || '');
     setFormIsPublic(c.isPublic);
+    setEditFieldErrors({});
   };
 
   const toggleSport = (sportId: string) => {
@@ -112,7 +118,17 @@ export const CoachManagementPage: React.FC = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formUserId || !formTitle.trim()) return;
+    setCreateFieldErrors({});
+    const clientErrors: Record<string, string> = {};
+    if (!formUserId) clientErrors.user = 'Coach user account selection is required';
+    if (!formTitle.trim()) clientErrors.title = 'Coach title is required';
+
+    if (Object.keys(clientErrors).length > 0) {
+      setCreateFieldErrors(clientErrors);
+      setErrorBanner('Please fill in all required fields marked below.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorBanner(null);
     try {
@@ -135,6 +151,10 @@ export const CoachManagementPage: React.FC = () => {
       setSuccessBanner('Coach profile created successfully.');
       fetchData();
     } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      if (Object.keys(mapped).length > 0) {
+        setCreateFieldErrors(mapped);
+      }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to create coach profile.';
       setErrorBanner(msg);
     } finally {
@@ -145,6 +165,16 @@ export const CoachManagementPage: React.FC = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCoach) return;
+    setEditFieldErrors({});
+    const clientErrors: Record<string, string> = {};
+    if (!formTitle.trim()) clientErrors.title = 'Coach title cannot be empty';
+
+    if (Object.keys(clientErrors).length > 0) {
+      setEditFieldErrors(clientErrors);
+      setErrorBanner('Please fill in all required fields marked below.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorBanner(null);
     try {
@@ -333,36 +363,51 @@ export const CoachManagementPage: React.FC = () => {
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
                 <label htmlFor={createUserId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Coach User Account
+                  Coach User Account <span className="text-red-500">*</span>
                 </label>
                 <select
                   id={createUserId}
-                  required
                   value={formUserId}
-                  onChange={(e) => setFormUserId(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
+                  onChange={(e) => {
+                    setFormUserId(e.target.value);
+                    if (createFieldErrors.user) setCreateFieldErrors((prev) => ({ ...prev, user: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm font-semibold outline-none ${
+                    createFieldErrors.user ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 >
+                  <option value="">Select Coach User...</option>
                   {candidateUsers.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.name} ({u.email})
                     </option>
                   ))}
                 </select>
+                {createFieldErrors.user && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.user}</p>
+                )}
               </div>
 
               <div>
                 <label htmlFor={createTitleId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Professional Title
+                  Professional Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   id={createTitleId}
                   type="text"
-                  required
                   placeholder="e.g. Head Football Coach"
                   value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormTitle(e.target.value);
+                    if (createFieldErrors.title) setCreateFieldErrors((prev) => ({ ...prev, title: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    createFieldErrors.title ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {createFieldErrors.title && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.title}</p>
+                )}
               </div>
 
               <div>
@@ -473,16 +518,23 @@ export const CoachManagementPage: React.FC = () => {
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
                 <label htmlFor={editTitleId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Professional Title
+                  Professional Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   id={editTitleId}
                   type="text"
-                  required
                   value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormTitle(e.target.value);
+                    if (editFieldErrors.title) setEditFieldErrors((prev) => ({ ...prev, title: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    editFieldErrors.title ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {editFieldErrors.title && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.title}</p>
+                )}
               </div>
 
               <div>

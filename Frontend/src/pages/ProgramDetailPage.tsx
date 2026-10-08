@@ -153,6 +153,9 @@ export const ProgramDetailPage: React.FC = () => {
                   <span className="text-base">🏆</span>
                   <span>Active Brackets: {sport.ageGroups?.join(', ') || 'U16'}</span>
                 </div>
+                <div className="flex items-center gap-3 text-white/70 text-xs pt-1">
+                  <span>Contact the academy for fees and admissions.</span>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-white/10">

@@ -103,8 +103,8 @@ export interface AthleteItem {
   dateOfBirth: string;
   age?: number;
   gender: 'Male' | 'Female' | 'Other';
-  status: 'Active' | 'Inactive' | 'Injured' | 'Suspended';
-  verificationStatus: 'Pending' | 'Verified' | 'Rejected';
+  status: 'Active' | 'Injured' | 'Trial' | 'Inactive';
+  verificationStatus: 'Verified' | 'Pending ID' | 'Medical Required';
   medicalNotes?: string;
   heightCm?: number;
   weightKg?: number;
@@ -148,6 +148,147 @@ export interface PublicTeamItem {
   status: string;
   athleteCount: number;
 }
+
+// Strict Request Payload Types matching Backend Zod Schemas (.strict())
+export interface CreateSportInput {
+  name: string;
+  description: string;
+  shortDescription?: string;
+  icon?: string;
+  image?: string;
+  ageGroups?: string[];
+  features?: string[];
+  status?: 'Active' | 'Inactive';
+}
+
+export interface UpdateSportInput {
+  name?: string;
+  description?: string;
+  shortDescription?: string;
+  icon?: string;
+  image?: string;
+  ageGroups?: string[];
+  features?: string[];
+  status?: 'Active' | 'Inactive';
+}
+
+export interface CreateTeamInput {
+  name: string;
+  sport: string;
+  ageGroup: string;
+  coach?: string;
+  season?: string;
+  logo?: string;
+  status?: 'Active' | 'Inactive';
+}
+
+export interface UpdateTeamInput {
+  name?: string;
+  sport?: string;
+  ageGroup?: string;
+  coach?: string | null;
+  season?: string;
+  logo?: string;
+  status?: 'Active' | 'Inactive';
+}
+
+export interface CreateCoachInput {
+  user: string;
+  title?: string;
+  bio?: string;
+  specialization?: string;
+  specialties?: string[];
+  sports?: string[];
+  certifications?: Array<{ name: string; issuer?: string; year?: number }>;
+  experienceYears?: number;
+  achievements?: string[];
+  photo?: string;
+  isPublic?: boolean;
+}
+
+export interface UpdateCoachInput {
+  title?: string;
+  bio?: string;
+  specialization?: string;
+  specialties?: string[];
+  sports?: string[];
+  certifications?: Array<{ name: string; issuer?: string; year?: number }>;
+  experienceYears?: number;
+  achievements?: string[];
+  photo?: string;
+  isPublic?: boolean;
+}
+
+export interface CreateAthleteInput {
+  user?: string;
+  sport: string;
+  team?: string;
+  dateOfBirth?: string;
+  gender?: 'Male' | 'Female' | 'Other';
+  position?: string;
+  jerseyNumber?: number;
+  heightCm?: number;
+  weightKg?: number;
+  status?: 'Active' | 'Injured' | 'Trial' | 'Inactive';
+  verificationStatus?: 'Verified' | 'Pending ID' | 'Medical Required';
+  medicalClearance?: boolean;
+  guardian?: { name: string; phone: string; email?: string };
+  medicalNotes?: string;
+  profileVisibility?: 'Public' | 'AcademyOnly' | 'Private';
+}
+
+export interface UpdateAthleteInput {
+  user?: string | null;
+  sport?: string;
+  team?: string | null;
+  dateOfBirth?: string;
+  gender?: 'Male' | 'Female' | 'Other';
+  position?: string;
+  jerseyNumber?: number | null;
+  heightCm?: number;
+  weightKg?: number;
+  status?: 'Active' | 'Injured' | 'Trial' | 'Inactive';
+  verificationStatus?: 'Verified' | 'Pending ID' | 'Medical Required';
+  medicalClearance?: boolean;
+  guardian?: { name: string; phone: string; email?: string };
+  medicalNotes?: string;
+  profileVisibility?: 'Public' | 'AcademyOnly' | 'Private';
+}
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  password: string;
+  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+  phone?: string;
+  avatar?: string;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  phone?: string;
+  avatar?: string;
+  role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+  isActive?: boolean;
+}
+
+/**
+ * Maps ApiFieldError[] from ApiClientError to a Record<string, string> keyed by field path.
+ */
+export const mapFieldErrors = (err: unknown): Record<string, string> => {
+  const result: Record<string, string> = {};
+  if (err && typeof err === 'object' && 'fieldErrors' in err) {
+    const fieldErrors = (err as { fieldErrors?: Array<{ field: string; message: string }> }).fieldErrors;
+    if (Array.isArray(fieldErrors)) {
+      for (const item of fieldErrors) {
+        if (item.field && item.message) {
+          result[item.field] = item.message;
+        }
+      }
+    }
+  }
+  return result;
+};
 
 // Query parameters interfaces
 export interface PaginationQuery {
@@ -204,13 +345,13 @@ export const academyApi = {
   getSport: async (id: string): Promise<ApiResponse<SportItem>> => {
     return apiClient<SportItem>(`/sports/${id}`);
   },
-  createSport: async (payload: Partial<SportItem>): Promise<ApiResponse<SportItem>> => {
+  createSport: async (payload: CreateSportInput): Promise<ApiResponse<SportItem>> => {
     return apiClient<SportItem>('/sports', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
-  updateSport: async (id: string, payload: Partial<SportItem>): Promise<ApiResponse<SportItem>> => {
+  updateSport: async (id: string, payload: UpdateSportInput): Promise<ApiResponse<SportItem>> => {
     return apiClient<SportItem>(`/sports/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
@@ -229,13 +370,13 @@ export const academyApi = {
   getTeam: async (id: string): Promise<ApiResponse<TeamItem>> => {
     return apiClient<TeamItem>(`/teams/${id}`);
   },
-  createTeam: async (payload: Record<string, unknown>): Promise<ApiResponse<TeamItem>> => {
+  createTeam: async (payload: CreateTeamInput): Promise<ApiResponse<TeamItem>> => {
     return apiClient<TeamItem>('/teams', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
-  updateTeam: async (id: string, payload: Record<string, unknown>): Promise<ApiResponse<TeamItem>> => {
+  updateTeam: async (id: string, payload: UpdateTeamInput): Promise<ApiResponse<TeamItem>> => {
     return apiClient<TeamItem>(`/teams/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
@@ -257,13 +398,13 @@ export const academyApi = {
   getCoach: async (id: string): Promise<ApiResponse<CoachItem>> => {
     return apiClient<CoachItem>(`/coaches/${id}`);
   },
-  createCoach: async (payload: Record<string, unknown>): Promise<ApiResponse<CoachItem>> => {
+  createCoach: async (payload: CreateCoachInput): Promise<ApiResponse<CoachItem>> => {
     return apiClient<CoachItem>('/coaches', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
-  updateCoach: async (id: string, payload: Record<string, unknown>): Promise<ApiResponse<CoachItem>> => {
+  updateCoach: async (id: string, payload: UpdateCoachInput): Promise<ApiResponse<CoachItem>> => {
     return apiClient<CoachItem>(`/coaches/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
@@ -282,13 +423,13 @@ export const academyApi = {
   getAthlete: async (id: string): Promise<ApiResponse<AthleteItem>> => {
     return apiClient<AthleteItem>(`/athletes/${id}`);
   },
-  createAthlete: async (payload: Record<string, unknown>): Promise<ApiResponse<AthleteItem>> => {
+  createAthlete: async (payload: CreateAthleteInput): Promise<ApiResponse<AthleteItem>> => {
     return apiClient<AthleteItem>('/athletes', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
-  updateAthlete: async (id: string, payload: Record<string, unknown>): Promise<ApiResponse<AthleteItem>> => {
+  updateAthlete: async (id: string, payload: UpdateAthleteInput): Promise<ApiResponse<AthleteItem>> => {
     return apiClient<AthleteItem>(`/athletes/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
@@ -316,12 +457,12 @@ export const academyApi = {
   },
   updateAthleteVerification: async (
     athleteId: string,
-    verificationStatus: 'Pending' | 'Verified' | 'Rejected',
-    notes?: string
+    verificationStatus: 'Verified' | 'Pending ID' | 'Medical Required',
+    documents?: string[]
   ): Promise<ApiResponse<AthleteItem>> => {
     return apiClient<AthleteItem>(`/athletes/${athleteId}/verification`, {
       method: 'PATCH',
-      body: JSON.stringify({ verificationStatus, notes }),
+      body: JSON.stringify({ verificationStatus, documents }),
     });
   },
 

@@ -20,6 +20,7 @@ import {
   type AdminUserItem,
   type UserAuditItem,
   type PaginationMeta,
+  mapFieldErrors,
 } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
 
@@ -56,7 +57,6 @@ export const UserAccountsPage: React.FC = () => {
     email: '',
     password: '',
     role: 'Athlete' as 'Admin' | 'Coach' | 'Athlete' | 'Organizer',
-    isActive: true,
   });
 
   const [editForm, setEditForm] = useState({
@@ -73,7 +73,6 @@ export const UserAccountsPage: React.FC = () => {
   const createEmailId = useId();
   const createPasswordId = useId();
   const createRoleId = useId();
-  const createActiveId = useId();
 
   const editNameId = useId();
   const editRoleId = useId();
@@ -125,9 +124,24 @@ export const UserAccountsPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [fetchUsers]);
 
+  const [createFieldErrors, setCreateFieldErrors] = useState<Record<string, string>>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createPasswordValid) return;
+    setCreateFieldErrors({});
+    const clientErrors: Record<string, string> = {};
+    if (!createForm.name.trim()) clientErrors.name = 'Full name is required';
+    if (!createForm.email.trim()) clientErrors.email = 'Email address is required';
+    if (!createForm.password) clientErrors.password = 'Password is required';
+    else if (!createPasswordValid) clientErrors.password = 'Password does not meet complexity requirements';
+
+    if (Object.keys(clientErrors).length > 0) {
+      setCreateFieldErrors(clientErrors);
+      setErrorBanner('Please resolve the errors highlighted below.');
+      return;
+    }
+
     setFormSubmitting(true);
     setErrorBanner(null);
     try {
@@ -136,7 +150,6 @@ export const UserAccountsPage: React.FC = () => {
         email: createForm.email.trim(),
         password: createForm.password,
         role: createForm.role,
-        isActive: createForm.isActive,
       });
       // Safety: Clear password from form state immediately after submission
       setCreateForm({
@@ -144,12 +157,15 @@ export const UserAccountsPage: React.FC = () => {
         email: '',
         password: '',
         role: 'Athlete',
-        isActive: true,
       });
       setShowCreateModal(false);
       setSuccessBanner('User account created successfully.');
       fetchUsers();
     } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      if (Object.keys(mapped).length > 0) {
+        setCreateFieldErrors(mapped);
+      }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to create user.';
       setErrorBanner(msg);
     } finally {
@@ -160,6 +176,16 @@ export const UserAccountsPage: React.FC = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editUser) return;
+    setEditFieldErrors({});
+    const clientErrors: Record<string, string> = {};
+    if (!editForm.name.trim()) clientErrors.name = 'Full name cannot be empty';
+
+    if (Object.keys(clientErrors).length > 0) {
+      setEditFieldErrors(clientErrors);
+      setErrorBanner('Please resolve the errors highlighted below.');
+      return;
+    }
+
     setFormSubmitting(true);
     setErrorBanner(null);
     try {
@@ -173,6 +199,10 @@ export const UserAccountsPage: React.FC = () => {
       setSuccessBanner('User account updated successfully.');
       fetchUsers();
     } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      if (Object.keys(mapped).length > 0) {
+        setEditFieldErrors(mapped);
+      }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to update user.';
       setErrorBanner(msg);
     } finally {
@@ -261,7 +291,6 @@ export const UserAccountsPage: React.FC = () => {
               email: '',
               password: '',
               role: 'Athlete',
-              isActive: true,
             });
             setShowCreateModal(true);
           }}
@@ -552,6 +581,9 @@ export const UserAccountsPage: React.FC = () => {
                   onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                   className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                 />
+                {createFieldErrors.name && (
+                  <p className="mt-1 text-xs text-red-600 font-medium">{createFieldErrors.name}</p>
+                )}
               </div>
 
               <div>
@@ -566,6 +598,9 @@ export const UserAccountsPage: React.FC = () => {
                   onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                   className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                 />
+                {createFieldErrors.email && (
+                  <p className="mt-1 text-xs text-red-600 font-medium">{createFieldErrors.email}</p>
+                )}
               </div>
 
               <div>
@@ -580,6 +615,9 @@ export const UserAccountsPage: React.FC = () => {
                   onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
                   className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                 />
+                {createFieldErrors.password && (
+                  <p className="mt-1 text-xs text-red-600 font-medium">{createFieldErrors.password}</p>
+                )}
                 {/* Live Password Hints */}
                 <div className="mt-2 p-3 bg-[#F7F1E8] rounded-xl space-y-1 text-xs">
                   {(() => {
@@ -607,41 +645,29 @@ export const UserAccountsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor={createRoleId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                    Role
-                  </label>
-                  <select
-                    id={createRoleId}
-                    value={createForm.role}
-                    onChange={(e) =>
-                      setCreateForm({
-                        ...createForm,
-                        role: e.target.value as 'Admin' | 'Coach' | 'Athlete' | 'Organizer',
-                      })
-                    }
-                    className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
-                  >
-                    <option value="Admin">Admin</option>
-                    <option value="Coach">Coach</option>
-                    <option value="Athlete">Athlete</option>
-                    <option value="Organizer">Organizer</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center pt-6">
-                  <label htmlFor={createActiveId} className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[#171044]">
-                    <input
-                      id={createActiveId}
-                      type="checkbox"
-                      checked={createForm.isActive}
-                      onChange={(e) => setCreateForm({ ...createForm, isActive: e.target.checked })}
-                      className="w-4 h-4 rounded text-[#FF5A00]"
-                    />
-                    <span>Account Active</span>
-                  </label>
-                </div>
+              <div>
+                <label htmlFor={createRoleId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Role
+                </label>
+                <select
+                  id={createRoleId}
+                  value={createForm.role}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      role: e.target.value as 'Admin' | 'Coach' | 'Athlete' | 'Organizer',
+                    })
+                  }
+                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm font-semibold outline-none"
+                >
+                  <option value="Admin">Admin</option>
+                  <option value="Coach">Coach</option>
+                  <option value="Athlete">Athlete</option>
+                  <option value="Organizer">Organizer</option>
+                </select>
+                {createFieldErrors.role && (
+                  <p className="mt-1 text-xs text-red-600 font-medium">{createFieldErrors.role}</p>
+                )}
               </div>
 
               <div className="pt-4 border-t border-[#171044]/10 flex justify-end gap-3">
@@ -683,6 +709,9 @@ export const UserAccountsPage: React.FC = () => {
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                 />
+                {editFieldErrors.name && (
+                  <p className="mt-1 text-xs text-red-600 font-medium">{editFieldErrors.name}</p>
+                )}
               </div>
 
               <div>
@@ -721,6 +750,9 @@ export const UserAccountsPage: React.FC = () => {
                     <option value="Athlete">Athlete</option>
                     <option value="Organizer">Organizer</option>
                   </select>
+                  {editFieldErrors.role && (
+                    <p className="mt-1 text-xs text-red-600 font-medium">{editFieldErrors.role}</p>
+                  )}
                   {editUser.id === currentAdmin.id && (
                     <span className="text-[10px] text-amber-700 block mt-1">Cannot change your own role</span>
                   )}

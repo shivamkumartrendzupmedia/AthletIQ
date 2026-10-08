@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
 import { Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, X } from 'lucide-react';
-import { academyApi, type SportItem } from '../../services/academyApi';
+import { academyApi, type SportItem, mapFieldErrors } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
 
 const AVAILABLE_AGE_GROUPS = ['U10', 'U12', 'U14', 'U16', 'U18', 'U21', 'Senior'];
@@ -15,6 +15,9 @@ export const SportManagementPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSport, setEditingSport] = useState<SportItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [createFieldErrors, setCreateFieldErrors] = useState<Record<string, string>>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
 
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
@@ -66,6 +69,7 @@ export const SportManagementPage: React.FC = () => {
     setFormFeatures('Tournament Training, Certified Coaches');
     setFormStatus('Active');
     setFormIcon('');
+    setCreateFieldErrors({});
     setShowCreateModal(true);
   };
 
@@ -77,11 +81,22 @@ export const SportManagementPage: React.FC = () => {
     setFormFeatures((s.features || []).join(', '));
     setFormStatus(s.status);
     setFormIcon(s.icon || '');
+    setEditFieldErrors({});
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !formDescription.trim()) return;
+    setCreateFieldErrors({});
+    const clientErrors: Record<string, string> = {};
+    if (!formName.trim()) clientErrors.name = 'Sport name is required';
+    if (!formDescription.trim()) clientErrors.description = 'Description is required';
+
+    if (Object.keys(clientErrors).length > 0) {
+      setCreateFieldErrors(clientErrors);
+      setErrorBanner('Please fill in all required fields marked below.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorBanner(null);
     try {
@@ -103,6 +118,10 @@ export const SportManagementPage: React.FC = () => {
       setSuccessBanner(`Sport "${formName}" created successfully.`);
       fetchSports();
     } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      if (Object.keys(mapped).length > 0) {
+        setCreateFieldErrors(mapped);
+      }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to create sport.';
       setErrorBanner(msg);
     } finally {
@@ -113,6 +132,17 @@ export const SportManagementPage: React.FC = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSport) return;
+    setEditFieldErrors({});
+    const clientErrors: Record<string, string> = {};
+    if (!formName.trim()) clientErrors.name = 'Sport name cannot be empty';
+    if (!formDescription.trim()) clientErrors.description = 'Description cannot be empty';
+
+    if (Object.keys(clientErrors).length > 0) {
+      setEditFieldErrors(clientErrors);
+      setErrorBanner('Please fill in all required fields marked below.');
+      return;
+    }
+
     setSubmitting(true);
     setErrorBanner(null);
     try {
@@ -134,6 +164,10 @@ export const SportManagementPage: React.FC = () => {
       setSuccessBanner(`Sport "${formName}" updated successfully.`);
       fetchSports();
     } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      if (Object.keys(mapped).length > 0) {
+        setEditFieldErrors(mapped);
+      }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to update sport.';
       setErrorBanner(msg);
     } finally {
@@ -297,32 +331,46 @@ export const SportManagementPage: React.FC = () => {
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
                 <label htmlFor={createNameId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Sport Name
+                  Sport Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   id={createNameId}
                   type="text"
-                  required
                   placeholder="e.g. Football Academy"
                   value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormName(e.target.value);
+                    if (createFieldErrors.name) setCreateFieldErrors((prev) => ({ ...prev, name: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    createFieldErrors.name ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {createFieldErrors.name && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.name}</p>
+                )}
               </div>
 
               <div>
                 <label htmlFor={createDescId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Description
+                  Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id={createDescId}
-                  required
                   rows={3}
                   placeholder="Program overview and training methodology..."
                   value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormDescription(e.target.value);
+                    if (createFieldErrors.description) setCreateFieldErrors((prev) => ({ ...prev, description: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    createFieldErrors.description ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {createFieldErrors.description && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.description}</p>
+                )}
               </div>
 
               <div>
@@ -346,6 +394,9 @@ export const SportManagementPage: React.FC = () => {
                     );
                   })}
                 </div>
+                {createFieldErrors.ageGroups && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.ageGroups}</p>
+                )}
               </div>
 
               <div>
@@ -360,6 +411,9 @@ export const SportManagementPage: React.FC = () => {
                   onChange={(e) => setFormFeatures(e.target.value)}
                   className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                 />
+                {createFieldErrors.features && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.features}</p>
+                )}
               </div>
 
               <div>
@@ -371,9 +425,17 @@ export const SportManagementPage: React.FC = () => {
                   type="url"
                   placeholder="https://..."
                   value={formIcon}
-                  onChange={(e) => setFormIcon(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormIcon(e.target.value);
+                    if (createFieldErrors.icon) setCreateFieldErrors((prev) => ({ ...prev, icon: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    createFieldErrors.icon ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {createFieldErrors.icon && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.icon}</p>
+                )}
               </div>
 
               <div>
@@ -420,30 +482,44 @@ export const SportManagementPage: React.FC = () => {
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
                 <label htmlFor={editNameId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Sport Name
+                  Sport Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   id={editNameId}
                   type="text"
-                  required
                   value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormName(e.target.value);
+                    if (editFieldErrors.name) setEditFieldErrors((prev) => ({ ...prev, name: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    editFieldErrors.name ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {editFieldErrors.name && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.name}</p>
+                )}
               </div>
 
               <div>
                 <label htmlFor={editDescId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Description
+                  Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id={editDescId}
-                  required
                   rows={3}
                   value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormDescription(e.target.value);
+                    if (editFieldErrors.description) setEditFieldErrors((prev) => ({ ...prev, description: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    editFieldErrors.description ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {editFieldErrors.description && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.description}</p>
+                )}
               </div>
 
               <div>
@@ -467,6 +543,9 @@ export const SportManagementPage: React.FC = () => {
                     );
                   })}
                 </div>
+                {editFieldErrors.ageGroups && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.ageGroups}</p>
+                )}
               </div>
 
               <div>
@@ -480,6 +559,9 @@ export const SportManagementPage: React.FC = () => {
                   onChange={(e) => setFormFeatures(e.target.value)}
                   className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                 />
+                {editFieldErrors.features && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.features}</p>
+                )}
               </div>
 
               <div>
@@ -490,9 +572,17 @@ export const SportManagementPage: React.FC = () => {
                   id={editIconId}
                   type="url"
                   value={formIcon}
-                  onChange={(e) => setFormIcon(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  onChange={(e) => {
+                    setFormIcon(e.target.value);
+                    if (editFieldErrors.icon) setEditFieldErrors((prev) => ({ ...prev, icon: '' }));
+                  }}
+                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                    editFieldErrors.icon ? 'border-red-500' : 'border-[#171044]/20'
+                  }`}
                 />
+                {editFieldErrors.icon && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.icon}</p>
+                )}
               </div>
 
               <div>
