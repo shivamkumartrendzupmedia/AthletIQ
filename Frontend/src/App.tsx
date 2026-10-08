@@ -5,6 +5,7 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ScrollToTop } from './components/ScrollToTop';
 import { DashboardLayout } from './components/DashboardLayout';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 import { HomePage } from './pages/HomePage';
 import { AboutPage } from './pages/AboutPage';
@@ -44,19 +45,127 @@ function App() {
       <Router>
         <ScrollToTop />
         <Routes>
-          {/* Dashboard Management Routes */}
-          <Route path="/dashboard/admin" element={<DashboardLayout><AdminDashboard /></DashboardLayout>} />
-          <Route path="/dashboard/coach" element={<DashboardLayout><CoachDashboard /></DashboardLayout>} />
-          <Route path="/dashboard/athlete" element={<DashboardLayout><AthleteDashboard /></DashboardLayout>} />
-          <Route path="/dashboard/athletes" element={<DashboardLayout><AthleteManagementPage /></DashboardLayout>} />
-          <Route path="/dashboard/coaches" element={<DashboardLayout><CoachManagementPage /></DashboardLayout>} />
-          <Route path="/dashboard/teams" element={<DashboardLayout><TeamManagementPage /></DashboardLayout>} />
-          <Route path="/dashboard/sports" element={<DashboardLayout><SportManagementPage /></DashboardLayout>} />
-          <Route path="/dashboard/rosters" element={<DashboardLayout><RosterManagementPage /></DashboardLayout>} />
-          <Route path="/dashboard/documents" element={<DashboardLayout><DocumentsPage /></DashboardLayout>} />
-          <Route path="/dashboard/announcements" element={<DashboardLayout><AnnouncementsPage /></DashboardLayout>} />
-          <Route path="/dashboard/training" element={<DashboardLayout><TrainingCalendarPage /></DashboardLayout>} />
-          <Route path="/dashboard/tournaments" element={<DashboardLayout><TournamentManagementPage /></DashboardLayout>} />
+          {/* Dashboard Management Routes (Protected by Authentication & Role) */}
+          <Route
+            path="/dashboard/admin"
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <DashboardLayout>
+                  <AdminDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/coach"
+            element={
+              <ProtectedRoute allowedRoles={['Coach']}>
+                <DashboardLayout>
+                  <CoachDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/athlete"
+            element={
+              <ProtectedRoute allowedRoles={['Athlete']}>
+                <DashboardLayout>
+                  <AthleteDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/athletes"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Coach']}>
+                <DashboardLayout>
+                  <AthleteManagementPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/coaches"
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <DashboardLayout>
+                  <CoachManagementPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/teams"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Organizer']}>
+                <DashboardLayout>
+                  <TeamManagementPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/sports"
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <DashboardLayout>
+                  <SportManagementPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/rosters"
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <DashboardLayout>
+                  <RosterManagementPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/documents"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Athlete']}>
+                <DashboardLayout>
+                  <DocumentsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/announcements"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
+                <DashboardLayout>
+                  <AnnouncementsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/training"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer']}>
+                <DashboardLayout>
+                  <TrainingCalendarPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/tournaments"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Organizer']}>
+                <DashboardLayout>
+                  <TournamentManagementPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Public Website Routes */}
           <Route

@@ -89,7 +89,10 @@ export class AuthService {
     if (user.lockUntil && user.lockUntil <= now) {
       await User.updateOne(
         { _id: user._id },
-        { $set: { failedLoginAttempts: 0, lockUntil: undefined } }
+        {
+          $set: { failedLoginAttempts: 0 },
+          $unset: { lockUntil: 1 },
+        }
       );
       user.failedLoginAttempts = 0;
       user.lockUntil = undefined;
@@ -135,11 +138,13 @@ export class AuthService {
       {
         $set: {
           failedLoginAttempts: 0,
-          lockUntil: undefined,
           lastLoginAt: new Date(),
         },
+        $unset: { lockUntil: 1 },
       }
     );
+    user.failedLoginAttempts = 0;
+    user.lockUntil = undefined;
 
     const accessToken = signAccessToken(user.id, user.role);
     const { token: refreshToken, expiresAt } = signRefreshToken(user.id);

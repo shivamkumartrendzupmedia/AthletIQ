@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth, type UserRole } from '../context/AuthContext';
+import { useAuth, useAuthenticatedUser, type UserRole } from '../context/AuthContext';
 import { CrossAccent, AthleticBadge } from '../design-system';
 import {
   LayoutDashboard,
@@ -12,17 +12,19 @@ import {
   FileText,
   Bell,
   LogOut,
-  ChevronDown,
   Menu,
-  X,
   Trophy,
   Award,
   User,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
-export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, role, setRole } = useAuth();
+const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+
+export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const user = useAuthenticatedUser();
+  const { role, logout, setRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -65,10 +67,22 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           { name: 'Match Calendar', path: '/dashboard/training', icon: Calendar },
           { name: 'Announcements', path: '/dashboard/announcements', icon: Bell },
         ];
+      default:
+        return [
+          { name: 'Athlete Hub', path: '/dashboard/athlete', icon: LayoutDashboard },
+        ];
     }
   };
 
   const navItems = getNavItems();
+  const avatarUrl =
+    user.avatar ||
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop';
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-[#F7F1E8] text-[#111111] font-sans antialiased flex flex-col lg:flex-row">
@@ -85,30 +99,45 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             <CrossAccent color="orange" size="md" />
           </Link>
 
-          {/* Active Role Selector Card */}
+          {/* Active Role Card */}
           <div className="bg-white/10 p-3.5 rounded-2xl border border-white/10 space-y-2">
-            <div className="text-[10px] uppercase font-bold text-white/60 tracking-wider">Active Role Context</div>
+            <div className="text-[10px] uppercase font-bold text-white/60 tracking-wider">
+              Active Role Context
+            </div>
             <div className="flex items-center justify-between">
-              <AthleticBadge variant={role === 'Admin' ? 'orange' : role === 'Coach' ? 'lime' : 'purple'}>
+              <AthleticBadge
+                variant={
+                  role === 'Admin'
+                    ? 'orange'
+                    : role === 'Coach'
+                    ? 'lime'
+                    : 'purple'
+                }
+              >
                 {role} PORTAL
               </AthleticBadge>
-              <select
-                value={role}
-                onChange={(e) => {
-                  const newRole = e.target.value as UserRole;
-                  setRole(newRole);
-                  if (newRole === 'Coach') navigate('/dashboard/coach');
-                  else if (newRole === 'Athlete') navigate('/dashboard/athlete');
-                  else if (newRole === 'Organizer') navigate('/dashboard/tournaments');
-                  else navigate('/dashboard/admin');
-                }}
-                className="bg-[#171044] text-white text-xs font-bold px-2 py-1 rounded-lg border border-white/20 outline-none cursor-pointer"
-              >
-                <option value="Admin">Admin</option>
-                <option value="Coach">Coach</option>
-                <option value="Athlete">Athlete</option>
-                <option value="Organizer">Organizer</option>
-              </select>
+
+              {/* Role Switcher only available when demo mode is explicitly enabled */}
+              {isDemoMode && (
+                <select
+                  value={role || 'Athlete'}
+                  onChange={(e) => {
+                    const newRole = e.target.value as UserRole;
+                    setRole(newRole);
+                    if (newRole === 'Coach') navigate('/dashboard/coach');
+                    else if (newRole === 'Athlete') navigate('/dashboard/athlete');
+                    else if (newRole === 'Organizer')
+                      navigate('/dashboard/tournaments');
+                    else navigate('/dashboard/admin');
+                  }}
+                  className="bg-[#171044] text-white text-xs font-bold px-2 py-1 rounded-lg border border-white/20 outline-none cursor-pointer"
+                >
+                  <option value="Admin">Admin</option>
+                  <option value="Coach">Coach</option>
+                  <option value="Athlete">Athlete</option>
+                  <option value="Organizer">Organizer</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -133,19 +162,35 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           </nav>
         </div>
 
-        {/* User Card & Public Site Shortcut */}
-        <div className="pt-6 border-t border-white/10 space-y-4">
+        {/* User Card, Public Shortcut & Logout */}
+        <div className="pt-6 border-t border-white/10 space-y-3">
           <div className="flex items-center gap-3">
-            <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover border-2 border-[#D8F500]" />
+            <img
+              src={avatarUrl}
+              alt={user.name}
+              className="w-10 h-10 rounded-full object-cover border-2 border-[#D8F500]"
+            />
             <div className="overflow-hidden">
-              <div className="font-display font-bold text-xs text-white truncate">{user.name}</div>
-              <div className="text-[10px] text-white/60 truncate">{user.email}</div>
+              <div className="font-display font-bold text-xs text-white truncate">
+                {user.name}
+              </div>
+              <div className="text-[10px] text-white/60 truncate">
+                {user.email}
+              </div>
             </div>
           </div>
 
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#FF3B30]/20 text-[#FF3B30] hover:bg-[#FF3B30]/30 text-xs font-bold font-display transition-colors cursor-pointer"
+          >
+            <LogOut size={14} />
+            <span>Logout Session</span>
+          </button>
+
           <Link
             to="/"
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 text-xs font-bold font-display transition-colors"
+            className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 text-xs font-bold font-display transition-colors"
           >
             ← Return to Public Website
           </Link>
@@ -159,7 +204,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           <div className="flex items-center gap-4">
             <button
               onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-              className="lg:hidden p-2 rounded-xl bg-[#171044] text-white"
+              className="lg:hidden p-2 rounded-xl bg-[#171044] text-white cursor-pointer"
+              aria-label="Toggle navigation menu"
             >
               <Menu size={20} />
             </button>
@@ -169,26 +215,46 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 bg-[#171044] text-white px-3 py-1.5 rounded-full text-xs font-bold">
-              <span className="text-white/60">Role:</span>
-              <select
-                value={role}
-                onChange={(e) => {
-                  const newRole = e.target.value as UserRole;
-                  setRole(newRole);
-                  if (newRole === 'Coach') navigate('/dashboard/coach');
-                  else if (newRole === 'Athlete') navigate('/dashboard/athlete');
-                  else if (newRole === 'Organizer') navigate('/dashboard/tournaments');
-                  else navigate('/dashboard/admin');
-                }}
-                className="bg-transparent text-[#D8F500] font-extrabold outline-none cursor-pointer"
-              >
-                <option value="Admin" className="bg-[#171044] text-white">Admin</option>
-                <option value="Coach" className="bg-[#171044] text-white">Coach</option>
-                <option value="Athlete" className="bg-[#171044] text-white">Athlete</option>
-                <option value="Organizer" className="bg-[#171044] text-white">Organizer</option>
-              </select>
-            </div>
+            {isDemoMode && (
+              <div className="hidden sm:flex items-center gap-2 bg-[#171044] text-white px-3 py-1.5 rounded-full text-xs font-bold">
+                <span className="text-white/60">Role:</span>
+                <select
+                  value={role || 'Athlete'}
+                  onChange={(e) => {
+                    const newRole = e.target.value as UserRole;
+                    setRole(newRole);
+                    if (newRole === 'Coach') navigate('/dashboard/coach');
+                    else if (newRole === 'Athlete')
+                      navigate('/dashboard/athlete');
+                    else if (newRole === 'Organizer')
+                      navigate('/dashboard/tournaments');
+                    else navigate('/dashboard/admin');
+                  }}
+                  className="bg-transparent text-[#D8F500] font-extrabold outline-none cursor-pointer"
+                >
+                  <option value="Admin" className="bg-[#171044] text-white">
+                    Admin
+                  </option>
+                  <option value="Coach" className="bg-[#171044] text-white">
+                    Coach
+                  </option>
+                  <option value="Athlete" className="bg-[#171044] text-white">
+                    Athlete
+                  </option>
+                  <option value="Organizer" className="bg-[#171044] text-white">
+                    Organizer
+                  </option>
+                </select>
+              </div>
+            )}
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[#171044]/10 text-xs font-bold text-[#171044] hover:bg-[#FF3B30] hover:text-white transition-colors cursor-pointer"
+            >
+              <LogOut size={14} />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
 
             <button className="w-10 h-10 rounded-full bg-white border border-[#171044]/10 flex items-center justify-center text-[#171044] hover:bg-[#171044] hover:text-white transition-colors relative">
               <Bell size={18} />

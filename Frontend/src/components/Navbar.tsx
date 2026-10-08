@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ArrowRight, User } from 'lucide-react';
+import { Menu, X, ArrowRight, User, LogOut, LayoutDashboard } from 'lucide-react';
 import { CrossAccent, Button } from '../design-system';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 export const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,6 +22,24 @@ export const Navbar: React.FC = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const { isAuthenticated, role, logout } = useAuth();
+
+  const getRoleDashboard = (r: string | null) => {
+    switch (r) {
+      case 'Admin':
+        return '/dashboard/admin';
+      case 'Coach':
+        return '/dashboard/coach';
+      case 'Athlete':
+        return '/dashboard/athlete';
+      case 'Organizer':
+        return '/dashboard/tournaments';
+      default:
+        return '/dashboard/athlete';
+    }
+  };
+  const dashboardPath = getRoleDashboard(role);
 
   return (
     <header className="bg-[#F7F1E8] border-b border-[#171044]/10 transition-all duration-300 relative z-50">
@@ -52,23 +71,41 @@ export const Navbar: React.FC = () => {
         </nav>
 
         {/* Action Buttons Right */}
-        <div className="hidden sm:flex items-center gap-3">
-          <Link to="/login">
-            <button className="px-4 py-2 text-sm font-display font-extrabold text-[#171044] hover:text-[#FF5A00] transition-colors">
-              Login
+        {isAuthenticated ? (
+          <div className="hidden sm:flex items-center gap-3">
+            <Link to={dashboardPath}>
+              <button className="flex items-center gap-2 px-5 py-2 text-sm font-display font-extrabold text-[#171044] bg-[#D8F500] hover:bg-[#cbf000] rounded-full shadow-md transition-all duration-200 cursor-pointer">
+                <LayoutDashboard size={16} />
+                <span>Dashboard</span>
+              </button>
+            </Link>
+            <button
+              onClick={() => logout()}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-display font-extrabold text-[#171044]/80 hover:text-[#FF3B30] transition-colors cursor-pointer"
+            >
+              <LogOut size={16} />
+              <span>Logout</span>
             </button>
-          </Link>
-          <Link to="/register">
-            <button className="px-6 py-2.5 text-sm font-display font-extrabold text-white bg-[#FF5A00] hover:bg-[#E04F00] rounded-full shadow-md shadow-[#FF5A00]/30 transition-all duration-200 hover:scale-105">
-              Join Now
-            </button>
-          </Link>
-        </div>
+          </div>
+        ) : (
+          <div className="hidden sm:flex items-center gap-3">
+            <Link to="/login">
+              <button className="px-4 py-2 text-sm font-display font-extrabold text-[#171044] hover:text-[#FF5A00] transition-colors cursor-pointer">
+                Login
+              </button>
+            </Link>
+            <Link to="/register">
+              <button className="px-6 py-2.5 text-sm font-display font-extrabold text-white bg-[#FF5A00] hover:bg-[#E04F00] rounded-full shadow-md shadow-[#FF5A00]/30 transition-all duration-200 hover:scale-105 cursor-pointer">
+                Join Now
+              </button>
+            </Link>
+          </div>
+        )}
 
         {/* Mobile Menu Toggle Button */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="xl:hidden p-2.5 rounded-2xl bg-[#171044] text-white hover:bg-[#4B2A9B] transition-colors"
+          className="xl:hidden p-2.5 rounded-2xl bg-[#171044] text-white hover:bg-[#4B2A9B] transition-colors cursor-pointer"
           aria-label="Toggle navigation menu"
         >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -101,16 +138,37 @@ export const Navbar: React.FC = () => {
               ))}
 
               <div className="pt-6 border-t border-white/10 flex flex-col gap-3">
-                <Link to="/login" onClick={() => setIsOpen(false)}>
-                  <Button variant="outline" fullWidth className="text-white border-white/20 hover:bg-white/10">
-                    Login to Portal
-                  </Button>
-                </Link>
-                <Link to="/register" onClick={() => setIsOpen(false)}>
-                  <Button variant="lime" fullWidth iconRight={<ArrowRight size={18} />}>
-                    Join Academy Now
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <Link to={dashboardPath} onClick={() => setIsOpen(false)}>
+                      <Button variant="lime" fullWidth iconRight={<LayoutDashboard size={18} />}>
+                        Go to Dashboard
+                      </Button>
+                    </Link>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsOpen(false);
+                      }}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-2xl bg-[#FF3B30]/20 text-[#FF3B30] text-sm font-bold font-display cursor-pointer"
+                    >
+                      <LogOut size={18} /> Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/login" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" fullWidth className="text-white border-white/20 hover:bg-white/10">
+                        Login to Portal
+                      </Button>
+                    </Link>
+                    <Link to="/register" onClick={() => setIsOpen(false)}>
+                      <Button variant="lime" fullWidth iconRight={<ArrowRight size={18} />}>
+                        Join Academy Now
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

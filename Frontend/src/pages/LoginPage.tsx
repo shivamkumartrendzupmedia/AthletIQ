@@ -1,35 +1,67 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Card, CrossAccent } from '../design-system';
-import { Lock, Mail, ArrowRight, Shield, Trophy, UserCheck, Activity } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Shield, Trophy, UserCheck, Activity, AlertCircle } from 'lucide-react';
 import { useAuth, type UserRole } from '../context/AuthContext';
+import { ApiClientError } from '../lib/apiClient';
+
+interface LocationState {
+  from?: {
+    pathname: string;
+  };
+}
+
+const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { setRole: setAuthRole } = useAuth();
-  const [role, setRole] = useState<UserRole>('Athlete');
+  const location = useLocation();
+  const { login, setRole: setAuthRole } = useAuth();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const navigateToDashboard = (targetRole: UserRole) => {
-    if (targetRole === 'Coach') navigate('/dashboard/coach');
-    else if (targetRole === 'Athlete') navigate('/dashboard/athlete');
-    else if (targetRole === 'Organizer') navigate('/dashboard/tournaments');
-    else navigate('/dashboard/admin');
+  const getRoleDashboard = (targetRole: UserRole): string => {
+    switch (targetRole) {
+      case 'Admin':
+        return '/dashboard/admin';
+      case 'Coach':
+        return '/dashboard/coach';
+      case 'Athlete':
+        return '/dashboard/athlete';
+      case 'Organizer':
+        return '/dashboard/tournaments';
+      default:
+        return '/dashboard/athlete';
+    }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      setAuthRole(role);
-      navigateToDashboard(role);
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      const loggedInUser = await login(email, password);
+      const state = location.state as LocationState | undefined;
+      const destination = state?.from?.pathname || getRoleDashboard(loggedInUser.role);
+      navigate(destination, { replace: true });
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage('Unable to connect to the server. Please check your network connection.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDemoLogin = (demoRole: UserRole) => {
-    setRole(demoRole);
     setAuthRole(demoRole);
-    navigateToDashboard(demoRole);
+    navigate(getRoleDashboard(demoRole), { replace: true });
   };
 
   const demoAccounts: { role: UserRole; name: string; email: string; icon: React.ReactNode }[] = [
@@ -49,27 +81,15 @@ export const LoginPage: React.FC = () => {
           <h1 className="text-3xl font-black font-display text-white">
             PORTAL LOGIN <CrossAccent color="lime" size="md" />
           </h1>
-          <p className="text-xs text-white/70">Select your role and enter your credentials to access your portal.</p>
+          <p className="text-xs text-white/70">Enter your account credentials to access your ATHLETIQ portal.</p>
         </div>
 
-        {/* Balanced 4-Role Selector */}
-        <div className="grid grid-cols-4 gap-1 p-1 bg-white/10 rounded-2xl">
-          {(['Athlete', 'Coach', 'Organizer', 'Admin'] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => {
-                setRole(r);
-                setEmail(`${r.toLowerCase()}@athletiq.com`);
-              }}
-              className={`w-full py-2.5 rounded-xl text-xs font-display text-center transition-all ${
-                role === r ? 'bg-[#D8F500] text-[#171044] font-black shadow-md' : 'text-white/80 hover:text-white font-bold'
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
+        {errorMessage && (
+          <div className="p-3.5 rounded-2xl bg-[#FF3B30]/15 border border-[#FF3B30]/30 text-white flex items-start gap-3">
+            <AlertCircle size={18} className="text-[#FF3B30] shrink-0 mt-0.5" />
+            <div className="text-xs font-bold leading-relaxed">{errorMessage}</div>
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -79,10 +99,11 @@ export const LoginPage: React.FC = () => {
               <input
                 type="email"
                 required
-                placeholder={`${role.toLowerCase()}@athletiq.com`}
+                disabled={isSubmitting}
+                placeholder="your.email@athletiq.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500]"
+                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500] disabled:opacity-50"
               />
             </div>
           </div>
@@ -99,44 +120,53 @@ export const LoginPage: React.FC = () => {
               <input
                 type="password"
                 required
+                disabled={isSubmitting}
                 placeholder="••••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500]"
+                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500] disabled:opacity-50"
               />
             </div>
           </div>
 
-          <Button variant="primary" fullWidth size="lg" iconRight={<ArrowRight size={18} className="mt-0.5" />}>
-            Login to {role} Portal
+          <Button
+            variant="primary"
+            fullWidth
+            size="lg"
+            disabled={isSubmitting}
+            iconRight={<ArrowRight size={18} className="mt-0.5" />}
+          >
+            {isSubmitting ? 'Logging In...' : 'Login to Portal'}
           </Button>
         </form>
 
-        {/* Quick Demo Access Buttons */}
-        <div className="pt-4 border-t border-white/10 space-y-2.5">
-          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-white/60">
-            <span>Demo Accounts</span>
-            <span className="text-[#D8F500]">1-Click Login</span>
+        {/* Demo Access Buttons (Rendered only when VITE_DEMO_MODE === 'true') */}
+        {isDemoMode && (
+          <div className="pt-4 border-t border-white/10 space-y-2.5">
+            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-white/60">
+              <span>Demo Accounts (Local Mock Only)</span>
+              <span className="text-[#D8F500]">1-Click Login</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {demoAccounts.map((demo) => (
+                <button
+                  key={demo.role}
+                  type="button"
+                  onClick={() => handleDemoLogin(demo.role)}
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition-all text-left group hover:scale-[1.02]"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-[#D8F500] text-[#171044] flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-[#FF5A00] group-hover:text-white transition-colors">
+                    {demo.icon}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-black text-white truncate">{demo.role}</div>
+                    <div className="text-[10px] text-white/60 truncate">{demo.name}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {demoAccounts.map((demo) => (
-              <button
-                key={demo.role}
-                type="button"
-                onClick={() => handleDemoLogin(demo.role)}
-                className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition-all text-left group hover:scale-[1.02]"
-              >
-                <div className="w-8 h-8 rounded-lg bg-[#D8F500] text-[#171044] flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-[#FF5A00] group-hover:text-white transition-colors">
-                  {demo.icon}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-black text-white truncate">{demo.role}</div>
-                  <div className="text-[10px] text-white/60 truncate">{demo.name}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
 
         <div className="text-center text-xs text-white/70 pt-2 border-t border-white/10">
           Don't have an account yet?{' '}

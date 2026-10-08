@@ -1,26 +1,68 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, CrossAccent } from '../design-system';
-import { User, Mail, Lock, ArrowRight } from 'lucide-react';
-import { useAuth, type UserRole } from '../context/AuthContext';
+import { User, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { ApiClientError } from '../lib/apiClient';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { setRole: setAuthRole } = useAuth();
-  const [role, setRole] = useState<UserRole>('Athlete');
+  const { register } = useAuth();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [sport, setSport] = useState('Football');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [sport, setSport] = useState('Football'); // Visual only for UI continuity; not submitted to backend auth API
 
-  const handleRegister = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const hasMinLength = password.length >= 8;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
+
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (name && email && password) {
-      setAuthRole(role);
-      if (role === 'Coach') navigate('/dashboard/coach');
-      else if (role === 'Athlete') navigate('/dashboard/athlete');
-      else if (role === 'Organizer') navigate('/dashboard/tournaments');
-      else navigate('/dashboard/admin');
+    setGeneralError(null);
+    setFieldErrors({});
+
+    if (!hasMinLength || !hasUpper || !hasLower || !hasNumber) {
+      setGeneralError('Please ensure your password meets all complexity requirements.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        confirmPassword: 'Passwords do not match.',
+      }));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await register(name, email, password);
+      // Public registrations are locked to role 'Athlete'
+      navigate('/dashboard/athlete', { replace: true });
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError) {
+        setGeneralError(err.message);
+        if (err.fieldErrors) {
+          const mapped: Record<string, string> = {};
+          for (const item of err.fieldErrors) {
+            mapped[item.field] = item.message;
+          }
+          setFieldErrors(mapped);
+        }
+      } else {
+        setGeneralError('Registration failed. Please check your network connection.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -34,24 +76,15 @@ export const RegisterPage: React.FC = () => {
           <h1 className="text-3xl font-black font-display text-white">
             JOIN ATHLETIQ <CrossAccent color="lime" size="md" />
           </h1>
-          <p className="text-xs text-white/70">Create your account to join training programs, track stats, or manage tournaments.</p>
+          <p className="text-xs text-white/70">Create your athlete account to join training programs, track stats, and compete.</p>
         </div>
 
-        {/* Balanced 4-Role Selector */}
-        <div className="grid grid-cols-4 gap-1 p-1 bg-white/10 rounded-2xl">
-          {(['Athlete', 'Coach', 'Organizer', 'Admin'] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRole(r)}
-              className={`w-full py-2.5 rounded-xl text-xs font-display text-center transition-all ${
-                role === r ? 'bg-[#D8F500] text-[#171044] font-black shadow-md' : 'text-white/80 hover:text-white font-bold'
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
+        {generalError && (
+          <div className="p-3.5 rounded-2xl bg-[#FF3B30]/15 border border-[#FF3B30]/30 text-white flex items-start gap-3">
+            <AlertCircle size={18} className="text-[#FF3B30] shrink-0 mt-0.5" />
+            <div className="text-xs font-bold leading-relaxed">{generalError}</div>
+          </div>
+        )}
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
@@ -61,12 +94,16 @@ export const RegisterPage: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder={role === 'Coach' ? 'Coach David Vance' : role === 'Organizer' ? 'Tournament Director Sarah' : role === 'Admin' ? 'Director Marcus' : 'Alex Morgan'}
+                disabled={isSubmitting}
+                placeholder="Marcus Rashford"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500]"
+                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500] disabled:opacity-50"
               />
             </div>
+            {fieldErrors.name && (
+              <p className="text-[11px] font-bold text-[#FF3B30] mt-1.5">{fieldErrors.name}</p>
+            )}
           </div>
 
           <div>
@@ -76,33 +113,37 @@ export const RegisterPage: React.FC = () => {
               <input
                 type="email"
                 required
-                placeholder={`${role.toLowerCase()}@athletiq.com`}
+                disabled={isSubmitting}
+                placeholder="marcus@athlete.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500]"
+                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500] disabled:opacity-50"
               />
             </div>
+            {fieldErrors.email && (
+              <p className="text-[11px] font-bold text-[#FF3B30] mt-1.5">{fieldErrors.email}</p>
+            )}
           </div>
 
-          {(role === 'Athlete' || role === 'Coach') && (
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-white/80 mb-2">
-                {role === 'Coach' ? 'Primary Coaching Specialty' : 'Primary Sport Interest'}
-              </label>
-              <select
-                value={sport}
-                onChange={(e) => setSport(e.target.value)}
-                className="w-full bg-[#171044] border border-white/20 rounded-2xl px-5 py-3 text-white text-sm focus:outline-none focus:border-[#D8F500]"
-              >
-                <option value="Football">Soccer / Football</option>
-                <option value="Basketball">Basketball</option>
-                <option value="Tennis">Tennis</option>
-                <option value="Swimming">Swimming</option>
-                <option value="Athletics">Athletics / Track</option>
-                <option value="Volleyball">Volleyball</option>
-              </select>
-            </div>
-          )}
+          {/* Visual discipline selector for UI continuity */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-white/80 mb-2">
+              Primary Sport Discipline
+            </label>
+            <select
+              value={sport}
+              onChange={(e) => setSport(e.target.value)}
+              disabled={isSubmitting}
+              className="w-full bg-[#171044] border border-white/20 rounded-2xl px-5 py-3 text-white text-sm focus:outline-none focus:border-[#D8F500] disabled:opacity-50"
+            >
+              <option value="Football">Soccer / Football</option>
+              <option value="Basketball">Basketball</option>
+              <option value="Tennis">Tennis</option>
+              <option value="Swimming">Swimming</option>
+              <option value="Athletics">Athletics / Track</option>
+              <option value="Volleyball">Volleyball</option>
+            </select>
+          </div>
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-white/80 mb-2">Password</label>
@@ -111,16 +152,65 @@ export const RegisterPage: React.FC = () => {
               <input
                 type="password"
                 required
+                disabled={isSubmitting}
                 placeholder="••••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500]"
+                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#D8F500] disabled:opacity-50"
               />
+            </div>
+            {fieldErrors.password && (
+              <p className="text-[11px] font-bold text-[#FF3B30] mt-1.5">{fieldErrors.password}</p>
+            )}
+
+            {/* Password Policy Checklist */}
+            <div className="mt-2.5 p-3 rounded-xl bg-white/5 border border-white/10 grid grid-cols-2 gap-2 text-[11px]">
+              <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-[#D8F500]' : 'text-white/50'}`}>
+                <CheckCircle2 size={13} className={hasMinLength ? 'text-[#D8F500]' : 'text-white/30'} />
+                <span>Min 8 characters</span>
+              </div>
+              <div className={`flex items-center gap-1.5 ${hasUpper ? 'text-[#D8F500]' : 'text-white/50'}`}>
+                <CheckCircle2 size={13} className={hasUpper ? 'text-[#D8F500]' : 'text-white/30'} />
+                <span>1 Uppercase letter</span>
+              </div>
+              <div className={`flex items-center gap-1.5 ${hasLower ? 'text-[#D8F500]' : 'text-white/50'}`}>
+                <CheckCircle2 size={13} className={hasLower ? 'text-[#D8F500]' : 'text-white/30'} />
+                <span>1 Lowercase letter</span>
+              </div>
+              <div className={`flex items-center gap-1.5 ${hasNumber ? 'text-[#D8F500]' : 'text-white/50'}`}>
+                <CheckCircle2 size={13} className={hasNumber ? 'text-[#D8F500]' : 'text-white/30'} />
+                <span>1 Number digit</span>
+              </div>
             </div>
           </div>
 
-          <Button variant="lime" fullWidth size="lg" iconRight={<ArrowRight size={18} />}>
-            Create {role} Account
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-white/80 mb-2">Confirm Password</label>
+            <div className="relative">
+              <Lock size={18} className="absolute left-4 top-3.5 text-white/40" />
+              <input
+                type="password"
+                required
+                disabled={isSubmitting}
+                placeholder="••••••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={`w-full bg-white/10 border rounded-2xl pl-12 pr-5 py-3 text-white placeholder-white/40 text-sm focus:outline-none disabled:opacity-50 ${
+                  confirmPassword.length > 0
+                    ? passwordsMatch
+                      ? 'border-[#D8F500]'
+                      : 'border-[#FF3B30]'
+                    : 'border border-white/20'
+                }`}
+              />
+            </div>
+            {fieldErrors.confirmPassword && (
+              <p className="text-[11px] font-bold text-[#FF3B30] mt-1.5">{fieldErrors.confirmPassword}</p>
+            )}
+          </div>
+
+          <Button variant="lime" fullWidth size="lg" disabled={isSubmitting} iconRight={<ArrowRight size={18} />}>
+            {isSubmitting ? 'Creating Athlete Account...' : 'Create Athlete Account'}
           </Button>
         </form>
 
