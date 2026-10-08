@@ -69,3 +69,14 @@ export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 
 export const ANNOUNCEMENT_PRIORITIES = ['Low', 'Normal', 'High'] as const;
 export type AnnouncementPriority = (typeof ANNOUNCEMENT_PRIORITIES)[number];
+
+export const AUDIT_ACTIONS = [
+  'USER_CREATED',
+  'USER_UPDATED',
+  'USER_ROLE_CHANGED',
+  'USER_DEACTIVATED',
+  'USER_REACTIVATED',
+  'USER_PASSWORD_RESET',
+] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+

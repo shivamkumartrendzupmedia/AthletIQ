@@ -23,3 +23,5 @@ export {
   type IAnnouncement,
   type IAnnouncementAudience,
 } from './Announcement.js';
+export { AuditLog, type IAuditLog } from './AuditLog.js';
+

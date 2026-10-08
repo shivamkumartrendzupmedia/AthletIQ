@@ -7,10 +7,10 @@ import type { ZodSchema } from 'zod';
  * or forwards the ZodError to errorHandler on failure.
  */
 export const validate =
-  (schema: ZodSchema) =>
+  (schema: ZodSchema, source: 'body' | 'query' | 'params' = 'body') =>
   async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      req.body = await schema.parseAsync(req.body);
+      req[source] = await schema.parseAsync(req[source]);
       next();
     } catch (error) {
       next(error);

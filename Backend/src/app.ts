@@ -10,6 +10,7 @@ import { env } from './config/env.js';
 import { apiRouter } from './routes/index.js';
 import { notFound } from './middlewares/notFound.js';
 import { errorHandler } from './middlewares/errorHandler.js';
+import { sanitizeInput } from './middlewares/sanitizeInput.js';
 
 export const createApp = (): Application => {
   const app: Application = express();
@@ -53,7 +54,10 @@ export const createApp = (): Application => {
   app.use(cookieParser());
   app.use(compression());
 
-  // 7. Mount API Routes under /api
+  // 7. Global Input Sanitization (rejects NoSQL injection and prototype pollution)
+  app.use(sanitizeInput);
+
+  // 8. Mount API Routes under /api
   app.use('/api', apiRouter);
 
   // 8. 404 Handler

@@ -36,12 +36,22 @@ export const errorHandler = (
       field: e.path.join('.'),
       message: e.message,
     }));
+  } else if ((err as { code?: number }).code === 11000) {
+    statusCode = 409;
+    message = 'Resource already exists';
   } else if (err.name === 'CastError') {
     statusCode = 400;
     message = 'Invalid resource identifier format';
   } else if (err.name === 'ValidationError') {
     statusCode = 400;
-    message = err.message;
+    message = 'Validation failed';
+    const validationErrors = (err as unknown as { errors?: Record<string, { path?: string; message?: string }> }).errors;
+    if (validationErrors) {
+      errors = Object.values(validationErrors).map((e) => ({
+        field: e.path || 'unknown',
+        message: e.message || 'Invalid value',
+      }));
+    }
   } else if (err.message) {
     message = err.message;
   }
