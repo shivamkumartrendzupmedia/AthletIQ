@@ -46,7 +46,9 @@ export class AthleteService {
       filter.sport = new Types.ObjectId(query.sport);
     }
 
-    if (query.team && Types.ObjectId.isValid(query.team)) {
+    if (user.role === 'Admin' && (query.unassigned === true || query.unassigned === 'true')) {
+      filter.$or = [{ team: null }, { team: { $exists: false } }];
+    } else if (query.team && Types.ObjectId.isValid(query.team)) {
       filter.team = new Types.ObjectId(query.team);
     }
 

@@ -17,7 +17,7 @@ export type Resource =
   | 'matches'
   | 'reports';
 
-export type Action = 'create' | 'read' | 'update' | 'delete' | 'resetPassword' | 'manage';
+export type Action = 'create' | 'read' | 'update' | 'delete' | 'resetPassword' | 'unlock' | 'manage';
 
 export type EnforcementStatus = 'enforced_now' | 'enforced_later';
 
@@ -41,6 +41,7 @@ export const PERMISSION_MATRIX: Record<
     update: { roles: ['Admin'], status: 'enforced_now', description: 'Admin updates user roles/status' },
     delete: { roles: ['Admin'], status: 'enforced_now', description: 'Admin deactivates users' },
     resetPassword: { roles: ['Admin'], status: 'enforced_now', description: 'Admin resets user password' },
+    unlock: { roles: ['Admin'], status: 'enforced_now', description: 'Admin unlocks locked user account' },
   },
   sports: {
     create: { roles: ['Admin'], status: 'enforced_now' },

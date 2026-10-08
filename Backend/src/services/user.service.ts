@@ -60,7 +60,7 @@ export class UserService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select('-passwordHash -refreshTokens -lockUntil -failedLoginAttempts'),
+        .select('-passwordHash -refreshTokens'),
       User.countDocuments(filter),
     ]);
 
@@ -72,7 +72,7 @@ export class UserService {
    */
   async getUserById(id: string | Types.ObjectId): Promise<IUser> {
     const user = await User.findById(id).select(
-      '-passwordHash -refreshTokens -lockUntil -failedLoginAttempts'
+      '-passwordHash -refreshTokens'
     );
     if (!user) {
       throw new ApiError(404, 'User not found');
@@ -362,6 +362,43 @@ export class UserService {
     ]);
 
     return formatPaginatedResponse(logs, total, page, limit);
+  }
+
+  /**
+   * Admin unlocks a locked user account without changing password or sessions.
+   * Clears failedLoginAttempts and lockUntil.
+   * Returns 404 if user does not exist.
+   */
+  async unlockUser(
+    targetId: string,
+    actorId: Types.ObjectId | string,
+    ip?: string,
+    userAgent?: string
+  ): Promise<IUser> {
+    const targetObjectId = new Types.ObjectId(targetId);
+    const user = await User.findById(targetObjectId);
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    await User.updateOne(
+      { _id: targetObjectId },
+      {
+        $set: { failedLoginAttempts: 0 },
+        $unset: { lockUntil: 1 },
+      }
+    );
+
+    await auditService.logAudit({
+      actor: actorId,
+      action: 'USER_UNLOCKED',
+      targetType: 'User',
+      targetId: targetObjectId,
+      ip,
+      userAgent,
+    });
+
+    return this.getUserById(targetObjectId);
   }
 }
 

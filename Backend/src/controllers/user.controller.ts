@@ -134,6 +134,28 @@ export class UserController {
       next(error);
     }
   }
+
+  async unlockUser(
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const user = await userService.unlockUser(
+        req.params.id,
+        req.user!._id,
+        req.ip,
+        req.get('user-agent')
+      );
+      res.status(200).json({
+        success: true,
+        message: 'User account unlocked successfully',
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const userController = new UserController();

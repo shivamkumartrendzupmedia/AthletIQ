@@ -34,6 +34,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Admin':
         return [
           { name: 'Admin Overview', path: '/dashboard/admin', icon: LayoutDashboard },
+          { name: 'User Accounts', path: '/dashboard/users', icon: User },
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
           { name: 'Athlete Management', path: '/dashboard/athletes', icon: Users },
           { name: 'Coach Management', path: '/dashboard/coaches', icon: UserCheck },

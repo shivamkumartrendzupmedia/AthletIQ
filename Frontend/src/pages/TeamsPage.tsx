@@ -1,95 +1,120 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { teamsData } from '../data/teamsData';
-import { Button, Card, SectionHeader, CrossAccent, AthleticBadge } from '../design-system';
-import { ArrowRight, Trophy, Users, Shield } from 'lucide-react';
+import { Card, CrossAccent, AthleticBadge } from '../design-system';
+import { ArrowRight, Shield } from 'lucide-react';
+import { academyApi, type PublicTeamItem } from '../services/academyApi';
+
+const DEFAULT_TEAM_IMAGE =
+  'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800&auto=format&fit=crop';
 
 export const TeamsPage: React.FC = () => {
+  const [teams, setTeams] = useState<PublicTeamItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchTeams = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await academyApi.getPublicTeams({ limit: 100 });
+      if (res.data) {
+        setTeams(res.data.data);
+      }
+    } catch {
+      setTeams([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
+
   return (
     <div className="space-y-16 pb-20">
-      {/* Header */}
+      {/* Header Banner */}
       <section className="bg-[#171044] text-white py-16 md:py-20 rounded-b-3xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-          <AthleticBadge variant="lime">ACADEMY SQUADS</AthleticBadge>
+          <AthleticBadge variant="orange">ACADEMY SQUADS</AthleticBadge>
           <h1 className="text-4xl md:text-6xl font-black font-display">
-            ACADEMY TEAMS <CrossAccent color="orange" size="lg" />
+            COMPETITIVE SQUADS <CrossAccent color="orange" size="lg" />
           </h1>
           <p className="text-base md:text-lg text-white/80 max-w-2xl mx-auto">
-            Competitive squads competing in regional leagues, state cups, and national showcases.
+            Explore our elite developmental rosters competing across regional and national divisions.
           </p>
         </div>
       </section>
 
       {/* Teams Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {teamsData.map((team) => (
-            <Card key={team.id} variant="team" className="group overflow-hidden flex flex-col justify-between">
-              <div className="space-y-6">
-                <div className="h-64 rounded-2xl overflow-hidden relative">
-                  <img
-                    src={team.image}
-                    alt={team.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-4 left-4 flex gap-2">
-                    <AthleticBadge variant="lime">{team.sport}</AthleticBadge>
-                    <AthleticBadge variant="orange">{team.ageGroup}</AthleticBadge>
+        {loading ? (
+          <div className="py-20 text-center font-display font-bold text-xl text-[#171044]/60">
+            Loading academy squads...
+          </div>
+        ) : teams.length === 0 ? (
+          <div className="py-20 text-center max-w-md mx-auto space-y-4">
+            <div className="text-2xl font-black font-display text-[#171044]">
+              Teams forming soon
+            </div>
+            <p className="text-sm text-[#171044]/70 leading-relaxed font-medium">
+              Tryout registrations and squad brackets for the upcoming season are currently in progress.
+            </p>
+            <Link to="/programs">
+              <button className="px-6 py-2.5 rounded-full bg-[#171044] text-[#D8F500] font-display font-bold text-xs uppercase tracking-wider hover:bg-[#281c66] transition-colors mt-2">
+                View Sports Programs
+              </button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {teams.map((team) => (
+              <Card
+                key={team.id}
+                variant="standard"
+                padding="none"
+                className="group overflow-hidden flex flex-col justify-between"
+              >
+                <div>
+                  <div className="h-56 relative overflow-hidden bg-[#171044]">
+                    <img
+                      src={DEFAULT_TEAM_IMAGE}
+                      alt={team.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-4 left-4 flex gap-2">
+                      <AthleticBadge variant="dark">{team.sport}</AthleticBadge>
+                      <AthleticBadge variant="orange">{team.ageGroup}</AthleticBadge>
+                    </div>
                   </div>
-                  <div className="absolute bottom-4 right-4 bg-[#171044]/90 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-bold text-white">
-                    Win Rate: <span className="text-[#D8F500] font-black">{team.winRate}</span>
+
+                  <div className="p-6 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-2xl font-black font-display text-[#171044]">{team.name}</h3>
+                      <span className="text-xs font-bold bg-[#D8F500] text-[#171044] px-2.5 py-0.5 rounded-full">
+                        {team.athleteCount} Players
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-[#FF5A00] font-bold">
+                      Head Coach: {team.coach?.name || 'Assigned Coaching Staff'}
+                    </p>
+
+                    <div className="text-xs text-[#171044]/60 font-medium">
+                      Season: {team.season || '2026'} • Bracket: {team.ageGroup}
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <h3 className="text-3xl font-black font-display text-white">{team.name}</h3>
-                  <p className="text-xs text-white/80 font-medium">Head Coach: <span className="text-[#D8F500] font-bold">{team.coachName}</span></p>
-
-                  <div className="grid grid-cols-4 gap-2 pt-2 text-center">
-                    <div className="bg-white/10 p-2.5 rounded-xl">
-                      <div className="text-lg font-black text-white">{team.matchesPlayed}</div>
-                      <div className="text-[10px] uppercase font-bold text-white/60">Played</div>
-                    </div>
-                    <div className="bg-white/10 p-2.5 rounded-xl">
-                      <div className="text-lg font-black text-[#D8F500]">{team.wins}</div>
-                      <div className="text-[10px] uppercase font-bold text-white/60">Wins</div>
-                    </div>
-                    <div className="bg-white/10 p-2.5 rounded-xl">
-                      <div className="text-lg font-black text-white/80">{team.draws}</div>
-                      <div className="text-[10px] uppercase font-bold text-white/60">Draws</div>
-                    </div>
-                    <div className="bg-white/10 p-2.5 rounded-xl">
-                      <div className="text-lg font-black text-[#FF5A00]">{team.losses}</div>
-                      <div className="text-[10px] uppercase font-bold text-white/60">Losses</div>
-                    </div>
-                  </div>
+                <div className="p-6 pt-0">
+                  <Link to={`/teams/${team.slug}`}>
+                    <button className="w-full py-2.5 rounded-full bg-[#171044] text-[#D8F500] font-display font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#281c66] transition-colors">
+                      Squad Details <ArrowRight size={14} />
+                    </button>
+                  </Link>
                 </div>
-              </div>
-
-              <div className="pt-6 border-t border-white/10 flex items-center justify-between mt-6">
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-white/60 font-bold mr-1">Form:</span>
-                  {team.recentForm.map((f, i) => (
-                    <span
-                      key={i}
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
-                        f === 'W' ? 'bg-[#D8F500] text-[#171044]' : f === 'D' ? 'bg-amber-400 text-black' : 'bg-rose-500 text-white'
-                      }`}
-                    >
-                      {f}
-                    </span>
-                  ))}
-                </div>
-
-                <Link to={`/teams/${team.id}`}>
-                  <Button variant="lime" size="sm" iconRight={<ArrowRight size={14} />}>
-                    View Roster
-                  </Button>
-                </Link>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

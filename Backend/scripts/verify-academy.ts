@@ -621,6 +621,30 @@ async function run(): Promise<void> {
     const unlinkedAthleteId = getDocId((unlinkedAthleteRes.body as { data: unknown }).data);
     createdAthleteIds.push(unlinkedAthleteId);
 
+    // Test 2.8a: Unassigned athletes filter (Correction 2)
+    const unassignedAthRes = await fetch2('/athletes?unassigned=true', {
+      headers: { Authorization: `Bearer ${tokens.Admin}` },
+    });
+    assert(unassignedAthRes.status === 200, 'GET /athletes?unassigned=true returns 200 for Admin (Correction 2)');
+    const unassignedAthletes = (unassignedAthRes.body as { data: Array<{ id: string; team?: unknown }> }).data;
+    const hasUnlinked = unassignedAthletes.some((a) => a.id === unlinkedAthleteId.toString());
+    const hasAssigned = unassignedAthletes.some((a) => a.id === athlete1Id.toString());
+    assert(hasUnlinked && !hasAssigned, 'GET /athletes?unassigned=true includes athletes without a team and excludes assigned athletes (Correction 2)');
+
+    // Test 2.8b: Teams list populates coach name and sport name safely (Correction 3)
+    const teamsListRes = await fetch2('/teams', {
+      headers: { Authorization: `Bearer ${tokens.Admin}` },
+    });
+    assert(teamsListRes.status === 200, 'GET /teams returns 200 for Admin');
+    const adminTeamsList = (teamsListRes.body as { data: Array<{ sport?: { name?: string }; coach?: { user?: { name?: string; email?: string; phone?: string } } }> }).data;
+    const sampleTeam = adminTeamsList.find((t) => t.coach && t.coach.user);
+    assert(
+      Boolean(sampleTeam?.sport?.name && sampleTeam?.coach?.user?.name),
+      'GET /teams returns coach name and sport name (Correction 3)'
+    );
+    const forbiddenCoachUserKeys = deepFindKeys(adminTeamsList.map((t) => t.coach?.user).filter(Boolean), ['email', 'phone', 'password', 'passwordHash']);
+    assert(forbiddenCoachUserKeys.length === 0, 'DEEP SCAN: coach.user in GET /teams never contains email, phone, or password (Correction 3)');
+
     // Test 2.8: Missing test c: Coach, Organizer, Athlete cannot PUT or DELETE /athletes/:id/team (403)
     const assignPayload = JSON.stringify({ team: createdTeamId.toString(), jerseyNumber: 50 });
     const cPut = await fetch2(`/athletes/${athlete1Id}/team`, {

@@ -38,6 +38,7 @@ import { DocumentsPage } from './pages/dashboard/DocumentsPage';
 import { AnnouncementsPage } from './pages/dashboard/AnnouncementsPage';
 import { TrainingCalendarPage } from './pages/dashboard/TrainingCalendarPage';
 import { TournamentManagementPage } from './pages/dashboard/TournamentManagementPage';
+import { UserAccountsPage } from './pages/dashboard/UserAccountsPage';
 
 function App() {
   return (
@@ -122,6 +123,16 @@ function App() {
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
                   <RosterManagementPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/users"
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <DashboardLayout>
+                  <UserAccountsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

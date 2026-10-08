@@ -102,6 +102,10 @@ export const athleteQuerySchema = z.object({
   status: z.enum(ATHLETE_STATUSES).optional(),
   verificationStatus: z.enum(VERIFICATION_STATUSES).optional(),
   search: z.string().trim().optional(),
+  unassigned: z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .transform((val) => (val === true || val === 'true' ? true : undefined)),
 });
 
 export type CreateAthleteInput = z.infer<typeof createAthleteSchema>;

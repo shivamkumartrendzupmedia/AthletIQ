@@ -69,6 +69,13 @@ router.post(
   userController.resetPassword
 );
 
+// Admin unlocks user account
+router.post(
+  '/:id/unlock',
+  validateObjectId('id'),
+  userController.unlockUser
+);
+
 // Get paginated audit logs for a specific user
 router.get(
   '/:id/audit',

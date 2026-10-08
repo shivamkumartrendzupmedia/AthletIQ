@@ -19,6 +19,7 @@ export interface IUser extends Document {
   lastLoginAt?: Date;
   failedLoginAttempts: number;
   lockUntil?: Date;
+  isLocked?: boolean;
   passwordChangedAt?: Date;
   refreshTokens: IRefreshToken[];
   createdAt: Date;
@@ -118,5 +119,9 @@ const userSchema = new Schema<IUser>(
     },
   }
 );
+
+userSchema.virtual('isLocked').get(function (this: IUser) {
+  return Boolean(this.lockUntil && new Date(this.lockUntil) > new Date());
+});
 
 export const User = model<IUser>('User', userSchema);

@@ -13,6 +13,7 @@ import { scopeService } from '../src/services/scope.service.js';
 import { hashPassword } from '../src/utils/password.js';
 import { signAccessToken } from '../src/utils/jwt.js';
 import { ApiError } from '../src/utils/ApiError.js';
+import { authService } from '../src/services/auth.service.js';
 
 let passed = 0;
 let failed = 0;
@@ -52,6 +53,23 @@ async function httpFetch(
     body = await res.text().catch(() => null);
   }
   return { status: res.status, body, headers: res.headers };
+}
+
+function deepFindKeys(obj: unknown, forbiddenKeys: string[], found: string[] = []): string[] {
+  if (obj === null || typeof obj !== 'object') return found;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      deepFindKeys(item, forbiddenKeys, found);
+    }
+    return found;
+  }
+  for (const [key, value] of Object.entries(obj)) {
+    if (forbiddenKeys.includes(key)) {
+      found.push(key);
+    }
+    deepFindKeys(value, forbiddenKeys, found);
+  }
+  return found;
 }
 
 async function run(): Promise<void> {
@@ -116,28 +134,24 @@ async function run(): Promise<void> {
     const dummyId = new Types.ObjectId().toString();
 
     const unauthTests = [
-      { method: 'PATCH', path: '/me', body: { name: 'Hack' } },
-      { method: 'GET', path: '/', body: undefined },
-      { method: 'POST', path: '/', body: { name: 'X', email: 'x@x.com', role: 'Athlete', password: 'P1' } },
-      { method: 'GET', path: `/${dummyId}`, body: undefined },
-      { method: 'PATCH', path: `/${dummyId}`, body: { name: 'Y' } },
-      { method: 'POST', path: `/${dummyId}/reset-password`, body: { newPassword: defaultPassword } },
-      { method: 'GET', path: `/${dummyId}/audit`, body: undefined },
+      { method: 'PATCH', path: '/me', body: { name: 'Hack' }, name: 'PATCH /api/users/me' },
+      { method: 'GET', path: '/', body: undefined, name: 'GET /api/users' },
+      { method: 'POST', path: '/', body: { name: 'X', email: 'x@x.com', role: 'Athlete', password: 'P1' }, name: 'POST /api/users' },
+      { method: 'GET', path: `/${dummyId}`, body: undefined, name: 'GET /api/users/:id' },
+      { method: 'PATCH', path: `/${dummyId}`, body: { name: 'Y' }, name: 'PATCH /api/users/:id' },
+      { method: 'POST', path: `/${dummyId}/unlock`, body: undefined, name: 'POST /api/users/:id/unlock' },
+      { method: 'POST', path: `/${dummyId}/reset-password`, body: { newPassword: defaultPassword }, name: 'POST /api/users/:id/reset-password' },
+      { method: 'GET', path: `/${dummyId}/audit`, body: undefined, name: 'GET /api/users/:id/audit' },
     ];
 
-    let allUnauthPassed = true;
     for (const t of unauthTests) {
       const res = await httpFetch(`${baseUsersUrl}${t.path}`, {
         method: t.method,
         headers: { 'Content-Type': 'application/json' },
         body: t.body ? JSON.stringify(t.body) : undefined,
       });
-      if (res.status !== 401) {
-        allUnauthPassed = false;
-        console.error(`  ✗ Expected 401 on ${t.method} ${t.path}, got ${res.status}`);
-      }
+      assert(res.status === 401, `Unauthenticated request to ${t.name} returns 401 Unauthorized`);
     }
-    assert(allUnauthPassed, 'All 7 /api/users endpoints return 401 Unauthorized without Bearer token');
 
     // 4. Role × Endpoint Authorization Matrix (Coach, Athlete, Organizer forbidden on admin endpoints)
     console.log('\n3. Role × Endpoint Authorization Matrix:');
@@ -695,6 +709,144 @@ async function run(): Promise<void> {
       athleteInOtherTeam._id
     );
     assert(!athleteCanAccessOther, 'scopeService: Athlete CANNOT access another athlete profile');
+
+    // 11. User Account Unlock & Lockout Lifecycle (Step 5B)
+    console.log('\n11. User Account Unlock & Lockout Lifecycle:');
+    const lockTestEmail = `verify-rbac-${runId}-locked@athletiq.test`;
+    const lockTestPassword = 'CorrectPass123!';
+    const lockTestUser = await User.create({
+      name: 'Locked Test Athlete',
+      email: lockTestEmail,
+      role: 'Athlete',
+      passwordHash: await hashPassword(lockTestPassword),
+      isActive: true,
+    });
+    createdUserIds.push(lockTestUser._id);
+
+    // Lock user using SERVICE-level wrong logins (0 HTTP requests consumed)
+    for (let i = 0; i < 5; i++) {
+      try {
+        await authService.login({ email: lockTestEmail, password: 'WrongPassword999!' });
+      } catch {
+        // Expected authentication failure
+      }
+    }
+
+    // Verify user is locked at DB level
+    const lockedUserDb = await User.findById(lockTestUser._id);
+    assert(lockedUserDb?.lockUntil !== undefined, 'User account locked at DB level via 5 failed logins');
+
+    // GET /api/users/:id as Admin returns safe boolean `isLocked === true`
+    const getLockedUserRes = await httpFetch(`${baseUsersUrl}/${lockTestUser._id}`, {
+      headers: { Authorization: `Bearer ${tokens.Admin}` },
+    });
+    assert(getLockedUserRes.status === 200, 'GET /users/:id (Admin) returns 200 for locked user');
+    assert(getLockedUserRes.body.data.isLocked === true, 'GET /users/:id computes safe boolean isLocked: true');
+
+    // Deep scan response JSON for forbidden sensitive fields (lockUntil, failedLoginAttempts)
+    const leakedLockKeys = deepFindKeys(getLockedUserRes.body, ['lockUntil', 'failedLoginAttempts']);
+    assert(leakedLockKeys.length === 0, 'DEEP SCAN: lockUntil and failedLoginAttempts are completely absent from user JSON');
+
+    // Non-admin (Coach) attempting to unlock returns 403 Forbidden
+    const coachUnlockRes = await httpFetch(`${baseUsersUrl}/${lockTestUser._id}/unlock`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.Coach}` },
+    });
+    assert(coachUnlockRes.status === 403, 'Coach attempting POST /users/:id/unlock returns 403 Forbidden');
+
+    // Admin unlocking a non-existent user returns 404 Not Found
+    const nonExistentUnlockRes = await httpFetch(`${baseUsersUrl}/${new Types.ObjectId()}/unlock`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.Admin}` },
+    });
+    assert(nonExistentUnlockRes.status === 404, 'Admin POST /users/:id/unlock with non-existent ID returns 404 Not Found');
+
+    // Admin unlocking the locked user returns 200 OK
+    const adminUnlockRes = await httpFetch(`${baseUsersUrl}/${lockTestUser._id}/unlock`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokens.Admin}` },
+    });
+    assert(adminUnlockRes.status === 200, 'Admin POST /users/:id/unlock returns 200 OK');
+    assert(adminUnlockRes.body.data.isLocked === false, 'Unlocked user response returns isLocked: false');
+
+    // Check user in DB: lock cleared, failedLoginAttempts reset to 0
+    const unlockedUserDb = await User.findById(lockTestUser._id);
+    assert(unlockedUserDb?.lockUntil === undefined, 'User lockUntil unset after unlock');
+    assert(unlockedUserDb?.failedLoginAttempts === 0, 'User failedLoginAttempts reset to 0 after unlock');
+
+    // User can now log in successfully with correct password via HTTP
+    const unlockedLoginRes = await httpFetch(`${baseAuthUrl}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: lockTestEmail, password: lockTestPassword }),
+    });
+    assert(unlockedLoginRes.status === 200, 'Unlocked user successfully authenticates on POST /api/auth/login');
+
+    // Audit entry USER_UNLOCKED exists and actor is Admin
+    const unlockAudits = await AuditLog.find({ targetId: lockTestUser._id, action: 'USER_UNLOCKED' });
+    assert(unlockAudits.length > 0, 'Audit log entry USER_UNLOCKED recorded for unlocked user');
+
+    // Test: Reset password on a locked user also clears lock
+    const lockResetEmail = `verify-rbac-${runId}-lock-reset@athletiq.test`;
+    const lockResetUser = await User.create({
+      name: 'Lock Reset Test Athlete',
+      email: lockResetEmail,
+      role: 'Athlete',
+      passwordHash: await hashPassword('OldPass123!'),
+      isActive: true,
+    });
+    createdUserIds.push(lockResetUser._id);
+
+    // Lock via service
+    for (let i = 0; i < 5; i++) {
+      try {
+        await authService.login({ email: lockResetEmail, password: 'WrongPassword999!' });
+      } catch {
+        // Expected
+      }
+    }
+
+    const resetLockRes = await httpFetch(`${baseUsersUrl}/${lockResetUser._id}/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokens.Admin}`,
+      },
+      body: JSON.stringify({ newPassword: 'BrandNewPass123!' }),
+    });
+    assert(resetLockRes.status === 200, 'Admin POST /users/:id/reset-password returns 200');
+
+    const getResetUserRes = await httpFetch(`${baseUsersUrl}/${lockResetUser._id}`, {
+      headers: { Authorization: `Bearer ${tokens.Admin}` },
+    });
+    assert(getResetUserRes.body.data.isLocked === false, 'POST /reset-password on locked user automatically clears lock (isLocked: false)');
+
+    // 12. Deep Scan: Raw lockout fields (lockUntil, failedLoginAttempts) are absent across all endpoints
+    console.log('\n12. Comprehensive Deep Scan for Sensitive Lockout Fields:');
+    const authMeRes = await httpFetch(`${baseAuthUrl}/me`, {
+      headers: { Authorization: `Bearer ${tokens.Admin}` },
+    });
+    assert(authMeRes.status === 200, 'GET /api/auth/me returns 200 OK');
+
+    const deepScanTargets = [
+      { name: 'GET /api/users (list)', body: listRes.body },
+      { name: 'GET /api/users/:id', body: getSingleRes.body },
+      { name: 'POST /api/users', body: createRes.body },
+      { name: 'PATCH /api/users/:id', body: patchRes.body },
+      { name: 'POST /api/users/:id/unlock', body: adminUnlockRes.body },
+      { name: 'POST /api/users/:id/reset-password', body: resetRes.body },
+      { name: 'PATCH /api/users/me', body: selfRes.body },
+      { name: 'GET /api/auth/me', body: authMeRes.body },
+      { name: 'POST /api/auth/login (user object)', body: preResetLoginRes.body?.data?.user || preResetLoginRes.body },
+    ];
+
+    for (const target of deepScanTargets) {
+      const leaked = deepFindKeys(target.body, ['lockUntil', 'failedLoginAttempts']);
+      assert(
+        leaked.length === 0,
+        `DEEP SCAN: lockUntil and failedLoginAttempts completely absent from ${target.name}`
+      );
+    }
 
   } finally {
     console.log('\nCleaning up verification resources...');
