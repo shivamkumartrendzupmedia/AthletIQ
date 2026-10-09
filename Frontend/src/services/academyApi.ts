@@ -1,11 +1,12 @@
-import { apiClient, type ApiResponse } from '../lib/apiClient';
+import { apiClient } from '../lib/apiClient';
+import {
+  normalizeListResponse,
+  normalizeSingleResponse,
+  type PaginationMeta,
+  type PaginatedResult,
+} from './listHelpers';
 
-export interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+export type { PaginationMeta, PaginatedResult };
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -339,139 +340,165 @@ const buildQueryString = (params: Record<string, unknown>): string => {
 
 export const academyApi = {
   // Sports
-  listSports: async (query: SportQuery = {}): Promise<ApiResponse<PaginatedResponse<SportItem>>> => {
-    return apiClient<PaginatedResponse<SportItem>>(`/sports${buildQueryString(query as Record<string, unknown>)}`);
+  listSports: async (query: SportQuery = {}): Promise<PaginatedResult<SportItem>> => {
+    const res = await apiClient(`/sports${buildQueryString(query as Record<string, unknown>)}`);
+    return normalizeListResponse<SportItem>(res);
   },
-  getSport: async (id: string): Promise<ApiResponse<SportItem>> => {
-    return apiClient<SportItem>(`/sports/${id}`);
+  getSport: async (id: string): Promise<SportItem | null> => {
+    const res = await apiClient(`/sports/${id}`);
+    return normalizeSingleResponse<SportItem>(res);
   },
-  createSport: async (payload: CreateSportInput): Promise<ApiResponse<SportItem>> => {
-    return apiClient<SportItem>('/sports', {
+  createSport: async (payload: CreateSportInput): Promise<SportItem | null> => {
+    const res = await apiClient('/sports', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<SportItem>(res);
   },
-  updateSport: async (id: string, payload: UpdateSportInput): Promise<ApiResponse<SportItem>> => {
-    return apiClient<SportItem>(`/sports/${id}`, {
+  updateSport: async (id: string, payload: UpdateSportInput): Promise<SportItem | null> => {
+    const res = await apiClient(`/sports/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<SportItem>(res);
   },
-  deleteSport: async (id: string): Promise<ApiResponse<{ message: string }>> => {
-    return apiClient<{ message: string }>(`/sports/${id}`, {
+  deleteSport: async (id: string): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/sports/${id}`, {
       method: 'DELETE',
     });
+    return normalizeSingleResponse<{ message: string }>(res);
   },
 
   // Teams
-  listTeams: async (query: TeamQuery = {}): Promise<ApiResponse<PaginatedResponse<TeamItem>>> => {
-    return apiClient<PaginatedResponse<TeamItem>>(`/teams${buildQueryString(query as Record<string, unknown>)}`);
+  listTeams: async (query: TeamQuery = {}): Promise<PaginatedResult<TeamItem>> => {
+    const res = await apiClient(`/teams${buildQueryString(query as Record<string, unknown>)}`);
+    return normalizeListResponse<TeamItem>(res);
   },
-  getTeam: async (id: string): Promise<ApiResponse<TeamItem>> => {
-    return apiClient<TeamItem>(`/teams/${id}`);
+  getTeam: async (id: string): Promise<TeamItem | null> => {
+    const res = await apiClient(`/teams/${id}`);
+    return normalizeSingleResponse<TeamItem>(res);
   },
-  createTeam: async (payload: CreateTeamInput): Promise<ApiResponse<TeamItem>> => {
-    return apiClient<TeamItem>('/teams', {
+  createTeam: async (payload: CreateTeamInput): Promise<TeamItem | null> => {
+    const res = await apiClient('/teams', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<TeamItem>(res);
   },
-  updateTeam: async (id: string, payload: UpdateTeamInput): Promise<ApiResponse<TeamItem>> => {
-    return apiClient<TeamItem>(`/teams/${id}`, {
+  updateTeam: async (id: string, payload: UpdateTeamInput): Promise<TeamItem | null> => {
+    const res = await apiClient(`/teams/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<TeamItem>(res);
   },
-  deleteTeam: async (id: string): Promise<ApiResponse<{ message: string }>> => {
-    return apiClient<{ message: string }>(`/teams/${id}`, {
+  deleteTeam: async (id: string): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/teams/${id}`, {
       method: 'DELETE',
     });
+    return normalizeSingleResponse<{ message: string }>(res);
   },
-  getTeamRoster: async (teamId: string): Promise<ApiResponse<AthleteItem[]>> => {
-    return apiClient<AthleteItem[]>(`/teams/${teamId}/roster`);
+  getTeamRoster: async (teamId: string): Promise<PaginatedResult<AthleteItem>> => {
+    const res = await apiClient(`/teams/${teamId}/roster`);
+    return normalizeListResponse<AthleteItem>(res);
   },
 
   // Coaches
-  listCoaches: async (query: CoachQuery = {}): Promise<ApiResponse<PaginatedResponse<CoachItem>>> => {
-    return apiClient<PaginatedResponse<CoachItem>>(`/coaches${buildQueryString(query as Record<string, unknown>)}`);
+  listCoaches: async (query: CoachQuery = {}): Promise<PaginatedResult<CoachItem>> => {
+    const res = await apiClient(`/coaches${buildQueryString(query as Record<string, unknown>)}`);
+    return normalizeListResponse<CoachItem>(res);
   },
-  getCoach: async (id: string): Promise<ApiResponse<CoachItem>> => {
-    return apiClient<CoachItem>(`/coaches/${id}`);
+  getCoach: async (id: string): Promise<CoachItem | null> => {
+    const res = await apiClient(`/coaches/${id}`);
+    return normalizeSingleResponse<CoachItem>(res);
   },
-  createCoach: async (payload: CreateCoachInput): Promise<ApiResponse<CoachItem>> => {
-    return apiClient<CoachItem>('/coaches', {
+  createCoach: async (payload: CreateCoachInput): Promise<CoachItem | null> => {
+    const res = await apiClient('/coaches', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<CoachItem>(res);
   },
-  updateCoach: async (id: string, payload: UpdateCoachInput): Promise<ApiResponse<CoachItem>> => {
-    return apiClient<CoachItem>(`/coaches/${id}`, {
+  updateCoach: async (id: string, payload: UpdateCoachInput): Promise<CoachItem | null> => {
+    const res = await apiClient(`/coaches/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<CoachItem>(res);
   },
-  deleteCoach: async (id: string): Promise<ApiResponse<{ message: string }>> => {
-    return apiClient<{ message: string }>(`/coaches/${id}`, {
+  deleteCoach: async (id: string): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/coaches/${id}`, {
       method: 'DELETE',
     });
+    return normalizeSingleResponse<{ message: string }>(res);
   },
 
   // Athletes
-  listAthletes: async (query: AthleteQuery = {}): Promise<ApiResponse<PaginatedResponse<AthleteItem>>> => {
-    return apiClient<PaginatedResponse<AthleteItem>>(`/athletes${buildQueryString(query as Record<string, unknown>)}`);
+  listAthletes: async (query: AthleteQuery = {}): Promise<PaginatedResult<AthleteItem>> => {
+    const res = await apiClient(`/athletes${buildQueryString(query as Record<string, unknown>)}`);
+    return normalizeListResponse<AthleteItem>(res);
   },
-  getAthlete: async (id: string): Promise<ApiResponse<AthleteItem>> => {
-    return apiClient<AthleteItem>(`/athletes/${id}`);
+  getAthlete: async (id: string): Promise<AthleteItem | null> => {
+    const res = await apiClient(`/athletes/${id}`);
+    return normalizeSingleResponse<AthleteItem>(res);
   },
-  createAthlete: async (payload: CreateAthleteInput): Promise<ApiResponse<AthleteItem>> => {
-    return apiClient<AthleteItem>('/athletes', {
+  createAthlete: async (payload: CreateAthleteInput): Promise<AthleteItem | null> => {
+    const res = await apiClient('/athletes', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<AthleteItem>(res);
   },
-  updateAthlete: async (id: string, payload: UpdateAthleteInput): Promise<ApiResponse<AthleteItem>> => {
-    return apiClient<AthleteItem>(`/athletes/${id}`, {
+  updateAthlete: async (id: string, payload: UpdateAthleteInput): Promise<AthleteItem | null> => {
+    const res = await apiClient(`/athletes/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<AthleteItem>(res);
   },
-  deleteAthlete: async (id: string): Promise<ApiResponse<{ message: string }>> => {
-    return apiClient<{ message: string }>(`/athletes/${id}`, {
+  deleteAthlete: async (id: string): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/athletes/${id}`, {
       method: 'DELETE',
     });
+    return normalizeSingleResponse<{ message: string }>(res);
   },
   assignAthleteTeam: async (
     athleteId: string,
     teamId: string,
     jerseyNumber?: number
-  ): Promise<ApiResponse<AthleteItem>> => {
-    return apiClient<AthleteItem>(`/athletes/${athleteId}/team`, {
+  ): Promise<AthleteItem | null> => {
+    const res = await apiClient(`/athletes/${athleteId}/team`, {
       method: 'PUT',
       body: JSON.stringify({ team: teamId, jerseyNumber }),
     });
+    return normalizeSingleResponse<AthleteItem>(res);
   },
-  unassignAthleteTeam: async (athleteId: string): Promise<ApiResponse<AthleteItem>> => {
-    return apiClient<AthleteItem>(`/athletes/${athleteId}/team`, {
+  unassignAthleteTeam: async (athleteId: string): Promise<AthleteItem | null> => {
+    const res = await apiClient(`/athletes/${athleteId}/team`, {
       method: 'DELETE',
     });
+    return normalizeSingleResponse<AthleteItem>(res);
   },
   updateAthleteVerification: async (
     athleteId: string,
     verificationStatus: 'Verified' | 'Pending ID' | 'Medical Required',
     documents?: string[]
-  ): Promise<ApiResponse<AthleteItem>> => {
-    return apiClient<AthleteItem>(`/athletes/${athleteId}/verification`, {
+  ): Promise<AthleteItem | null> => {
+    const res = await apiClient(`/athletes/${athleteId}/verification`, {
       method: 'PATCH',
       body: JSON.stringify({ verificationStatus, documents }),
     });
+    return normalizeSingleResponse<AthleteItem>(res);
   },
 
   // User Accounts (Admin)
-  listUsers: async (query: UserQuery = {}): Promise<ApiResponse<PaginatedResponse<AdminUserItem>>> => {
-    return apiClient<PaginatedResponse<AdminUserItem>>(`/users${buildQueryString(query as Record<string, unknown>)}`);
+  listUsers: async (query: UserQuery = {}): Promise<PaginatedResult<AdminUserItem>> => {
+    const res = await apiClient(`/users${buildQueryString(query as Record<string, unknown>)}`);
+    return normalizeListResponse<AdminUserItem>(res);
   },
-  getUser: async (id: string): Promise<ApiResponse<AdminUserItem>> => {
-    return apiClient<AdminUserItem>(`/users/${id}`);
+  getUser: async (id: string): Promise<AdminUserItem | null> => {
+    const res = await apiClient(`/users/${id}`);
+    return normalizeSingleResponse<AdminUserItem>(res);
   },
   createUser: async (payload: {
     name: string;
@@ -479,11 +506,12 @@ export const academyApi = {
     password: string;
     role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
     isActive?: boolean;
-  }): Promise<ApiResponse<AdminUserItem>> => {
-    return apiClient<AdminUserItem>('/users', {
+  }): Promise<AdminUserItem | null> => {
+    const res = await apiClient('/users', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<AdminUserItem>(res);
   },
   updateUser: async (
     id: string,
@@ -493,51 +521,61 @@ export const academyApi = {
       role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
       isActive?: boolean;
     }
-  ): Promise<ApiResponse<AdminUserItem>> => {
-    return apiClient<AdminUserItem>(`/users/${id}`, {
+  ): Promise<AdminUserItem | null> => {
+    const res = await apiClient(`/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
+    return normalizeSingleResponse<AdminUserItem>(res);
   },
 
-  unlockUser: async (id: string): Promise<ApiResponse<AdminUserItem>> => {
-    return apiClient<AdminUserItem>(`/users/${id}/unlock`, {
+  unlockUser: async (id: string): Promise<AdminUserItem | null> => {
+    const res = await apiClient(`/users/${id}/unlock`, {
       method: 'POST',
     });
+    return normalizeSingleResponse<AdminUserItem>(res);
   },
-  resetUserPassword: async (id: string, newPassword: string): Promise<ApiResponse<{ message: string }>> => {
-    return apiClient<{ message: string }>(`/users/${id}/reset-password`, {
+  resetUserPassword: async (id: string, newPassword: string): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/users/${id}/reset-password`, {
       method: 'POST',
       body: JSON.stringify({ newPassword }),
     });
+    return normalizeSingleResponse<{ message: string }>(res);
   },
-  getUserAudit: async (id: string): Promise<ApiResponse<UserAuditItem[]>> => {
-    return apiClient<UserAuditItem[]>(`/users/${id}/audit`);
+  getUserAudit: async (id: string): Promise<PaginatedResult<UserAuditItem>> => {
+    const res = await apiClient(`/users/${id}/audit`);
+    return normalizeListResponse<UserAuditItem>(res);
   },
 
   // Public Catalog
-  getPublicSports: async (query: PaginationQuery = {}): Promise<ApiResponse<PaginatedResponse<PublicSportItem>>> => {
-    return apiClient<PaginatedResponse<PublicSportItem>>(
+  getPublicSports: async (query: PaginationQuery = {}): Promise<PaginatedResult<PublicSportItem>> => {
+    const res = await apiClient(
       `/public/sports${buildQueryString(query as Record<string, unknown>)}`
     );
+    return normalizeListResponse<PublicSportItem>(res);
   },
-  getPublicSportBySlug: async (slug: string): Promise<ApiResponse<PublicSportItem>> => {
-    return apiClient<PublicSportItem>(`/public/sports/${slug}`);
+  getPublicSportBySlug: async (slug: string): Promise<PublicSportItem | null> => {
+    const res = await apiClient(`/public/sports/${slug}`);
+    return normalizeSingleResponse<PublicSportItem>(res);
   },
-  getPublicTeams: async (query: PaginationQuery = {}): Promise<ApiResponse<PaginatedResponse<PublicTeamItem>>> => {
-    return apiClient<PaginatedResponse<PublicTeamItem>>(
+  getPublicTeams: async (query: PaginationQuery = {}): Promise<PaginatedResult<PublicTeamItem>> => {
+    const res = await apiClient(
       `/public/teams${buildQueryString(query as Record<string, unknown>)}`
     );
+    return normalizeListResponse<PublicTeamItem>(res);
   },
-  getPublicTeamBySlug: async (slug: string): Promise<ApiResponse<PublicTeamItem>> => {
-    return apiClient<PublicTeamItem>(`/public/teams/${slug}`);
+  getPublicTeamBySlug: async (slug: string): Promise<PublicTeamItem | null> => {
+    const res = await apiClient(`/public/teams/${slug}`);
+    return normalizeSingleResponse<PublicTeamItem>(res);
   },
-  getPublicCoaches: async (query: PaginationQuery = {}): Promise<ApiResponse<PaginatedResponse<PublicCoachItem>>> => {
-    return apiClient<PaginatedResponse<PublicCoachItem>>(
+  getPublicCoaches: async (query: PaginationQuery = {}): Promise<PaginatedResult<PublicCoachItem>> => {
+    const res = await apiClient(
       `/public/coaches${buildQueryString(query as Record<string, unknown>)}`
     );
+    return normalizeListResponse<PublicCoachItem>(res);
   },
-  getPublicCoachById: async (id: string): Promise<ApiResponse<PublicCoachItem>> => {
-    return apiClient<PublicCoachItem>(`/public/coaches/${id}`);
+  getPublicCoachById: async (id: string): Promise<PublicCoachItem | null> => {
+    const res = await apiClient(`/public/coaches/${id}`);
+    return normalizeSingleResponse<PublicCoachItem>(res);
   },
 };

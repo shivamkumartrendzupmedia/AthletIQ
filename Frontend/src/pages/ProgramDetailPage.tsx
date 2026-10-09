@@ -22,9 +22,9 @@ export const ProgramDetailPage: React.FC = () => {
       }
       setLoading(true);
       try {
-        const res = await academyApi.getPublicSportBySlug(id);
-        if (res.data) {
-          setSport(res.data);
+        const sportItem = await academyApi.getPublicSportBySlug(id);
+        if (sportItem) {
+          setSport(sportItem);
         } else {
           setNotFound(true);
         }

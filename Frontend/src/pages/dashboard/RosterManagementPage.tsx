@@ -33,9 +33,7 @@ export const RosterManagementPage: React.FC = () => {
     setLoadingUnassigned(true);
     try {
       const res = await academyApi.listAthletes({ unassigned: true, limit: 100 });
-      if (res.data) {
-        setUnassignedAthletes(res.data.data);
-      }
+      setUnassignedAthletes(res.items);
     } catch (err: unknown) {
       const msg = err instanceof ApiClientError ? err.message : 'Failed to load unassigned athletes.';
       setErrorBanner(msg);
@@ -47,11 +45,9 @@ export const RosterManagementPage: React.FC = () => {
   const fetchTeams = useCallback(async () => {
     try {
       const res = await academyApi.listTeams({ limit: 100 });
-      if (res.data) {
-        setTeams(res.data.data);
-        if (res.data.data.length > 0 && !selectedTeamId) {
-          setSelectedTeamId(res.data.data[0].id);
-        }
+      setTeams(res.items);
+      if (res.items.length > 0 && !selectedTeamId) {
+        setSelectedTeamId(res.items[0].id);
       }
     } catch {
       // Non-fatal
@@ -63,9 +59,7 @@ export const RosterManagementPage: React.FC = () => {
     setLoadingRoster(true);
     try {
       const res = await academyApi.getTeamRoster(teamId);
-      if (res.data) {
-        setTeamRoster(res.data);
-      }
+      setTeamRoster(res.items);
     } catch (err: unknown) {
       const msg = err instanceof ApiClientError ? err.message : 'Failed to load squad roster.';
       setErrorBanner(msg);
@@ -194,7 +188,7 @@ export const RosterManagementPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-bold font-display text-[#171044]">
-                  Unassigned Athletes ({unassignedAthletes.length}){' '}
+                  Unassigned Athletes ({(unassignedAthletes || []).length}){' '}
                   <CrossAccent color="orange" size="sm" />
                 </h3>
                 <p className="text-xs text-[#171044]/70 mt-0.5">
@@ -207,13 +201,13 @@ export const RosterManagementPage: React.FC = () => {
               <div className="py-12 text-center text-xs font-bold text-[#171044]/60">
                 Loading unassigned athletes...
               </div>
-            ) : unassignedAthletes.length === 0 ? (
+            ) : (unassignedAthletes || []).length === 0 ? (
               <div className="p-8 text-center bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]/60">
                 All active academy athletes are currently assigned to teams.
               </div>
             ) : (
               <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-                {unassignedAthletes.map((a) => {
+                {(unassignedAthletes || []).map((a) => {
                   const athleteName = a.user?.name || 'Unlinked Athlete';
                   const sportName =
                     typeof a.sport === 'object' && a.sport ? a.sport.name : 'Sport';
@@ -259,13 +253,13 @@ export const RosterManagementPage: React.FC = () => {
                 </p>
               </div>
 
-              {teams.length > 0 && (
+              {(teams || []).length > 0 && (
                 <select
                   value={selectedTeamId}
                   onChange={(e) => setSelectedTeamId(e.target.value)}
                   className="px-3 py-1.5 bg-white/10 border border-white/20 rounded-xl text-xs font-bold text-white outline-none"
                 >
-                  {teams.map((t) => (
+                  {(teams || []).map((t) => (
                     <option key={t.id} value={t.id} className="text-[#171044]">
                       {t.name} ({t.ageGroup})
                     </option>
@@ -278,7 +272,7 @@ export const RosterManagementPage: React.FC = () => {
               <div className="p-4 bg-white/10 rounded-2xl space-y-2">
                 <div className="flex justify-between items-center text-sm font-bold text-white">
                   <span>{activeSelectedTeam.name}</span>
-                  <span className="text-[#D8F500]">{teamRoster.length} Players</span>
+                  <span className="text-[#D8F500]">{(teamRoster || []).length} Players</span>
                 </div>
                 <div className="text-xs text-white/70">
                   Coach: {activeSelectedTeam.coach?.user?.name || 'Unassigned'} • Season:{' '}
@@ -291,13 +285,13 @@ export const RosterManagementPage: React.FC = () => {
               <div className="py-12 text-center text-xs font-bold text-white/60">
                 Loading roster...
               </div>
-            ) : teamRoster.length === 0 ? (
+            ) : (teamRoster || []).length === 0 ? (
               <div className="p-8 text-center bg-white/5 rounded-2xl text-xs font-bold text-white/60">
                 No athletes currently assigned to this squad roster.
               </div>
             ) : (
               <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                {teamRoster.map((ath) => {
+                {(teamRoster || []).map((ath) => {
                   const athleteName = ath.user?.name || 'Athlete';
                   return (
                     <div

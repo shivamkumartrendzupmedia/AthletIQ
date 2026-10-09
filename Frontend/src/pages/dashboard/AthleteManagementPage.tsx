@@ -103,10 +103,8 @@ export const AthleteManagementPage: React.FC = () => {
         status: statusFilter || undefined,
       });
 
-      if (res.data) {
-        setAthletes(res.data.data);
-        setPagination(res.data.pagination);
-      }
+      setAthletes(res.items);
+      setPagination(res.pagination);
     } catch (err: unknown) {
       const msg = err instanceof ApiClientError ? err.message : 'Failed to load athletes.';
       setErrorBanner(msg);
@@ -120,12 +118,14 @@ export const AthleteManagementPage: React.FC = () => {
       const [sportRes, teamRes, userRes] = await Promise.all([
         academyApi.listSports({ limit: 100 }),
         academyApi.listTeams({ limit: 100 }),
-        isAdmin ? academyApi.listUsers({ role: 'Athlete', limit: 100 }) : Promise.resolve({ data: undefined }),
+        isAdmin
+          ? academyApi.listUsers({ role: 'Athlete', limit: 100 })
+          : Promise.resolve({ items: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0 } }),
       ]);
 
-      if (sportRes.data) setSports(sportRes.data.data);
-      if (teamRes.data) setTeams(teamRes.data.data);
-      if (userRes.data) setCandidateUsers(userRes.data.data);
+      setSports(sportRes.items);
+      setTeams(teamRes.items);
+      setCandidateUsers(userRes.items);
     } catch {
       // Non-fatal dependencies fallback
     }
@@ -176,7 +176,7 @@ export const AthleteManagementPage: React.FC = () => {
   const openViewModal = async (a: AthleteItem) => {
     try {
       const res = await academyApi.getAthlete(a.id);
-      setViewingAthlete(res.data || a);
+      setViewingAthlete(res || a);
     } catch {
       setViewingAthlete(a);
     }
@@ -376,20 +376,20 @@ export const AthleteManagementPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#171044]/10 text-sm font-semibold">
-              {loading && athletes.length === 0 ? (
+              {loading && (athletes || []).length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-[#171044]/60">
                     Loading athletes...
                   </td>
                 </tr>
-              ) : athletes.length === 0 ? (
+              ) : (athletes || []).length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-[#171044]/60">
                     No athletes found matching your filters.
                   </td>
                 </tr>
               ) : (
-                athletes.map((ath) => {
+                (athletes || []).map((ath) => {
                   const athleteName = ath.user?.name || 'Unlinked Athlete';
                   const sportName =
                     typeof ath.sport === 'object' && ath.sport ? ath.sport.name : 'Sport';

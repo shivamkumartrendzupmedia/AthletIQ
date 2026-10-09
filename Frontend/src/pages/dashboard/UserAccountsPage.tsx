@@ -105,10 +105,8 @@ export const UserAccountsPage: React.FC = () => {
         role: roleFilter || undefined,
         isActive: activeFilter === '' ? undefined : activeFilter === 'true',
       });
-      if (res.data) {
-        setUsers(res.data.data);
-        setPagination(res.data.pagination);
-      }
+      setUsers(res.items);
+      setPagination(res.pagination);
     } catch (err: unknown) {
       const msg = err instanceof ApiClientError ? err.message : 'Failed to load user accounts.';
       setErrorBanner(msg);
@@ -263,7 +261,7 @@ export const UserAccountsPage: React.FC = () => {
     setAuditLoading(true);
     try {
       const res = await academyApi.getUserAudit(u.id);
-      setAuditLogs(res.data || []);
+      setAuditLogs(res.items);
     } catch {
       setAuditLogs([]);
     } finally {
@@ -376,20 +374,20 @@ export const UserAccountsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#171044]/10 text-sm font-semibold">
-              {loading && users.length === 0 ? (
+              {loading && (users || []).length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-[#171044]/60">
                     Loading users...
                   </td>
                 </tr>
-              ) : users.length === 0 ? (
+              ) : (users || []).length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-[#171044]/60">
                     No user accounts found.
                   </td>
                 </tr>
               ) : (
-                users.map((u) => {
+                (users || []).map((u) => {
                   const isSelf = u.id === currentAdmin.id;
                   return (
                     <tr key={u.id} className="hover:bg-[#F7F1E8]/50 transition-colors">
@@ -877,13 +875,13 @@ export const UserAccountsPage: React.FC = () => {
               <div className="py-12 text-center text-xs font-bold text-[#171044]/60">
                 Loading audit trail...
               </div>
-            ) : auditLogs.length === 0 ? (
+            ) : (auditLogs || []).length === 0 ? (
               <div className="py-12 text-center text-xs text-[#171044]/60">
                 No recorded audit actions for this user account.
               </div>
             ) : (
               <div className="space-y-3">
-                {auditLogs.map((log) => (
+                {(auditLogs || []).map((log) => (
                   <div key={log.id} className="p-3 bg-[#F7F1E8] rounded-xl space-y-1 text-xs">
                     <div className="flex items-center justify-between font-bold">
                       <span className="text-[#4B2A9B]">{log.action}</span>

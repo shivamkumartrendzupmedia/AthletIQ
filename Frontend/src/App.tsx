@@ -39,6 +39,7 @@ import { AnnouncementsPage } from './pages/dashboard/AnnouncementsPage';
 import { TrainingCalendarPage } from './pages/dashboard/TrainingCalendarPage';
 import { TournamentManagementPage } from './pages/dashboard/TournamentManagementPage';
 import { UserAccountsPage } from './pages/dashboard/UserAccountsPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   return (
@@ -52,7 +53,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
-                  <AdminDashboard />
+                  <ErrorBoundary>
+                    <AdminDashboard />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -62,7 +65,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Coach']}>
                 <DashboardLayout>
-                  <CoachDashboard />
+                  <ErrorBoundary>
+                    <CoachDashboard />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -72,7 +77,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Athlete']}>
                 <DashboardLayout>
-                  <AthleteDashboard />
+                  <ErrorBoundary>
+                    <AthleteDashboard />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -82,7 +89,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin', 'Coach']}>
                 <DashboardLayout>
-                  <AthleteManagementPage />
+                  <ErrorBoundary>
+                    <AthleteManagementPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -92,7 +101,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
-                  <CoachManagementPage />
+                  <ErrorBoundary>
+                    <CoachManagementPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -102,7 +113,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Organizer']}>
                 <DashboardLayout>
-                  <TeamManagementPage />
+                  <ErrorBoundary>
+                    <TeamManagementPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -112,7 +125,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
-                  <SportManagementPage />
+                  <ErrorBoundary>
+                    <SportManagementPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -122,7 +137,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
-                  <RosterManagementPage />
+                  <ErrorBoundary>
+                    <RosterManagementPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -132,7 +149,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
-                  <UserAccountsPage />
+                  <ErrorBoundary>
+                    <UserAccountsPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -142,7 +161,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin', 'Athlete']}>
                 <DashboardLayout>
-                  <DocumentsPage />
+                  <ErrorBoundary>
+                    <DocumentsPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -152,7 +173,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
                 <DashboardLayout>
-                  <AnnouncementsPage />
+                  <ErrorBoundary>
+                    <AnnouncementsPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -162,7 +185,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer']}>
                 <DashboardLayout>
-                  <TrainingCalendarPage />
+                  <ErrorBoundary>
+                    <TrainingCalendarPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -172,7 +197,9 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Organizer']}>
                 <DashboardLayout>
-                  <TournamentManagementPage />
+                  <ErrorBoundary>
+                    <TournamentManagementPage />
+                  </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -188,12 +215,54 @@ function App() {
                   <Routes>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/about" element={<AboutPage />} />
-                    <Route path="/programs" element={<ProgramsPage />} />
-                    <Route path="/programs/:id" element={<ProgramDetailPage />} />
-                    <Route path="/coaches" element={<CoachesPage />} />
-                    <Route path="/coaches/:id" element={<CoachDetailPage />} />
-                    <Route path="/teams" element={<TeamsPage />} />
-                    <Route path="/teams/:id" element={<TeamDetailPage />} />
+                    <Route
+                      path="/programs"
+                      element={
+                        <ErrorBoundary>
+                          <ProgramsPage />
+                        </ErrorBoundary>
+                      }
+                    />
+                    <Route
+                      path="/programs/:id"
+                      element={
+                        <ErrorBoundary>
+                          <ProgramDetailPage />
+                        </ErrorBoundary>
+                      }
+                    />
+                    <Route
+                      path="/coaches"
+                      element={
+                        <ErrorBoundary>
+                          <CoachesPage />
+                        </ErrorBoundary>
+                      }
+                    />
+                    <Route
+                      path="/coaches/:id"
+                      element={
+                        <ErrorBoundary>
+                          <CoachDetailPage />
+                        </ErrorBoundary>
+                      }
+                    />
+                    <Route
+                      path="/teams"
+                      element={
+                        <ErrorBoundary>
+                          <TeamsPage />
+                        </ErrorBoundary>
+                      }
+                    />
+                    <Route
+                      path="/teams/:id"
+                      element={
+                        <ErrorBoundary>
+                          <TeamDetailPage />
+                        </ErrorBoundary>
+                      }
+                    />
                     <Route path="/achievements" element={<AchievementsPage />} />
                     <Route path="/tournaments" element={<TournamentsPage />} />
                     <Route path="/tournaments/:id" element={<TournamentDetailPage />} />

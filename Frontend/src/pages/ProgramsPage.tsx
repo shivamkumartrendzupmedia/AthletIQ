@@ -15,9 +15,7 @@ export const ProgramsPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await academyApi.getPublicSports({ limit: 100 });
-      if (res.data) {
-        setSports(res.data.data);
-      }
+      setSports(res.items);
     } catch {
       setSports([]);
     } finally {
@@ -29,10 +27,11 @@ export const ProgramsPage: React.FC = () => {
     fetchSports();
   }, [fetchSports]);
 
+  const safeSports = sports || [];
   const filteredSports =
     selectedCategory === 'All'
-      ? sports
-      : sports.filter(
+      ? safeSports
+      : safeSports.filter(
           (s) =>
             s.name.toLowerCase().includes(selectedCategory.toLowerCase()) ||
             s.slug.toLowerCase().includes(selectedCategory.toLowerCase())
@@ -134,7 +133,7 @@ export const ProgramsPage: React.FC = () => {
           <div className="py-20 text-center font-display font-bold text-xl text-[#171044]/60">
             Loading sports programs...
           </div>
-        ) : filteredSports.length === 0 ? (
+        ) : (filteredSports || []).length === 0 ? (
           <div className="py-20 text-center max-w-md mx-auto space-y-4">
             <div className="text-2xl font-black font-display text-[#171044]">
               Programs opening soon for next season
@@ -150,7 +149,7 @@ export const ProgramsPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredSports.map((sport) => {
+            {(filteredSports || []).map((sport) => {
               const theme = getCardTheme(sport.name);
               return (
                 <div

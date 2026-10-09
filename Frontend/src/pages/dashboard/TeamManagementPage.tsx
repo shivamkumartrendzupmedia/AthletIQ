@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
 import { Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { StateContainer } from '../../components/StateContainer';
 import { useAuth } from '../../context/AuthContext';
 import {
   academyApi,
@@ -56,18 +57,14 @@ export const TeamManagementPage: React.FC = () => {
       const [teamsRes, sportsRes, coachesRes] = await Promise.all([
         academyApi.listTeams({ limit: 100 }),
         academyApi.listSports({ limit: 100 }),
-        isAdmin ? academyApi.listCoaches({ limit: 100 }) : Promise.resolve({ data: undefined }),
+        isAdmin
+          ? academyApi.listCoaches({ limit: 100 })
+          : Promise.resolve({ items: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0 } }),
       ]);
 
-      if (teamsRes.data) {
-        setTeams(teamsRes.data.data);
-      }
-      if (sportsRes.data) {
-        setSports(sportsRes.data.data);
-      }
-      if (coachesRes.data) {
-        setCoaches(coachesRes.data.data);
-      }
+      setTeams(teamsRes.items);
+      setSports(sportsRes.items);
+      setCoaches(coachesRes.items);
     } catch (err: unknown) {
       const msg = err instanceof ApiClientError ? err.message : 'Failed to load teams.';
       setErrorBanner(msg);
@@ -224,7 +221,7 @@ export const TeamManagementPage: React.FC = () => {
         <div>
           <AthleticBadge variant="orange">ACADEMY TEAMS & SQUADS</AthleticBadge>
           <h1 className="text-3xl md:text-4xl font-black font-display text-[#171044] mt-2">
-            TEAM MANAGEMENT ({teams.length}) <CrossAccent color="orange" size="md" />
+            TEAM MANAGEMENT ({(teams || []).length}) <CrossAccent color="orange" size="md" />
           </h1>
         </div>
 
@@ -260,30 +257,18 @@ export const TeamManagementPage: React.FC = () => {
         </div>
       )}
 
-      {/* Grid */}
-      {loading && teams.length === 0 ? (
-        <div className="p-12 text-center text-sm font-bold text-[#171044]/60">
-          Loading teams...
-        </div>
-      ) : teams.length === 0 ? (
-        <Card variant="dark" className="p-12 text-center space-y-4">
-          <div className="text-xl font-bold font-display text-white">
-            No teams available.
-          </div>
-          <p className="text-xs text-white/70 max-w-md mx-auto">
-            {isAdmin
-              ? 'Get started by creating your academy squad with assigned sports and age groups.'
-              : 'No teams currently assigned to your profile.'}
-          </p>
-          {isAdmin && (
-            <Button variant="primary" onClick={openCreateModal}>
-              Create First Team
-            </Button>
-          )}
-        </Card>
-      ) : (
+      {/* Grid with StateContainer */}
+      <StateContainer
+        loading={loading && (teams || []).length === 0}
+        error={errorBanner}
+        empty={!loading && (teams || []).length === 0}
+        emptyMessage="No teams available"
+        emptyActionLabel={isAdmin ? 'Create First Team' : undefined}
+        onEmptyAction={isAdmin ? openCreateModal : undefined}
+        onRetry={fetchData}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {teams.map((t) => {
+          {(teams || []).map((t) => {
             const sportName =
               typeof t.sport === 'object' && t.sport ? t.sport.name : 'Sport Program';
             const coachName = t.coach?.user?.name || 'Unassigned Coach';
@@ -344,7 +329,7 @@ export const TeamManagementPage: React.FC = () => {
             );
           })}
         </div>
-      )}
+      </StateContainer>
 
       {/* CREATE TEAM MODAL (Admin only) */}
       {isAdmin && showCreateModal && (

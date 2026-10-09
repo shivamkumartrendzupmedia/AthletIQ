@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
 import { Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { StateContainer } from '../../components/StateContainer';
 import {
   academyApi,
   type CoachItem,
@@ -55,15 +56,9 @@ export const CoachManagementPage: React.FC = () => {
         academyApi.listUsers({ role: 'Coach', limit: 100 }),
       ]);
 
-      if (coachRes.data) {
-        setCoaches(coachRes.data.data);
-      }
-      if (sportRes.data) {
-        setSports(sportRes.data.data);
-      }
-      if (userRes.data) {
-        setCandidateUsers(userRes.data.data);
-      }
+      setCoaches(coachRes.items);
+      setSports(sportRes.items);
+      setCandidateUsers(userRes.items);
     } catch (err: unknown) {
       const msg = err instanceof ApiClientError ? err.message : 'Failed to load coaches directory.';
       setErrorBanner(msg);
@@ -84,12 +79,12 @@ export const CoachManagementPage: React.FC = () => {
 
   const openCreateModal = () => {
     // Find candidate users who don't already have coach profile
-    const existingCoachUserIds = new Set(coaches.map((c) => c.user?.id));
-    const available = candidateUsers.filter((u) => !existingCoachUserIds.has(u.id));
+    const existingCoachUserIds = new Set((coaches || []).map((c) => c.user?.id));
+    const available = (candidateUsers || []).filter((u) => !existingCoachUserIds.has(u.id));
 
     setFormUserId(available[0]?.id || candidateUsers[0]?.id || '');
     setFormTitle('Head Coach');
-    setFormSports(sports[0]?.id ? [sports[0].id] : []);
+    setFormSports((sports || [])[0]?.id ? [sports[0].id] : []);
     setFormSpecialties('Tactical Development, Fitness');
     setFormExpYears('5');
     setFormBio('Dedicated academy coach focused on youth athlete progression.');
@@ -227,7 +222,7 @@ export const CoachManagementPage: React.FC = () => {
         <div>
           <AthleticBadge variant="lime">COACHING STAFF DIRECTORY</AthleticBadge>
           <h1 className="text-3xl md:text-4xl font-black font-display text-[#171044] mt-2">
-            COACH MANAGEMENT ({coaches.length}) <CrossAccent color="orange" size="md" />
+            COACH MANAGEMENT ({(coaches || []).length}) <CrossAccent color="orange" size="md" />
           </h1>
         </div>
 
@@ -261,26 +256,18 @@ export const CoachManagementPage: React.FC = () => {
         </div>
       )}
 
-      {/* Grid */}
-      {loading && coaches.length === 0 ? (
-        <div className="p-12 text-center text-sm font-bold text-[#171044]/60">
-          Loading coaching staff...
-        </div>
-      ) : coaches.length === 0 ? (
-        <Card variant="standard" className="p-12 text-center space-y-4">
-          <div className="text-xl font-bold font-display text-[#171044]">
-            No coach profiles created yet.
-          </div>
-          <p className="text-xs text-[#171044]/70 max-w-md mx-auto">
-            Assign user accounts with the Coach role to create their official coaching profiles and specialties.
-          </p>
-          <Button variant="primary" onClick={openCreateModal}>
-            Assign First Coach
-          </Button>
-        </Card>
-      ) : (
+      {/* Grid with StateContainer */}
+      <StateContainer
+        loading={loading && (coaches || []).length === 0}
+        error={errorBanner}
+        empty={!loading && (coaches || []).length === 0}
+        emptyMessage="No coach profiles created yet"
+        emptyActionLabel="Assign First Coach"
+        onEmptyAction={openCreateModal}
+        onRetry={fetchData}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {coaches.map((c) => {
+          {(coaches || []).map((c) => {
             const coachName = c.user?.name || 'Coach';
             const coachEmail = c.user?.email;
 
@@ -347,7 +334,7 @@ export const CoachManagementPage: React.FC = () => {
             );
           })}
         </div>
-      )}
+      </StateContainer>
 
       {/* CREATE MODAL */}
       {showCreateModal && (

@@ -15,9 +15,7 @@ export const TeamsPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await academyApi.getPublicTeams({ limit: 100 });
-      if (res.data) {
-        setTeams(res.data.data);
-      }
+      setTeams(res.items);
     } catch {
       setTeams([]);
     } finally {
@@ -50,7 +48,7 @@ export const TeamsPage: React.FC = () => {
           <div className="py-20 text-center font-display font-bold text-xl text-[#171044]/60">
             Loading academy squads...
           </div>
-        ) : teams.length === 0 ? (
+        ) : (teams || []).length === 0 ? (
           <div className="py-20 text-center max-w-md mx-auto space-y-4">
             <div className="text-2xl font-black font-display text-[#171044]">
               Teams forming soon
@@ -66,7 +64,7 @@ export const TeamsPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {teams.map((team) => (
+            {(teams || []).map((team) => (
               <Card
                 key={team.id}
                 variant="standard"

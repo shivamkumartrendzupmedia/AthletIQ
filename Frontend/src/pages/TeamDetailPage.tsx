@@ -22,9 +22,9 @@ export const TeamDetailPage: React.FC = () => {
       }
       setLoading(true);
       try {
-        const res = await academyApi.getPublicTeamBySlug(id);
-        if (res.data) {
-          setTeam(res.data);
+        const teamItem = await academyApi.getPublicTeamBySlug(id);
+        if (teamItem) {
+          setTeam(teamItem);
         } else {
           setNotFound(true);
         }

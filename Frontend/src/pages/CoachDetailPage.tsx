@@ -22,9 +22,9 @@ export const CoachDetailPage: React.FC = () => {
       }
       setLoading(true);
       try {
-        const res = await academyApi.getPublicCoachById(id);
-        if (res.data) {
-          setCoach(res.data);
+        const coachItem = await academyApi.getPublicCoachById(id);
+        if (coachItem) {
+          setCoach(coachItem);
         } else {
           setNotFound(true);
         }

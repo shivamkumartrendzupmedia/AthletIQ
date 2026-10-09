@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
 import { Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { StateContainer } from '../../components/StateContainer';
 import { academyApi, type SportItem, mapFieldErrors } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
 
@@ -44,9 +45,7 @@ export const SportManagementPage: React.FC = () => {
     setErrorBanner(null);
     try {
       const res = await academyApi.listSports({ limit: 100 });
-      if (res.data) {
-        setSports(res.data.data);
-      }
+      setSports(res.items);
     } catch (err: unknown) {
       const msg = err instanceof ApiClientError ? err.message : 'Failed to load sports.';
       setErrorBanner(msg);
@@ -207,7 +206,7 @@ export const SportManagementPage: React.FC = () => {
         <div>
           <AthleticBadge variant="purple">ACADEMY SPORTS PROGRAMS</AthleticBadge>
           <h1 className="text-3xl md:text-4xl font-black font-display text-[#171044] mt-2">
-            SPORTS & AGE GROUP BRACKETS ({sports.length}) <CrossAccent color="orange" size="md" />
+            SPORTS & AGE GROUP BRACKETS ({(sports || []).length}) <CrossAccent color="orange" size="md" />
           </h1>
         </div>
 
@@ -241,26 +240,18 @@ export const SportManagementPage: React.FC = () => {
         </div>
       )}
 
-      {/* Grid */}
-      {loading && sports.length === 0 ? (
-        <div className="p-12 text-center text-sm font-bold text-[#171044]/60">
-          Loading sports programs...
-        </div>
-      ) : sports.length === 0 ? (
-        <Card variant="standard" className="p-12 text-center space-y-4">
-          <div className="text-xl font-bold font-display text-[#171044]">
-            No sports programs created yet.
-          </div>
-          <p className="text-xs text-[#171044]/70 max-w-md mx-auto">
-            Get started by adding your academy&apos;s first sport program with age brackets and features.
-          </p>
-          <Button variant="primary" onClick={openCreateModal}>
-            Add First Sport Program
-          </Button>
-        </Card>
-      ) : (
+      {/* Grid with StateContainer */}
+      <StateContainer
+        loading={loading && (sports || []).length === 0}
+        error={errorBanner}
+        empty={!loading && (sports || []).length === 0}
+        emptyMessage="No sports programs created yet"
+        emptyActionLabel="Add First Sport Program"
+        onEmptyAction={openCreateModal}
+        onRetry={fetchSports}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sports.map((s) => (
+          {(sports || []).map((s) => (
             <Card key={s.id} variant="standard" className="space-y-4 flex flex-col justify-between">
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
@@ -315,7 +306,7 @@ export const SportManagementPage: React.FC = () => {
             </Card>
           ))}
         </div>
-      )}
+      </StateContainer>
 
       {/* CREATE MODAL */}
       {showCreateModal && (

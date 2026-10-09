@@ -15,9 +15,7 @@ export const CoachesPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await academyApi.getPublicCoaches({ limit: 100 });
-      if (res.data) {
-        setCoaches(res.data.data);
-      }
+      setCoaches(res.items);
     } catch {
       setCoaches([]);
     } finally {
@@ -50,7 +48,7 @@ export const CoachesPage: React.FC = () => {
           <div className="py-20 text-center font-display font-bold text-xl text-[#171044]/60">
             Loading coaching staff...
           </div>
-        ) : coaches.length === 0 ? (
+        ) : (coaches || []).length === 0 ? (
           <div className="py-20 text-center max-w-md mx-auto space-y-4">
             <div className="text-2xl font-black font-display text-[#171044]">
               Coaching staff being finalized
@@ -66,7 +64,7 @@ export const CoachesPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {coaches.map((coach) => (
+            {(coaches || []).map((coach) => (
               <Card
                 key={coach.id}
                 variant="standard"
