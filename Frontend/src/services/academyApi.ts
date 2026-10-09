@@ -173,6 +173,142 @@ export interface PublicTeamItem {
   athleteCount: number;
 }
 
+// Training Session & Attendance types
+export interface AttendanceSummary {
+  present: number;
+  late: number;
+  excused: number;
+  absent: number;
+  total: number;
+}
+
+export interface TrainingSessionItem {
+  id: string;
+  _id?: string;
+  team: {
+    id: string;
+    _id?: string;
+    name: string;
+    sport?: { id: string; _id?: string; name: string; slug: string } | null;
+  };
+  coach: {
+    id: string;
+    _id?: string;
+    fullName?: string;
+    user?: { id: string; name: string; email: string } | null;
+  };
+  title: string;
+  sessionType: SessionType;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  notes?: string;
+  cancellationReason?: string;
+  attendanceSummary?: AttendanceSummary | null;
+  myAttendance?: {
+    status: 'Present' | 'Late' | 'Excused' | 'Absent';
+    note?: string;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RosterAttendanceItem {
+  athleteId: string;
+  athleteName: string;
+  status: 'Present' | 'Late' | 'Excused' | 'Absent';
+  note?: string;
+  onRoster: boolean;
+}
+
+export interface SessionAttendanceResponse {
+  session: {
+    id: string;
+    title: string;
+    startsAt: string;
+    endsAt: string;
+    status: string;
+  };
+  summary: AttendanceSummary;
+  records: RosterAttendanceItem[];
+}
+
+export interface AthleteAttendanceItem {
+  id: string;
+  session: {
+    id: string;
+    title: string;
+    sessionType: string;
+    startsAt: string;
+    endsAt: string;
+    location: string;
+    status: string;
+  };
+  status: 'Present' | 'Late' | 'Excused' | 'Absent';
+  note?: string;
+  markedAt: string;
+}
+
+export interface AthleteAttendanceSummary {
+  present: number;
+  late: number;
+  excused: number;
+  absent: number;
+  totalSessions: number;
+  attendanceRate: number | null;
+}
+
+export interface AthleteAttendanceResponse {
+  summary: AthleteAttendanceSummary;
+  records: PaginatedResult<AthleteAttendanceItem>;
+}
+
+export type SessionType =
+  | 'Training'
+  | 'Match'
+  | 'Gym'
+  | 'Recovery'
+  | 'Other';
+
+export interface TrainingSessionQuery extends PaginationQuery {
+  team?: string;
+  coach?: string;
+  type?: SessionType;
+  status?: string;
+  from?: string;
+  to?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface CreateTrainingSessionInput {
+  team: string;
+  coach?: string;
+  title: string;
+  type?: SessionType;
+  startsAt: string;
+  endsAt: string;
+  venue: string;
+  notes?: string;
+}
+
+export interface UpdateTrainingSessionInput {
+  coach?: string;
+  title?: string;
+  type?: SessionType;
+  startsAt?: string;
+  endsAt?: string;
+  venue?: string;
+  notes?: string;
+}
+
+export interface AttendanceRecordInput {
+  athlete: string;
+  status: 'Present' | 'Late' | 'Excused' | 'Absent';
+  note?: string;
+}
+
 // Strict Request Payload Types matching Backend Zod Schemas (.strict())
 export interface CreateSportInput {
   name: string;
@@ -601,4 +737,85 @@ export const academyApi = {
     const res = await apiClient(`/public/coaches/${id}`);
     return normalizeSingleResponse<PublicCoachItem>(res);
   },
+
+  // Training Sessions & Attendance
+  listTrainingSessions: async (
+    query: TrainingSessionQuery = {}
+  ): Promise<PaginatedResult<TrainingSessionItem>> => {
+    const res = await apiClient(
+      `/training-sessions${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<TrainingSessionItem>(res);
+  },
+  getTrainingSessionById: async (id: string): Promise<TrainingSessionItem | null> => {
+    const res = await apiClient(`/training-sessions/${id}`);
+    return normalizeSingleResponse<TrainingSessionItem>(res);
+  },
+  createTrainingSession: async (
+    payload: CreateTrainingSessionInput
+  ): Promise<TrainingSessionItem | null> => {
+    const res = await apiClient('/training-sessions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return normalizeSingleResponse<TrainingSessionItem>(res);
+  },
+  updateTrainingSession: async (
+    id: string,
+    payload: UpdateTrainingSessionInput
+  ): Promise<TrainingSessionItem | null> => {
+    const res = await apiClient(`/training-sessions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return normalizeSingleResponse<TrainingSessionItem>(res);
+  },
+  cancelTrainingSession: async (
+    id: string,
+    reason: string
+  ): Promise<TrainingSessionItem | null> => {
+    const res = await apiClient(`/training-sessions/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+    return normalizeSingleResponse<TrainingSessionItem>(res);
+  },
+  deleteTrainingSession: async (id: string): Promise<{ success: boolean; message: string } | null> => {
+    const res = await apiClient(`/training-sessions/${id}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ success: boolean; message: string }>(res);
+  },
+  getSessionAttendance: async (sessionId: string): Promise<SessionAttendanceResponse | null> => {
+    const res = await apiClient(`/training-sessions/${sessionId}/attendance`);
+    return normalizeSingleResponse<SessionAttendanceResponse>(res);
+  },
+  markSessionAttendance: async (
+    sessionId: string,
+    records: AttendanceRecordInput[]
+  ): Promise<SessionAttendanceResponse | null> => {
+    const res = await apiClient(`/training-sessions/${sessionId}/attendance`, {
+      method: 'PUT',
+      body: JSON.stringify({ records }),
+    });
+    return normalizeSingleResponse<SessionAttendanceResponse>(res);
+  },
+  getAthleteSelfAttendance: async (
+    query: PaginationQuery = {}
+  ): Promise<AthleteAttendanceResponse | null> => {
+    const res = await apiClient(
+      `/athletes/me/attendance${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeSingleResponse<AthleteAttendanceResponse>(res);
+  },
+  getAthleteAttendance: async (
+    athleteId: string,
+    query: PaginationQuery = {}
+  ): Promise<AthleteAttendanceResponse | null> => {
+    const res = await apiClient(
+      `/athletes/${athleteId}/attendance${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeSingleResponse<AthleteAttendanceResponse>(res);
+  },
 };
+

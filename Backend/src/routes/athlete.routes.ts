@@ -1,5 +1,6 @@
 import { Router, type Request } from 'express';
 import { athleteController } from '../controllers/athlete.controller.js';
+import { trainingController } from '../controllers/training.controller.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { validate } from '../middlewares/validate.js';
@@ -16,12 +17,20 @@ import {
   type UpdateAthleteAdminInput,
   type UpdateAthleteCoachInput,
 } from '../validators/athlete.validator.js';
+import { athleteAttendanceQuerySchema } from '../validators/training.validator.js';
 
 const router = Router();
 
 router.use(requireAuth);
 
 // 1. Athlete self profile routes (MUST BE DECLARED BEFORE /:id)
+router.get(
+  '/me/attendance',
+  requireRole('Athlete'),
+  validate(athleteAttendanceQuerySchema, 'query'),
+  trainingController.getAthleteSelfAttendance
+);
+
 router.get(
   '/me',
   requireRole('Athlete'),
@@ -77,6 +86,14 @@ router.patch(
 );
 
 // 6. Get single athlete (Admin, Coach, Athlete)
+router.get(
+  '/:id/attendance',
+  requireRole('Admin', 'Coach', 'Athlete'),
+  validateObjectId('id'),
+  validate(athleteAttendanceQuerySchema, 'query'),
+  trainingController.getAthleteAttendance
+);
+
 router.get(
   '/:id',
   requireRole('Admin', 'Coach', 'Athlete'),

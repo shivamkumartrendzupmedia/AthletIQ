@@ -14,6 +14,7 @@
     "verify:rbac": "tsx scripts/verify-rbac.ts",
     "verify:academy": "tsx scripts/verify-academy.ts",
     "verify:ratelimit": "tsx scripts/verify-ratelimit.ts",
+    "verify:training": "tsx scripts/verify-training.ts",
     "create:user": "tsx scripts/create-user.ts"
   },
   "keywords": [
