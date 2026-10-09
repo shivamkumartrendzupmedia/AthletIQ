@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   X,
 } from 'lucide-react';
+import { SafeImage } from '../../components/SafeImage';
 import { useAuthenticatedUser } from '../../context/AuthContext';
 import {
   academyApi,
@@ -393,9 +394,13 @@ export const UserAccountsPage: React.FC = () => {
                     <tr key={u.id} className="hover:bg-[#F7F1E8]/50 transition-colors">
                       <td className="p-4 pl-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[#171044] text-white flex items-center justify-center font-bold font-display text-sm">
-                            {u.name.charAt(0).toUpperCase()}
-                          </div>
+                          <SafeImage
+                            src={u.avatar}
+                            alt={u.name}
+                            fallbackKind="person"
+                            name={u.name}
+                            className="w-10 h-10 rounded-full object-cover shrink-0"
+                          />
                           <div>
                             <div className="font-bold font-display text-[#171044] flex items-center gap-2">
                               <span>{u.name}</span>

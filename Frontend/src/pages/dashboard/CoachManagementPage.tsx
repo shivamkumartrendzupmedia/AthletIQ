@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
 import { Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { StateContainer } from '../../components/StateContainer';
+import { SafeImage } from '../../components/SafeImage';
 import {
   academyApi,
   type CoachItem,
@@ -30,6 +31,7 @@ export const CoachManagementPage: React.FC = () => {
   const [formSpecialties, setFormSpecialties] = useState('');
   const [formExpYears, setFormExpYears] = useState('5');
   const [formBio, setFormBio] = useState('');
+  const [formPhoto, setFormPhoto] = useState('');
   const [formIsPublic, setFormIsPublic] = useState(true);
 
   // Accessible unique IDs
@@ -38,12 +40,14 @@ export const CoachManagementPage: React.FC = () => {
   const createExpId = useId();
   const createSpecialtiesId = useId();
   const createBioId = useId();
+  const createPhotoId = useId();
   const createPublicId = useId();
 
   const editTitleId = useId();
   const editExpId = useId();
   const editSpecialtiesId = useId();
   const editBioId = useId();
+  const editPhotoId = useId();
   const editPublicId = useId();
 
   const fetchData = useCallback(async () => {
@@ -88,6 +92,7 @@ export const CoachManagementPage: React.FC = () => {
     setFormSpecialties('Tactical Development, Fitness');
     setFormExpYears('5');
     setFormBio('Dedicated academy coach focused on youth athlete progression.');
+    setFormPhoto('');
     setFormIsPublic(true);
     setCreateFieldErrors({});
     setShowCreateModal(true);
@@ -101,6 +106,7 @@ export const CoachManagementPage: React.FC = () => {
     setFormSpecialties((c.specialties || []).join(', '));
     setFormExpYears(String(c.experienceYears ?? 5));
     setFormBio(c.bio || '');
+    setFormPhoto(c.photo || '');
     setFormIsPublic(c.isPublic);
     setEditFieldErrors({});
   };
@@ -139,6 +145,7 @@ export const CoachManagementPage: React.FC = () => {
         specialties: specArr,
         experienceYears: Number(formExpYears) || 0,
         bio: formBio.trim(),
+        photo: formPhoto.trim() || undefined,
         isPublic: formIsPublic,
       });
 
@@ -184,6 +191,7 @@ export const CoachManagementPage: React.FC = () => {
         specialties: specArr,
         experienceYears: Number(formExpYears) || 0,
         bio: formBio.trim(),
+        photo: formPhoto.trim() || undefined,
         isPublic: formIsPublic,
       });
 
@@ -275,9 +283,13 @@ export const CoachManagementPage: React.FC = () => {
               <Card key={c.id} variant="standard" className="space-y-4 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-[#171044] text-[#D8F500] font-black font-display text-2xl flex items-center justify-center border-2 border-[#171044] shrink-0">
-                      {coachName.charAt(0).toUpperCase()}
-                    </div>
+                    <SafeImage
+                      src={c.photo}
+                      alt={coachName}
+                      fallbackKind="coach"
+                      name={coachName}
+                      className="w-16 h-16 rounded-2xl object-cover shrink-0 border-2 border-[#171044]"
+                    />
                     <div>
                       <div className="flex gap-2 items-center">
                         <AthleticBadge variant="purple" size="sm">
@@ -464,6 +476,34 @@ export const CoachManagementPage: React.FC = () => {
               </div>
 
               <div>
+                <label htmlFor={createPhotoId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Coach Photo URL
+                </label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    id={createPhotoId}
+                    type="url"
+                    placeholder="https://..."
+                    value={formPhoto}
+                    onChange={(e) => setFormPhoto(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  />
+                  <div className="w-10 h-10 shrink-0 rounded-xl border border-[#171044]/20 overflow-hidden bg-[#171044]">
+                    <SafeImage
+                      src={formPhoto}
+                      alt="Preview"
+                      fallbackKind="coach"
+                      name={formTitle || 'Coach'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#171044]/60 mt-1 font-semibold">
+                  Optional. Must start with https://
+                </p>
+              </div>
+
+              <div>
                 <label htmlFor={createBioId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
                   Coach Bio
                 </label>
@@ -587,6 +627,34 @@ export const CoachManagementPage: React.FC = () => {
                   onChange={(e) => setFormSpecialties(e.target.value)}
                   className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
                 />
+              </div>
+
+              <div>
+                <label htmlFor={editPhotoId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Coach Photo URL
+                </label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    id={editPhotoId}
+                    type="url"
+                    placeholder="https://..."
+                    value={formPhoto}
+                    onChange={(e) => setFormPhoto(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  />
+                  <div className="w-10 h-10 shrink-0 rounded-xl border border-[#171044]/20 overflow-hidden bg-[#171044]">
+                    <SafeImage
+                      src={formPhoto}
+                      alt="Preview"
+                      fallbackKind="coach"
+                      name={formTitle || 'Coach'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#171044]/60 mt-1 font-semibold">
+                  Optional. Must start with https://
+                </p>
               </div>
 
               <div>

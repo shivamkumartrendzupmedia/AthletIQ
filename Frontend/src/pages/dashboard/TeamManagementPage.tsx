@@ -11,6 +11,7 @@ import {
   mapFieldErrors,
 } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
+import { SafeImage } from '../../components/SafeImage';
 
 export const TeamManagementPage: React.FC = () => {
   const { role } = useAuth();
@@ -33,6 +34,7 @@ export const TeamManagementPage: React.FC = () => {
   const [formAgeGroup, setFormAgeGroup] = useState('');
   const [formSeason, setFormSeason] = useState('2026');
   const [formCoachId, setFormCoachId] = useState('');
+  const [formLogo, setFormLogo] = useState('');
   const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active');
 
   // Accessible unique IDs
@@ -41,6 +43,7 @@ export const TeamManagementPage: React.FC = () => {
   const createAgeGroupId = useId();
   const createSeasonId = useId();
   const createCoachId = useId();
+  const createLogoId = useId();
   const createStatusId = useId();
 
   const editNameId = useId();
@@ -48,6 +51,7 @@ export const TeamManagementPage: React.FC = () => {
   const editAgeGroupId = useId();
   const editSeasonId = useId();
   const editCoachId = useId();
+  const editLogoId = useId();
   const editStatusId = useId();
 
   const fetchData = useCallback(async () => {
@@ -94,6 +98,7 @@ export const TeamManagementPage: React.FC = () => {
     setFormAgeGroup(defaultSportObj?.ageGroups?.[0] || 'U16');
     setFormSeason('2026');
     setFormCoachId('');
+    setFormLogo('');
     setFormStatus('Active');
     setCreateFieldErrors({});
     setShowCreateModal(true);
@@ -108,6 +113,7 @@ export const TeamManagementPage: React.FC = () => {
     setFormSeason(t.season || '2026');
     const cId = t.coach?.id || '';
     setFormCoachId(cId);
+    setFormLogo(t.logo || '');
     setFormStatus(t.status);
     setEditFieldErrors({});
   };
@@ -135,6 +141,7 @@ export const TeamManagementPage: React.FC = () => {
         ageGroup: formAgeGroup,
         season: formSeason.trim(),
         coach: formCoachId || undefined,
+        logo: formLogo.trim() || undefined,
         status: formStatus,
       });
 
@@ -177,6 +184,7 @@ export const TeamManagementPage: React.FC = () => {
         ageGroup: formAgeGroup,
         season: formSeason.trim(),
         coach: formCoachId || null,
+        logo: formLogo.trim() || undefined,
         status: formStatus,
       });
 
@@ -276,25 +284,36 @@ export const TeamManagementPage: React.FC = () => {
             return (
               <Card key={t.id} variant="dark" className="space-y-4 flex flex-col justify-between">
                 <div>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex gap-2 mb-2">
-                        <AthleticBadge variant="lime" size="sm">
-                          {sportName}
-                        </AthleticBadge>
-                        <AthleticBadge variant="orange" size="sm">
-                          {t.ageGroup}
-                        </AthleticBadge>
-                        <AthleticBadge variant={t.status === 'Active' ? 'dark' : 'orange'} size="sm">
-                          {t.status}
-                        </AthleticBadge>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex gap-4 items-start flex-1 min-w-0">
+                      <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-white/20">
+                        <SafeImage
+                          src={t.logo}
+                          alt={t.name}
+                          fallbackKind="team"
+                          name={t.name}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                      <h3 className="text-2xl font-black font-display text-white">{t.name}</h3>
-                      <p className="text-xs text-[#D8F500] font-semibold mt-0.5">
-                        Head Coach: {coachName}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          <AthleticBadge variant="lime" size="sm">
+                            {sportName}
+                          </AthleticBadge>
+                          <AthleticBadge variant="orange" size="sm">
+                            {t.ageGroup}
+                          </AthleticBadge>
+                          <AthleticBadge variant={t.status === 'Active' ? 'dark' : 'orange'} size="sm">
+                            {t.status}
+                          </AthleticBadge>
+                        </div>
+                        <h3 className="text-2xl font-black font-display text-white truncate">{t.name}</h3>
+                        <p className="text-xs text-[#D8F500] font-semibold mt-0.5 truncate">
+                          Head Coach: {coachName}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <div className="text-2xl font-black text-white">{t.athleteCount ?? 0}</div>
                       <div className="text-[10px] uppercase text-white/60 font-bold">Roster Size</div>
                     </div>
@@ -474,6 +493,40 @@ export const TeamManagementPage: React.FC = () => {
                 </select>
               </div>
 
+              <div>
+                <label htmlFor={createLogoId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Team Logo URL (https://...)
+                </label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    id={createLogoId}
+                    type="url"
+                    value={formLogo}
+                    onChange={(e) => {
+                      setFormLogo(e.target.value);
+                      if (createFieldErrors.logo) setCreateFieldErrors((prev) => ({ ...prev, logo: '' }));
+                    }}
+                    placeholder="https://example.com/team-logo.jpg"
+                    className={`flex-1 px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm font-semibold outline-none ${
+                      createFieldErrors.logo ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
+                  />
+                  <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[#171044]/20">
+                    <SafeImage
+                      src={formLogo}
+                      alt="Logo preview"
+                      fallbackKind="team"
+                      name={formName || 'Team'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#171044]/60 font-medium mt-1">Optional. Must start with https://</p>
+                {createFieldErrors.logo && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.logo}</p>
+                )}
+              </div>
+
               <div className="pt-4 border-t border-[#171044]/10 flex justify-end gap-3">
                 <Button variant="ghost" onClick={() => setShowCreateModal(false)}>
                   Cancel
@@ -629,6 +682,40 @@ export const TeamManagementPage: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label htmlFor={editLogoId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Team Logo URL (https://...)
+                </label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    id={editLogoId}
+                    type="url"
+                    value={formLogo}
+                    onChange={(e) => {
+                      setFormLogo(e.target.value);
+                      if (editFieldErrors.logo) setEditFieldErrors((prev) => ({ ...prev, logo: '' }));
+                    }}
+                    placeholder="https://example.com/team-logo.jpg"
+                    className={`flex-1 px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm font-semibold outline-none ${
+                      editFieldErrors.logo ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
+                  />
+                  <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[#171044]/20">
+                    <SafeImage
+                      src={formLogo}
+                      alt="Logo preview"
+                      fallbackKind="team"
+                      name={formName || 'Team'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#171044]/60 font-medium mt-1">Optional. Must start with https://</p>
+                {editFieldErrors.logo && (
+                  <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.logo}</p>
+                )}
               </div>
 
               <div className="pt-4 border-t border-[#171044]/10 flex justify-end gap-3">

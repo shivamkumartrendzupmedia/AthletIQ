@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, AlertTriangle, Inbox, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Inbox } from 'lucide-react';
 import { Button } from '../design-system';
 
 interface StateContainerProps {

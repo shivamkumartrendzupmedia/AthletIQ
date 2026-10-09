@@ -11,6 +11,7 @@ import {
   X,
   FileText,
 } from 'lucide-react';
+import { SafeImage } from '../../components/SafeImage';
 import { useAuth } from '../../context/AuthContext';
 import {
   academyApi,
@@ -399,9 +400,12 @@ export const AthleteManagementPage: React.FC = () => {
                     <tr key={ath.id} className="hover:bg-[#F7F1E8]/50 transition-colors">
                       <td className="p-4 pl-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[#171044] text-[#D8F500] flex items-center justify-center font-bold font-display text-sm shrink-0">
-                            {ath.jerseyNumber ? `#${ath.jerseyNumber}` : athleteName.charAt(0)}
-                          </div>
+                          <SafeImage
+                            src={undefined}
+                            fallbackKind="person"
+                            name={athleteName}
+                            className="w-10 h-10 rounded-full shrink-0"
+                          />
                           <div>
                             <div className="font-bold font-display text-[#171044]">
                               {athleteName}
@@ -542,9 +546,12 @@ export const AthleteManagementPage: React.FC = () => {
           <Card variant="standard" className="w-full max-w-lg p-6 space-y-6 relative max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[#171044]/10 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-[#171044] text-[#D8F500] font-black font-display text-lg flex items-center justify-center">
-                  {viewingAthlete.jerseyNumber ? `#${viewingAthlete.jerseyNumber}` : 'A'}
-                </div>
+                <SafeImage
+                  src={undefined}
+                  fallbackKind="person"
+                  name={viewingAthlete.user?.name || 'Athlete Profile'}
+                  className="w-12 h-12 rounded-full shrink-0"
+                />
                 <div>
                   <h3 className="text-xl font-bold font-display text-[#171044]">
                     {viewingAthlete.user?.name || 'Athlete Profile'}

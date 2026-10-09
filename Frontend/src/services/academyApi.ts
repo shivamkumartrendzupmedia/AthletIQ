@@ -19,6 +19,7 @@ export interface AdminUserItem {
   name: string;
   email: string;
   role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+  avatar?: string;
   isActive: boolean;
   isLocked: boolean;
   createdAt: string;
@@ -43,6 +44,7 @@ export interface UserAuditItem {
 }
 
 // Sport types
+// Sport types
 export interface SportItem {
   id: string;
   name: string;
@@ -51,6 +53,7 @@ export interface SportItem {
   ageGroups: string[];
   features?: string[];
   icon?: string;
+  image?: string;
   status: 'Active' | 'Inactive';
   teamCount?: number;
   createdAt?: string;
@@ -86,6 +89,7 @@ export interface TeamItem {
   sport: { id: string; name: string; slug: string; ageGroups?: string[] };
   ageGroup: string;
   season: string;
+  logo?: string;
   coach?: {
     id: string;
     title: string;
@@ -137,6 +141,7 @@ export interface PublicSportItem {
   ageGroups: string[];
   features?: string[];
   icon?: string;
+  image?: string;
   status: string;
 }
 
@@ -158,6 +163,7 @@ export interface PublicTeamItem {
   sport: { name: string; slug: string };
   ageGroup: string;
   season: string;
+  logo?: string;
   coach?: {
     name?: string;
     title?: string;

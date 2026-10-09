@@ -3,9 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CrossAccent, AthleticBadge } from '../design-system';
 import { ArrowLeft, CheckCircle, Clock } from 'lucide-react';
 import { academyApi, type PublicSportItem } from '../services/academyApi';
-
-const DEFAULT_SPORT_IMAGE =
-  'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1200&auto=format&fit=crop';
+import { SafeImage } from '../components/SafeImage';
 
 export const ProgramDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -79,9 +77,11 @@ export const ProgramDetailPage: React.FC = () => {
       {/* Hero Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative rounded-3xl overflow-hidden h-96 border border-[#171044]/10 shadow-2xl">
-          <img
-            src={sport.icon || DEFAULT_SPORT_IMAGE}
+          <SafeImage
+            src={sport.image || sport.icon}
             alt={sport.name}
+            fallbackKind="program"
+            name={sport.name}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#171044] via-[#171044]/60 to-transparent p-8 md:p-12 flex flex-col justify-end">

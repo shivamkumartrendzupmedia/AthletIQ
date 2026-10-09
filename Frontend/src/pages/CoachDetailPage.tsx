@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CrossAccent, AthleticBadge } from '../design-system';
-import { ArrowLeft, Award, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { academyApi, type PublicCoachItem } from '../services/academyApi';
-
-const DEFAULT_COACH_IMAGE =
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop';
+import { SafeImage } from '../components/SafeImage';
 
 export const CoachDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -81,9 +79,11 @@ export const CoachDetailPage: React.FC = () => {
         <Card variant="dark" className="p-8 md:p-12 relative overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
             <div className="md:col-span-4 shrink-0">
-              <img
-                src={coach.photo || DEFAULT_COACH_IMAGE}
+              <SafeImage
+                src={coach.photo}
                 alt={coach.name || coach.title}
+                fallbackKind="coach"
+                name={coach.name || coach.title}
                 className="w-full h-80 rounded-2xl object-cover border-2 border-white/20 shadow-2xl"
               />
             </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
 import { Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { StateContainer } from '../../components/StateContainer';
+import { SafeImage } from '../../components/SafeImage';
 import { academyApi, type SportItem, mapFieldErrors } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
 
@@ -26,6 +27,7 @@ export const SportManagementPage: React.FC = () => {
   const [formFeatures, setFormFeatures] = useState('');
   const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active');
   const [formIcon, setFormIcon] = useState('');
+  const [formImage, setFormImage] = useState('');
 
   // Accessible unique IDs
   const createNameId = useId();
@@ -33,12 +35,14 @@ export const SportManagementPage: React.FC = () => {
   const createStatusId = useId();
   const createFeaturesId = useId();
   const createIconId = useId();
+  const createImageId = useId();
 
   const editNameId = useId();
   const editDescId = useId();
   const editStatusId = useId();
   const editFeaturesId = useId();
   const editIconId = useId();
+  const editImageId = useId();
 
   const fetchSports = useCallback(async () => {
     setLoading(true);
@@ -68,6 +72,7 @@ export const SportManagementPage: React.FC = () => {
     setFormFeatures('Tournament Training, Certified Coaches');
     setFormStatus('Active');
     setFormIcon('');
+    setFormImage('');
     setCreateFieldErrors({});
     setShowCreateModal(true);
   };
@@ -80,6 +85,7 @@ export const SportManagementPage: React.FC = () => {
     setFormFeatures((s.features || []).join(', '));
     setFormStatus(s.status);
     setFormIcon(s.icon || '');
+    setFormImage(s.image || '');
     setEditFieldErrors({});
   };
 
@@ -111,6 +117,7 @@ export const SportManagementPage: React.FC = () => {
         features: featuresArr,
         status: formStatus,
         icon: formIcon.trim() || undefined,
+        image: formImage.trim() || undefined,
       });
 
       setShowCreateModal(false);
@@ -157,6 +164,7 @@ export const SportManagementPage: React.FC = () => {
         features: featuresArr,
         status: formStatus,
         icon: formIcon.trim() || undefined,
+        image: formImage.trim() || undefined,
       });
 
       setEditingSport(null);
@@ -262,7 +270,18 @@ export const SportManagementPage: React.FC = () => {
                     {s.teamCount ?? 0} Teams
                   </span>
                 </div>
-                <h3 className="text-2xl font-bold font-display text-[#171044]">{s.name}</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-[#171044]/15">
+                    <SafeImage
+                      src={s.image || s.icon}
+                      alt={s.name}
+                      fallbackKind="program"
+                      name={s.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <h3 className="text-2xl font-bold font-display text-[#171044]">{s.name}</h3>
+                </div>
                 <div className="text-xs font-bold text-[#171044]/80">
                   Active Age Brackets:{' '}
                   <span className="text-[#4B2A9B]">
@@ -408,22 +427,64 @@ export const SportManagementPage: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor={createIconId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Icon URL (HTTPS optional)
+                <label htmlFor={createImageId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Sport Banner Image URL
                 </label>
-                <input
-                  id={createIconId}
-                  type="url"
-                  placeholder="https://..."
-                  value={formIcon}
-                  onChange={(e) => {
-                    setFormIcon(e.target.value);
-                    if (createFieldErrors.icon) setCreateFieldErrors((prev) => ({ ...prev, icon: '' }));
-                  }}
-                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
-                    createFieldErrors.icon ? 'border-red-500' : 'border-[#171044]/20'
-                  }`}
-                />
+                <div className="flex gap-3 items-center">
+                  <input
+                    id={createImageId}
+                    type="url"
+                    placeholder="https://..."
+                    value={formImage}
+                    onChange={(e) => setFormImage(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  />
+                  <div className="w-10 h-10 shrink-0 rounded-xl border border-[#171044]/20 overflow-hidden bg-[#171044]">
+                    <SafeImage
+                      src={formImage}
+                      alt="Preview"
+                      fallbackKind="program"
+                      name={formName || 'Sport'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#171044]/60 mt-1 font-semibold">
+                  Optional. Must start with https://
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor={createIconId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Icon URL
+                </label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    id={createIconId}
+                    type="url"
+                    placeholder="https://..."
+                    value={formIcon}
+                    onChange={(e) => {
+                      setFormIcon(e.target.value);
+                      if (createFieldErrors.icon) setCreateFieldErrors((prev) => ({ ...prev, icon: '' }));
+                    }}
+                    className={`flex-1 px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                      createFieldErrors.icon ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
+                  />
+                  <div className="w-10 h-10 shrink-0 rounded-xl border border-[#171044]/20 overflow-hidden bg-[#171044]">
+                    <SafeImage
+                      src={formIcon}
+                      alt="Preview"
+                      fallbackKind="program"
+                      name={formName || 'Sport'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#171044]/60 mt-1 font-semibold">
+                  Optional. Must start with https://
+                </p>
                 {createFieldErrors.icon && (
                   <p className="text-xs text-red-600 font-bold mt-1">{createFieldErrors.icon}</p>
                 )}
@@ -556,21 +617,64 @@ export const SportManagementPage: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor={editIconId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
-                  Icon URL (HTTPS optional)
+                <label htmlFor={editImageId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Sport Banner Image URL
                 </label>
-                <input
-                  id={editIconId}
-                  type="url"
-                  value={formIcon}
-                  onChange={(e) => {
-                    setFormIcon(e.target.value);
-                    if (editFieldErrors.icon) setEditFieldErrors((prev) => ({ ...prev, icon: '' }));
-                  }}
-                  className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
-                    editFieldErrors.icon ? 'border-red-500' : 'border-[#171044]/20'
-                  }`}
-                />
+                <div className="flex gap-3 items-center">
+                  <input
+                    id={editImageId}
+                    type="url"
+                    placeholder="https://..."
+                    value={formImage}
+                    onChange={(e) => setFormImage(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                  />
+                  <div className="w-10 h-10 shrink-0 rounded-xl border border-[#171044]/20 overflow-hidden bg-[#171044]">
+                    <SafeImage
+                      src={formImage}
+                      alt="Preview"
+                      fallbackKind="program"
+                      name={formName || 'Sport'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#171044]/60 mt-1 font-semibold">
+                  Optional. Must start with https://
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor={editIconId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Icon URL
+                </label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    id={editIconId}
+                    type="url"
+                    placeholder="https://..."
+                    value={formIcon}
+                    onChange={(e) => {
+                      setFormIcon(e.target.value);
+                      if (editFieldErrors.icon) setEditFieldErrors((prev) => ({ ...prev, icon: '' }));
+                    }}
+                    className={`flex-1 px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm outline-none focus:border-[#FF5A00] ${
+                      editFieldErrors.icon ? 'border-red-500' : 'border-[#171044]/20'
+                    }`}
+                  />
+                  <div className="w-10 h-10 shrink-0 rounded-xl border border-[#171044]/20 overflow-hidden bg-[#171044]">
+                    <SafeImage
+                      src={formIcon}
+                      alt="Preview"
+                      fallbackKind="program"
+                      name={formName || 'Sport'}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#171044]/60 mt-1 font-semibold">
+                  Optional. Must start with https://
+                </p>
                 {editFieldErrors.icon && (
                   <p className="text-xs text-red-600 font-bold mt-1">{editFieldErrors.icon}</p>
                 )}

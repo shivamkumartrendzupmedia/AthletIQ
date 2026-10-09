@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CrossAccent, AthleticBadge } from '../design-system';
 import { ArrowRight, Check } from 'lucide-react';
 import { academyApi, type PublicSportItem } from '../services/academyApi';
+import { SafeImage } from '../components/SafeImage';
 
 export const ProgramsPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -24,7 +25,10 @@ export const ProgramsPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchSports();
+    const timer = setTimeout(() => {
+      fetchSports();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchSports]);
 
   const safeSports = sports || [];
@@ -165,9 +169,19 @@ export const ProgramsPage: React.FC = () => {
                     {/* Top Bar: Icon + Category Badge */}
                     <div className="flex items-center justify-between">
                       <div
-                        className={`w-14 h-14 rounded-2xl ${theme.iconBg} flex items-center justify-center text-3xl shadow-inner`}
+                        className={`w-14 h-14 rounded-2xl ${theme.iconBg} flex items-center justify-center text-3xl shadow-inner overflow-hidden`}
                       >
-                        {theme.icon}
+                        {sport.image || sport.icon ? (
+                          <SafeImage
+                            src={sport.image || sport.icon}
+                            alt={sport.name}
+                            fallbackKind="program"
+                            name={sport.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          theme.icon
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <AthleticBadge variant={theme.badge}>

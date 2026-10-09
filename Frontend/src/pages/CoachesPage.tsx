@@ -3,9 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CrossAccent, AthleticBadge } from '../design-system';
 import { ArrowRight, Award } from 'lucide-react';
 import { academyApi, type PublicCoachItem } from '../services/academyApi';
-
-const DEFAULT_COACH_IMAGE =
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop';
+import { SafeImage } from '../components/SafeImage';
 
 export const CoachesPage: React.FC = () => {
   const [coaches, setCoaches] = useState<PublicCoachItem[]>([]);
@@ -24,7 +22,10 @@ export const CoachesPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchCoaches();
+    const timer = setTimeout(() => {
+      fetchCoaches();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchCoaches]);
 
   return (
@@ -73,9 +74,11 @@ export const CoachesPage: React.FC = () => {
               >
                 <div>
                   <div className="h-72 relative overflow-hidden bg-[#171044]">
-                    <img
-                      src={coach.photo || DEFAULT_COACH_IMAGE}
+                    <SafeImage
+                      src={coach.photo}
                       alt={coach.name || coach.title}
+                      fallbackKind="coach"
+                      name={coach.name || coach.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-4 left-4">

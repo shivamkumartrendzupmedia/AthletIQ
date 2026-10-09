@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CrossAccent, AthleticBadge } from '../design-system';
-import { ArrowLeft, Users, Trophy, Shield, Calendar } from 'lucide-react';
+import { ArrowLeft, Users, Shield, Calendar } from 'lucide-react';
 import { academyApi, type PublicTeamItem } from '../services/academyApi';
-
-const DEFAULT_TEAM_IMAGE =
-  'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&auto=format&fit=crop';
+import { SafeImage } from '../components/SafeImage';
 
 export const TeamDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -79,7 +77,13 @@ export const TeamDetailPage: React.FC = () => {
       {/* Team Banner Header */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative rounded-3xl overflow-hidden h-80 border border-[#171044]/10 shadow-2xl">
-          <img src={DEFAULT_TEAM_IMAGE} alt={team.name} className="w-full h-full object-cover" />
+          <SafeImage
+            src={team.logo}
+            alt={team.name}
+            fallbackKind="team"
+            name={team.name}
+            className="w-full h-full object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-[#171044] via-[#171044]/60 to-transparent p-8 md:p-12 flex flex-col justify-end">
             <div className="flex items-center gap-3 mb-2">
               <AthleticBadge variant="lime">{team.sport?.name || 'Sport'}</AthleticBadge>

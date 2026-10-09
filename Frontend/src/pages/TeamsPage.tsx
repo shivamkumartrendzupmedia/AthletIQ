@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CrossAccent, AthleticBadge } from '../design-system';
-import { ArrowRight, Shield } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { academyApi, type PublicTeamItem } from '../services/academyApi';
-
-const DEFAULT_TEAM_IMAGE =
-  'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800&auto=format&fit=crop';
+import { SafeImage } from '../components/SafeImage';
 
 export const TeamsPage: React.FC = () => {
   const [teams, setTeams] = useState<PublicTeamItem[]>([]);
@@ -24,7 +22,10 @@ export const TeamsPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchTeams();
+    const timer = setTimeout(() => {
+      fetchTeams();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchTeams]);
 
   return (
@@ -73,9 +74,11 @@ export const TeamsPage: React.FC = () => {
               >
                 <div>
                   <div className="h-56 relative overflow-hidden bg-[#171044]">
-                    <img
-                      src={DEFAULT_TEAM_IMAGE}
+                    <SafeImage
+                      src={team.logo}
                       alt={team.name}
+                      fallbackKind="team"
+                      name={team.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-4 left-4 flex gap-2">

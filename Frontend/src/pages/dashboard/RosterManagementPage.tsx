@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
 import { Trash2, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { SafeImage } from '../../components/SafeImage';
 import {
   academyApi,
   type AthleteItem,
@@ -218,9 +219,12 @@ export const RosterManagementPage: React.FC = () => {
                       className="p-3 bg-[#F7F1E8] rounded-xl flex items-center justify-between hover:bg-[#eae3d5] transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#171044] text-[#D8F500] font-bold font-display text-xs flex items-center justify-center shrink-0">
-                          {a.jerseyNumber ? `#${a.jerseyNumber}` : athleteName.charAt(0)}
-                        </div>
+                        <SafeImage
+                          src={undefined}
+                          fallbackKind="person"
+                          name={athleteName}
+                          className="w-10 h-10 rounded-full shrink-0"
+                        />
                         <div>
                           <div className="font-bold text-xs text-[#171044]">{athleteName}</div>
                           <div className="text-[10px] text-[#171044]/60 font-semibold">
