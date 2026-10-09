@@ -184,24 +184,20 @@ export interface AttendanceSummary {
 
 export interface TrainingSessionItem {
   id: string;
-  _id?: string;
   team: {
     id: string;
-    _id?: string;
     name: string;
-    sport?: { id: string; _id?: string; name: string; slug: string } | null;
-  };
+    slug?: string;
+  } | null;
   coach: {
     id: string;
-    _id?: string;
-    fullName?: string;
-    user?: { id: string; name: string; email: string } | null;
-  };
+    user?: { name: string };
+  } | null;
   title: string;
-  sessionType: SessionType;
+  type: SessionType;
   startsAt: string;
   endsAt: string;
-  location: string;
+  venue?: string;
   status: 'Scheduled' | 'Completed' | 'Cancelled';
   notes?: string;
   cancellationReason?: string;
@@ -239,15 +235,14 @@ export interface AthleteAttendanceItem {
   session: {
     id: string;
     title: string;
-    sessionType: string;
     startsAt: string;
-    endsAt: string;
-    location: string;
-    status: string;
-  };
+    type?: SessionType;
+    venue?: string;
+  } | null;
   status: 'Present' | 'Late' | 'Excused' | 'Absent';
   note?: string;
-  markedAt: string;
+  markedAt?: string;
+  createdAt?: string;
 }
 
 export interface AthleteAttendanceSummary {

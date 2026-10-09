@@ -23,7 +23,11 @@ import {
   type SessionType,
 } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
-import { formatSessionTimeRange, getBrowserTimeZone } from '../../lib/datetime';
+import {
+  formatSessionTimeRange,
+  getBrowserTimeZone,
+  formatSessionStartHint,
+} from '../../lib/datetime';
 import { SessionModal } from '../../components/training/SessionModal';
 import { AttendanceModal } from '../../components/training/AttendanceModal';
 
@@ -390,9 +394,11 @@ export const TrainingCalendarPage: React.FC = () => {
                         </AthleticBadge>
                       )}
 
-                      <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-[#171044]/5 text-[#171044]">
-                        {s.sessionType}
-                      </span>
+                      {s.type && (
+                        <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-[#171044]/5 text-[#171044]">
+                          {s.type}
+                        </span>
+                      )}
                     </div>
 
                     <AthleticBadge variant="purple">
@@ -419,16 +425,12 @@ export const TrainingCalendarPage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin size={16} className="text-[#FF5A00]" />
-                      <span>Location: {s.location}</span>
+                      <span>Location: {s.venue?.trim() ? s.venue : 'Location not set'}</span>
                     </div>
-                    {s.coach && (
-                      <div className="flex items-center gap-2">
-                        <Users size={16} className="text-[#FF5A00]" />
-                        <span>
-                          Coach {s.coach.fullName || s.coach.user?.name || 'Staff'}
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <Users size={16} className="text-[#FF5A00]" />
+                      <span>Coach: {s.coach?.user?.name || 'Not assigned'}</span>
+                    </div>
                   </div>
 
                   {s.notes && (
@@ -472,14 +474,13 @@ export const TrainingCalendarPage: React.FC = () => {
                     {/* Admin/Coach view: shows team counts */}
                     {(isAdmin || isCoach) && (
                       <div>
-                        {s.attendanceSummary ? (
+                        {s.attendanceSummary && s.attendanceSummary.total > 0 ? (
                           <span className="font-bold text-emerald-600">
-                            Attendance: {s.attendanceSummary.present} / {s.attendanceSummary.total} Checked In
-                            {s.attendanceSummary.late > 0 && ` (${s.attendanceSummary.late} late)`}
+                            Marked: {s.attendanceSummary.total}
                           </span>
                         ) : (
                           <span className="text-[#171044]/50 italic">
-                            No attendance recorded
+                            Attendance not marked yet
                           </span>
                         )}
                       </div>
@@ -496,21 +497,28 @@ export const TrainingCalendarPage: React.FC = () => {
                   {/* Actions Bar */}
                   {canManageSessions && (
                     <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#171044]/5">
-                      <div className="flex items-center gap-2">
-                        {s.status !== 'Cancelled' && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={!hasStarted}
-                            title={
-                              !hasStarted
-                                ? 'Attendance can only be marked once session starts'
-                                : undefined
-                            }
-                            onClick={() => handleOpenAttendanceModal(s)}
-                          >
-                            Mark Attendance
-                          </Button>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          {s.status !== 'Cancelled' && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={!hasStarted}
+                              title={
+                                !hasStarted
+                                  ? 'Attendance can only be marked once session starts'
+                                  : undefined
+                              }
+                              onClick={() => handleOpenAttendanceModal(s)}
+                            >
+                              Mark Attendance
+                            </Button>
+                          )}
+                        </div>
+                        {s.status === 'Scheduled' && !hasStarted && (
+                          <p className="text-[11px] text-[#171044]/60 italic">
+                            Available once the session starts ({formatSessionStartHint(s.startsAt, browserTz)})
+                          </p>
                         )}
                       </div>
 

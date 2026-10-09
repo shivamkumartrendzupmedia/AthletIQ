@@ -168,3 +168,32 @@ export function formatSessionTimeRange(
 
   return { dateStr, timeRangeStr, durationStr };
 }
+
+/**
+ * Format a session start time into a clean local time string for start hints.
+ * e.g. "Oct 15, 2:00 PM"
+ * Uses an explicit IANA timeZone, falling back to getBrowserTimeZone().
+ */
+export function formatSessionStartHint(
+  startsAtUtc: string,
+  timeZone: string = getBrowserTimeZone()
+): string {
+  if (!startsAtUtc) return '';
+  const date = new Date(startsAtUtc);
+  if (isNaN(date.getTime())) return '';
+
+  const dateFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    month: 'short',
+    day: 'numeric',
+  });
+
+  const timeFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  return `${dateFmt.format(date)}, ${timeFmt.format(date)}`;
+}

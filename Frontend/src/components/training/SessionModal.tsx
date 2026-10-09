@@ -14,6 +14,10 @@ import {
   fromDatetimeLocalString,
   getBrowserTimeZone,
 } from '../../lib/datetime';
+import {
+  buildCreateSessionPayload,
+  buildUpdateSessionPayload,
+} from './sessionPayload';
 
 interface SessionModalProps {
   isOpen: boolean;
@@ -47,10 +51,10 @@ export const SessionModal: React.FC<SessionModalProps> = ({
   const [title, setTitle] = useState('');
   const [teamId, setTeamId] = useState('');
   const [coachId, setCoachId] = useState('');
-  const [sessionType, setSessionType] = useState<(typeof SESSION_TYPES)[number]>('Training');
+  const [type, setType] = useState<(typeof SESSION_TYPES)[number]>('Training');
   const [startsAtLocal, setStartsAtLocal] = useState('');
   const [endsAtLocal, setEndsAtLocal] = useState('');
-  const [location, setLocation] = useState('');
+  const [venue, setVenue] = useState('');
   const [notes, setNotes] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -64,19 +68,19 @@ export const SessionModal: React.FC<SessionModalProps> = ({
     setFieldErrors({});
 
     if (sessionToEdit) {
-      setTitle(sessionToEdit.title);
-      setTeamId(sessionToEdit.team?.id || sessionToEdit.team?._id || '');
-      setCoachId(sessionToEdit.coach?.id || sessionToEdit.coach?._id || '');
-      setSessionType(sessionToEdit.sessionType || (sessionToEdit as unknown as { type?: (typeof SESSION_TYPES)[number] }).type || 'Training');
+      setTitle(sessionToEdit.title ?? '');
+      setTeamId(sessionToEdit.team?.id ?? '');
+      setCoachId(sessionToEdit.coach?.id ?? '');
+      setType(sessionToEdit.type || 'Training');
       setStartsAtLocal(toDatetimeLocalString(sessionToEdit.startsAt, browserTz));
       setEndsAtLocal(toDatetimeLocalString(sessionToEdit.endsAt, browserTz));
-      setLocation(sessionToEdit.location || (sessionToEdit as unknown as { venue?: string }).venue || '');
-      setNotes(sessionToEdit.notes || '');
+      setVenue(sessionToEdit.venue ?? '');
+      setNotes(sessionToEdit.notes ?? '');
     } else {
       setTitle('');
       setTeamId(teams.length > 0 ? teams[0].id : '');
       setCoachId('');
-      setSessionType('Training');
+      setType('Training');
 
       // Default start: today at next top-of-hour, duration 90 minutes
       const now = new Date();
@@ -86,7 +90,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
 
       setStartsAtLocal(toDatetimeLocalString(now.toISOString(), browserTz));
       setEndsAtLocal(toDatetimeLocalString(later.toISOString(), browserTz));
-      setLocation('');
+      setVenue('');
       setNotes('');
     }
   }, [isOpen, sessionToEdit, teams, browserTz]);
@@ -100,6 +104,18 @@ export const SessionModal: React.FC<SessionModalProps> = ({
     e.preventDefault();
     setGeneralError(null);
     setFieldErrors({});
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setFieldErrors((prev) => ({ ...prev, title: 'Session title is required' }));
+      return;
+    }
+
+    const trimmedVenue = venue.trim();
+    if (!trimmedVenue) {
+      setFieldErrors((prev) => ({ ...prev, venue: 'Venue is required' }));
+      return;
+    }
 
     const startsAtUtc = fromDatetimeLocalString(startsAtLocal, browserTz);
     const endsAtUtc = fromDatetimeLocalString(endsAtLocal, browserTz);
@@ -124,30 +140,31 @@ export const SessionModal: React.FC<SessionModalProps> = ({
     setSubmitting(true);
     try {
       if (sessionToEdit) {
-        await academyApi.updateTrainingSession(sessionToEdit.id, {
-          title,
-          type: sessionType,
-          venue: location,
-          notes: notes.trim() ? notes.trim() : undefined,
-          ...(isAdmin && coachId ? { coach: coachId } : {}),
-          ...(!isCompletedOrCancelled
-            ? {
-                startsAt: startsAtUtc,
-                endsAt: endsAtUtc,
-              }
-            : {}),
-        });
+        const payload = buildUpdateSessionPayload(
+          {
+            title,
+            type,
+            venue,
+            startsAtUtc,
+            endsAtUtc,
+            coachId,
+            notes,
+          },
+          { isCompletedOrCancelled, isAdmin }
+        );
+        await academyApi.updateTrainingSession(sessionToEdit.id, payload);
       } else {
-        await academyApi.createTrainingSession({
-          team: teamId,
-          ...(coachId ? { coach: coachId } : {}),
+        const payload = buildCreateSessionPayload({
+          teamId,
           title,
-          type: sessionType,
-          startsAt: startsAtUtc,
-          endsAt: endsAtUtc,
-          venue: location,
-          notes: notes.trim() ? notes.trim() : undefined,
+          type,
+          startsAtUtc,
+          endsAtUtc,
+          venue,
+          coachId,
+          notes,
         });
+        await academyApi.createTrainingSession(payload);
       }
 
       onSuccess();
@@ -160,7 +177,11 @@ export const SessionModal: React.FC<SessionModalProps> = ({
               'A scheduling conflict occurred: This team already has an active session during this time.'
           );
         } else {
-          setGeneralError(err.message || 'Failed to save training session.');
+          const fieldDetails =
+            err.fieldErrors && err.fieldErrors.length > 0
+              ? `: ${err.fieldErrors.map((f) => `${f.field}: ${f.message}`).join(', ')}`
+              : '';
+          setGeneralError(`${err.message || 'Validation failed'}${fieldDetails}`);
         }
       } else {
         setGeneralError('An unexpected error occurred. Please try again.');
@@ -259,22 +280,22 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                 Session Type *
               </label>
               <select
-                value={sessionType}
+                value={type}
                 onChange={(e) =>
-                  setSessionType(
+                  setType(
                     e.target.value as (typeof SESSION_TYPES)[number]
                   )
                 }
                 className="w-full bg-[#171044] border border-white/20 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#D8F500]"
               >
-                {SESSION_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                {SESSION_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
                   </option>
                 ))}
               </select>
-              {fieldErrors.sessionType && (
-                <p className="text-red-400 text-xs mt-1">{fieldErrors.sessionType}</p>
+              {fieldErrors.type && (
+                <p className="text-red-400 text-xs mt-1">{fieldErrors.type}</p>
               )}
             </div>
           </div>
@@ -349,12 +370,12 @@ export const SessionModal: React.FC<SessionModalProps> = ({
               type="text"
               required
               placeholder="e.g. Pitch A (Turf) or Main Court"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
               className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#D8F500]"
             />
-            {fieldErrors.location && (
-              <p className="text-red-400 text-xs mt-1">{fieldErrors.location}</p>
+            {fieldErrors.venue && (
+              <p className="text-red-400 text-xs mt-1">{fieldErrors.venue}</p>
             )}
           </div>
 
