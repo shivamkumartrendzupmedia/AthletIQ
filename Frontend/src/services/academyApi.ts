@@ -64,9 +64,12 @@ export interface CoachItem {
     id: string;
     name: string;
     email?: string;
+    phone?: string;
+    avatar?: string;
+    isActive?: boolean;
   };
   title: string;
-  sports: Array<SportItem | string>;
+  sports: Array<{ id: string; name: string; slug: string }>;
   specialties?: string[];
   experienceYears?: number;
   bio?: string;
@@ -80,10 +83,16 @@ export interface TeamItem {
   id: string;
   name: string;
   slug: string;
-  sport: SportItem | string;
+  sport: { id: string; name: string; slug: string; ageGroups?: string[] };
   ageGroup: string;
   season: string;
-  coach?: CoachItem | null;
+  coach?: {
+    id: string;
+    title: string;
+    specialties?: string[];
+    photo?: string;
+    user?: { id: string; name: string };
+  } | null;
   status: 'Active' | 'Inactive';
   athleteCount?: number;
   createdAt?: string;
@@ -96,9 +105,16 @@ export interface AthleteItem {
     id: string;
     name: string;
     email?: string;
+    phone?: string;
+    avatar?: string;
   } | null;
-  sport: SportItem | string;
-  team?: TeamItem | null;
+  sport: { id: string; name: string; slug: string; ageGroups?: string[] };
+  team?: {
+    id: string;
+    name: string;
+    slug: string;
+    ageGroup?: string;
+  } | null;
   jerseyNumber?: number;
   position?: string;
   dateOfBirth: string;
@@ -128,7 +144,7 @@ export interface PublicCoachItem {
   id: string;
   title: string;
   name?: string;
-  sports: string[];
+  sports: Array<{ name: string; slug: string }>;
   specialties?: string[];
   experienceYears?: number;
   bio?: string;
@@ -139,12 +155,13 @@ export interface PublicTeamItem {
   id: string;
   name: string;
   slug: string;
-  sport: string;
+  sport: { name: string; slug: string };
   ageGroup: string;
   season: string;
   coach?: {
     name?: string;
     title?: string;
+    photo?: string;
   } | null;
   status: string;
   athleteCount: number;

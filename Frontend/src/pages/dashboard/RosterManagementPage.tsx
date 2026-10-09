@@ -46,13 +46,13 @@ export const RosterManagementPage: React.FC = () => {
     try {
       const res = await academyApi.listTeams({ limit: 100 });
       setTeams(res.items);
-      if (res.items.length > 0 && !selectedTeamId) {
-        setSelectedTeamId(res.items[0].id);
+      if (res.items.length > 0) {
+        setSelectedTeamId((prev) => prev || res.items[0].id);
       }
     } catch {
       // Non-fatal
     }
-  }, [selectedTeamId]);
+  }, []);
 
   const fetchTeamRoster = useCallback(async (teamId: string) => {
     if (!teamId) return;

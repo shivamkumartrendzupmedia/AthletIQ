@@ -79,7 +79,7 @@ export const TeamsPage: React.FC = () => {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-4 left-4 flex gap-2">
-                      <AthleticBadge variant="dark">{team.sport}</AthleticBadge>
+                      <AthleticBadge variant="dark">{team.sport?.name || 'Sport'}</AthleticBadge>
                       <AthleticBadge variant="orange">{team.ageGroup}</AthleticBadge>
                     </div>
                   </div>

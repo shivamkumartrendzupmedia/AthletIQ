@@ -24,6 +24,8 @@ const envSchema = z
       .min(32, { message: 'JWT_REFRESH_SECRET must be at least 32 characters long' }),
     JWT_ACCESS_EXPIRES: z.string().default('15m'),
     JWT_REFRESH_EXPIRES: z.string().default('7d'),
+    RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
+    RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),
   })
   .refine(
     (data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET,
@@ -31,7 +33,16 @@ const envSchema = z
       message: 'JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different from each other',
       path: ['JWT_REFRESH_SECRET'],
     }
-  );
+  )
+  .transform((data) => ({
+    ...data,
+    RATE_LIMIT_MAX:
+      data.RATE_LIMIT_MAX !== undefined
+        ? data.RATE_LIMIT_MAX
+        : data.NODE_ENV === 'development'
+          ? 5000
+          : 600,
+  }));
 
 const parsed = envSchema.safeParse(process.env);
 

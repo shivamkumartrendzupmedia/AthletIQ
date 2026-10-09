@@ -12,7 +12,11 @@ import { notFound } from './middlewares/notFound.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { sanitizeInput } from './middlewares/sanitizeInput.js';
 
-export const createApp = (): Application => {
+export interface CreateAppOptions {
+  rateLimitMax?: number;
+}
+
+export const createApp = (options: CreateAppOptions = {}): Application => {
   const app: Application = express();
 
   // 1. Security Headers
@@ -28,12 +32,13 @@ export const createApp = (): Application => {
     })
   );
 
-  // 3. Global Rate Limiting (100 requests per 15 minutes)
+  // 3. Global Rate Limiting (configurable, preflight OPTIONS exempted)
   const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    max: options.rateLimitMax ?? env.RATE_LIMIT_MAX,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS',
     message: {
       success: false,
       message: 'Too many requests from this IP, please try again after 15 minutes',

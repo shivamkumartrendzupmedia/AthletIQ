@@ -82,7 +82,7 @@ export const TeamDetailPage: React.FC = () => {
           <img src={DEFAULT_TEAM_IMAGE} alt={team.name} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#171044] via-[#171044]/60 to-transparent p-8 md:p-12 flex flex-col justify-end">
             <div className="flex items-center gap-3 mb-2">
-              <AthleticBadge variant="lime">{team.sport}</AthleticBadge>
+              <AthleticBadge variant="lime">{team.sport?.name || 'Sport'}</AthleticBadge>
               <AthleticBadge variant="orange">{team.ageGroup}</AthleticBadge>
               <AthleticBadge variant="dark">{team.athleteCount} Registered Athletes</AthleticBadge>
             </div>
@@ -114,7 +114,7 @@ export const TeamDetailPage: React.FC = () => {
                 <div className="p-4 bg-[#F7F1E8] rounded-2xl space-y-1">
                   <span className="text-[#171044]/60 font-bold block uppercase">Sport Program</span>
                   <span className="text-base font-bold font-display text-[#171044]">
-                    {team.sport}
+                    {team.sport?.name || 'Sport'}
                   </span>
                 </div>
                 <div className="p-4 bg-[#F7F1E8] rounded-2xl space-y-1">
