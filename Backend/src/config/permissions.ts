@@ -14,6 +14,9 @@ export type Resource =
   | 'documents'
   | 'announcements'
   | 'tournaments'
+  | 'registrations'
+  | 'venues'
+  | 'officials'
   | 'matches'
   | 'reports';
 
@@ -97,16 +100,34 @@ export const PERMISSION_MATRIX: Record<
     delete: { roles: ['Admin', 'Coach'], status: 'enforced_now' },
   },
   tournaments: {
-    create: { roles: ['Admin', 'Organizer'], status: 'enforced_later' },
-    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_later' },
-    update: { roles: ['Admin', 'Organizer'], status: 'enforced_later' },
-    delete: { roles: ['Admin'], status: 'enforced_later' },
+    create: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or Organizer creates tournament' },
+    read: { roles: ['Admin', 'Organizer', 'Coach', 'Athlete'], status: 'enforced_now', description: 'View tournaments' },
+    update: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or owning Organizer updates tournament' },
+    delete: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or owning Organizer deletes Draft tournament' },
+  },
+  registrations: {
+    create: { roles: ['Admin', 'Coach'], status: 'enforced_now', description: 'Admin or Coach registers coached team' },
+    read: { roles: ['Admin', 'Organizer', 'Coach', 'Athlete'], status: 'enforced_now', description: 'View registrations' },
+    update: { roles: ['Admin', 'Organizer', 'Coach'], status: 'enforced_now', description: 'Review (Admin/Org) or update squad (Coach)' },
+    delete: { roles: ['Admin', 'Coach'], status: 'enforced_now', description: 'Withdraw Pending registration' },
+  },
+  venues: {
+    create: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or Organizer creates venue' },
+    read: { roles: ['Admin', 'Organizer', 'Coach', 'Athlete'], status: 'enforced_now', description: 'View venues' },
+    update: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or creator Organizer updates venue' },
+    delete: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or creator Organizer deletes venue' },
+  },
+  officials: {
+    create: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or Organizer creates official' },
+    read: { roles: ['Admin', 'Organizer', 'Coach', 'Athlete'], status: 'enforced_now', description: 'View officials' },
+    update: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or creator Organizer updates official' },
+    delete: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or creator Organizer deletes official' },
   },
   matches: {
-    create: { roles: ['Admin', 'Organizer'], status: 'enforced_later' },
-    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_later' },
-    update: { roles: ['Admin', 'Organizer', 'Coach'], status: 'enforced_later' },
-    delete: { roles: ['Admin'], status: 'enforced_later' },
+    create: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or owning Organizer schedules match' },
+    read: { roles: ['Admin', 'Organizer', 'Coach', 'Athlete'], status: 'enforced_now', description: 'View matches' },
+    update: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or owning Organizer updates match or enters result' },
+    delete: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or owning Organizer deletes match' },
   },
   reports: {
     create: { roles: ['Admin', 'Organizer'], status: 'enforced_later' },

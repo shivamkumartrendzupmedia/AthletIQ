@@ -24,6 +24,7 @@ import {
 } from '../src/models/index.js';
 import { hashPassword } from '../src/utils/password.js';
 import { signAccessToken } from '../src/utils/jwt.js';
+import { findOrphans } from './cleanup-test-orphans.js';
 
 let passed = 0;
 let failed = 0;
@@ -127,9 +128,25 @@ function getAuthHeader(user: { _id: Types.ObjectId; email: string; role: string 
 }
 
 async function run(): Promise<void> {
-  console.log('\n--- VERIFYING ATHLETIQ TOURNAMENTS SYSTEM (STEP 8A) ---\n');
+  console.log('\n--- VERIFYING ATHLETIQ TOURNAMENTS SYSTEM (STEP 8A & 8A-FIX) ---\n');
 
   await connectDB();
+
+  // ==============================================================
+  // 1. LEFTOVER ORPHAN PRE-CHECK (HARD REFUSAL IF POLLUTED)
+  // ==============================================================
+  console.log('--- CHECKING ATLAS FOR LEFTOVER ORPHAN RECORDS ---');
+  const leftoverOrphans = await findOrphans();
+  if (leftoverOrphans.length > 0) {
+    console.error(`\n❌ [LEFTOVER ORPHAN REPORT] Found ${leftoverOrphans.length} orphan records:`);
+    for (const o of leftoverOrphans) {
+      console.error(`  - [${o.collection}] ID: ${o.id.toString()} | Name: "${o.name}" | Reason: ${o.reason}`);
+    }
+    console.error('\nRefusing to run tests on polluted database! Run "npm run cleanup:orphans -- --apply" first.\n');
+    await mongoose.disconnect();
+    process.exit(1);
+  }
+  console.log('✅ Leftover orphan pre-check passed: 0 orphans found in database.\n');
 
   // Snapshot initial database counts dynamically (No hardcoding)
   const initialCounts = {
@@ -169,6 +186,8 @@ async function run(): Promise<void> {
 
   const runId = Math.random().toString(36).substring(2, 9);
   const passwordHash = await hashPassword('Password123');
+
+  const groupCounts: { name: string; count: number }[] = [];
 
   try {
     // Shared baseline fixtures
@@ -438,26 +457,129 @@ async function run(): Promise<void> {
       baselineMatchId = (matchRes.body as { data: { id: string } }).data.id;
       createdMatchIds.push(new Types.ObjectId(baselineMatchId));
 
+      // Dedicated records per role for clean access matrix (no state conflicts)
+      const [delDraftAdmin, delDraftOrgA, delDraftOther] = await Promise.all([
+        Tournament.create({ name: `Draft Adm ${runId}`, sport: testSport._id, category: 'Cup', ageGroup: 'U18', format: 'Knockout', startDate: new Date(), endDate: new Date(), organizer: adminUser._id }),
+        Tournament.create({ name: `Draft Org ${runId}`, sport: testSport._id, category: 'Cup', ageGroup: 'U18', format: 'Knockout', startDate: new Date(), endDate: new Date(), organizer: orgAUser._id }),
+        Tournament.create({ name: `Draft Oth ${runId}`, sport: testSport._id, category: 'Cup', ageGroup: 'U18', format: 'Knockout', startDate: new Date(), endDate: new Date(), organizer: orgAUser._id }),
+      ]);
+      createdTourneyIds.push(delDraftAdmin._id, delDraftOrgA._id, delDraftOther._id);
+
+      // Teams for registration testing
+      const [teamRegAdm, teamRegCoach, teamRegOth, teamPostAdm, teamPostCoach, teamPostOth] = await Promise.all([
+        Team.create({ name: `Team RegAdm ${runId}`, slug: `regadm-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' }),
+        Team.create({ name: `Team RegCoach ${runId}`, slug: `regcoach-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' }),
+        Team.create({ name: `Team RegOth ${runId}`, slug: `regoth-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' }),
+        Team.create({ name: `Team PostAdm ${runId}`, slug: `postadm-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' }),
+        Team.create({ name: `Team PostCoach ${runId}`, slug: `postcoach-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' }),
+        Team.create({ name: `Team PostOth ${runId}`, slug: `postoth-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' }),
+      ]);
+      createdTeamIds.push(teamRegAdm._id, teamRegCoach._id, teamRegOth._id, teamPostAdm._id, teamPostCoach._id, teamPostOth._id);
+
+      // Pending registrations for review testing
+      const [pRevAdm, pRevOrg, pRevOth] = await Promise.all([
+        TournamentTeam.create({ tournament: new Types.ObjectId(baselineTourneyId), team: teamRegAdm._id, status: 'Pending', registeredBy: coachAUser._id }),
+        TournamentTeam.create({ tournament: new Types.ObjectId(baselineTourneyId), team: teamRegCoach._id, status: 'Pending', registeredBy: coachAUser._id }),
+        TournamentTeam.create({ tournament: new Types.ObjectId(baselineTourneyId), team: teamRegOth._id, status: 'Pending', registeredBy: coachAUser._id }),
+      ]);
+      createdRegIds.push(pRevAdm._id, pRevOrg._id, pRevOth._id);
+
+      // Pending registrations for withdraw testing
+      const teamW1 = await Team.create({ name: `Team W1 ${runId}`, slug: `w1-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' });
+      const teamW2 = await Team.create({ name: `Team W2 ${runId}`, slug: `w2-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' });
+      const teamW3 = await Team.create({ name: `Team W3 ${runId}`, slug: `w3-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' });
+      createdTeamIds.push(teamW1._id, teamW2._id, teamW3._id);
+
+      const [pWithAdm, pWithCoach, pWithOth] = await Promise.all([
+        TournamentTeam.create({ tournament: new Types.ObjectId(baselineTourneyId), team: teamW1._id, status: 'Pending', registeredBy: coachAUser._id }),
+        TournamentTeam.create({ tournament: new Types.ObjectId(baselineTourneyId), team: teamW2._id, status: 'Pending', registeredBy: coachAUser._id }),
+        TournamentTeam.create({ tournament: new Types.ObjectId(baselineTourneyId), team: teamW3._id, status: 'Pending', registeredBy: coachAUser._id }),
+      ]);
+      createdRegIds.push(pWithAdm._id, pWithCoach._id, pWithOth._id);
+
       const tourneyEndpoints = [
-        { name: 'POST /tournaments', method: 'POST', path: '/tournaments', body: tourneyPayload },
-        { name: 'GET /tournaments', method: 'GET', path: '/tournaments' },
-        { name: 'GET /tournaments/:id', method: 'GET', path: `/tournaments/${baselineTourneyId}` },
-        { name: 'PATCH /tournaments/:id', method: 'PATCH', path: `/tournaments/${baselineTourneyId}`, body: { rules: 'Updated' } },
-        { name: 'DELETE /tournaments/:id', method: 'DELETE', path: `/tournaments/${baselineTourneyId}` },
-        { name: 'POST /tournaments/:id/registrations', method: 'POST', path: `/tournaments/${baselineTourneyId}/registrations`, body: { team: teamA._id.toString() } },
-        { name: 'GET /tournaments/:id/registrations', method: 'GET', path: `/tournaments/${baselineTourneyId}/registrations` },
-        { name: 'PATCH /registrations/:id/squad', method: 'PATCH', path: `/registrations/${baselineRegId}/squad`, body: { squad: [athleteA1._id.toString()] } },
-        { name: 'PATCH /registrations/:id/review', method: 'PATCH', path: `/registrations/${baselineRegId}/review`, body: { status: 'Approved' } },
-        { name: 'DELETE /registrations/:id', method: 'DELETE', path: `/registrations/${baselineRegId}` },
+        {
+          name: 'POST /tournaments',
+          method: 'POST',
+          getPath: () => '/tournaments',
+          getBody: () => tourneyPayload,
+        },
+        {
+          name: 'GET /tournaments',
+          method: 'GET',
+          getPath: () => '/tournaments',
+        },
+        {
+          name: 'GET /tournaments/:id',
+          method: 'GET',
+          getPath: () => `/tournaments/${baselineTourneyId}`,
+        },
+        {
+          name: 'PATCH /tournaments/:id',
+          method: 'PATCH',
+          getPath: () => `/tournaments/${baselineTourneyId}`,
+          getBody: () => ({ rules: 'Updated Rules' }),
+        },
+        {
+          name: 'DELETE /tournaments/:id',
+          method: 'DELETE',
+          getPath: (roleName: string) => {
+            if (roleName === 'Admin') return `/tournaments/${delDraftAdmin._id}`;
+            if (roleName === 'Organizer A') return `/tournaments/${delDraftOrgA._id}`;
+            return `/tournaments/${delDraftOther._id}`;
+          },
+        },
+        {
+          name: 'POST /tournaments/:id/registrations',
+          method: 'POST',
+          getPath: () => `/tournaments/${baselineTourneyId}/registrations`,
+          getBody: (roleName: string) => {
+            if (roleName === 'Admin') return { team: teamPostAdm._id.toString() };
+            if (roleName === 'Coach A') return { team: teamPostCoach._id.toString() };
+            return { team: teamPostOth._id.toString() };
+          },
+        },
+        {
+          name: 'GET /tournaments/:id/registrations',
+          method: 'GET',
+          getPath: () => `/tournaments/${baselineTourneyId}/registrations`,
+        },
+        {
+          name: 'PATCH /registrations/:id/squad',
+          method: 'PATCH',
+          getPath: () => `/registrations/${baselineRegId}/squad`,
+          getBody: () => ({ squad: [athleteA1._id.toString()] }),
+        },
+        {
+          name: 'PATCH /registrations/:id/review',
+          method: 'PATCH',
+          getPath: (roleName: string) => {
+            if (roleName === 'Admin') return `/registrations/${pRevAdm._id}/review`;
+            if (roleName === 'Organizer A') return `/registrations/${pRevOrg._id}/review`;
+            return `/registrations/${pRevOth._id}/review`;
+          },
+          getBody: () => ({ status: 'Approved' }),
+        },
+        {
+          name: 'DELETE /registrations/:id',
+          method: 'DELETE',
+          getPath: (roleName: string) => {
+            if (roleName === 'Admin') return `/registrations/${pWithAdm._id}`;
+            if (roleName === 'Coach A') return `/registrations/${pWithCoach._id}`;
+            return `/registrations/${pWithOth._id}`;
+          },
+        },
       ];
 
       for (const ep of tourneyEndpoints) {
         const statuses: number[] = [];
         for (const role of roles) {
-          const res = await fetch1A(ep.path, {
+          const path = ep.getPath(role.name);
+          const body = ep.getBody ? ep.getBody(role.name) : undefined;
+          const res = await fetch1A(path, {
             method: ep.method,
             headers: role.headers,
-            body: ep.body ? JSON.stringify(ep.body) : undefined,
+            body: body ? JSON.stringify(body) : undefined,
           });
           statuses.push(res.status);
           if (res.status === 201 && res.body && typeof res.body === 'object') {
@@ -465,8 +587,8 @@ async function run(): Promise<void> {
             const createdIdStr = bodyObj.data?.id;
             if (createdIdStr) {
               const objId = new Types.ObjectId(createdIdStr);
-              if (ep.path === '/tournaments') createdTourneyIds.push(objId);
-              else if (ep.path.includes('/registrations')) createdRegIds.push(objId);
+              if (path === '/tournaments') createdTourneyIds.push(objId);
+              else if (path.includes('/registrations')) createdRegIds.push(objId);
             }
           }
         }
@@ -474,6 +596,7 @@ async function run(): Promise<void> {
       }
 
       assert(group1A.getRequestCount() < 90, `Group 1A request count (${group1A.getRequestCount()}) strictly < 90`);
+      groupCounts.push({ name: 'Group 1A', count: group1A.getRequestCount() });
     } finally {
       await group1A.close();
     }
@@ -485,33 +608,170 @@ async function run(): Promise<void> {
     const { group: group1B, fetchGroup: fetch1B } = startServerGroup();
 
     try {
+      // Dedicated unreferenced venues for DELETE testing
+      const [vDelAdm, vDelOrg, vDelOth] = await Promise.all([
+        Venue.create({ name: `VDelAdm ${runId}`, address: 'Addr', createdBy: adminUser._id }),
+        Venue.create({ name: `VDelOrg ${runId}`, address: 'Addr', createdBy: orgAUser._id }),
+        Venue.create({ name: `VDelOth ${runId}`, address: 'Addr', createdBy: orgAUser._id }),
+      ]);
+      createdVenueIds.push(vDelAdm._id, vDelOrg._id, vDelOth._id);
+
+      // Dedicated unreferenced officials for DELETE testing
+      const [offDelAdm, offDelOrg, offDelOth] = await Promise.all([
+        Official.create({ name: `OffDelAdm ${runId}`, type: 'Referee', createdBy: adminUser._id }),
+        Official.create({ name: `OffDelOrg ${runId}`, type: 'Referee', createdBy: orgAUser._id }),
+        Official.create({ name: `OffDelOth ${runId}`, type: 'Referee', createdBy: orgAUser._id }),
+      ]);
+      createdOfficialIds.push(offDelAdm._id, offDelOrg._id, offDelOth._id);
+
+      // Dedicated past scheduled matches for result entry
+      const pastTime = new Date(Date.now() - 4 * 3600000); // 4 hours ago
+      const [pastMAdm, pastMOrg, pastMOth] = await Promise.all([
+        Match.create({ tournament: new Types.ObjectId(baselineTourneyId), homeTeam: new Types.ObjectId(baselineRegId), awayTeam: new Types.ObjectId(baselineRegBId), round: 'PastAdm', scheduledAt: pastTime, durationMinutes: 90, endsAt: new Date(pastTime.getTime() + 90 * 60000), venue: new Types.ObjectId(baselineVenueId), status: 'Scheduled' }),
+        Match.create({ tournament: new Types.ObjectId(baselineTourneyId), homeTeam: new Types.ObjectId(baselineRegId), awayTeam: new Types.ObjectId(baselineRegBId), round: 'PastOrg', scheduledAt: new Date(pastTime.getTime() - 20000000), durationMinutes: 90, endsAt: new Date(pastTime.getTime() - 20000000 + 90 * 60000), venue: new Types.ObjectId(baselineVenueId), status: 'Scheduled' }),
+        Match.create({ tournament: new Types.ObjectId(baselineTourneyId), homeTeam: new Types.ObjectId(baselineRegId), awayTeam: new Types.ObjectId(baselineRegBId), round: 'PastOth', scheduledAt: new Date(pastTime.getTime() - 40000000), durationMinutes: 90, endsAt: new Date(pastTime.getTime() - 40000000 + 90 * 60000), venue: new Types.ObjectId(baselineVenueId), status: 'Scheduled' }),
+      ]);
+      createdMatchIds.push(pastMAdm._id, pastMOrg._id, pastMOth._id);
+
+      // Dedicated scheduled matches for DELETE testing
+      const futTime = new Date(Date.now() + 30 * 86400000);
+      const [delMAdm, delMOrg, delMOth] = await Promise.all([
+        Match.create({ tournament: new Types.ObjectId(baselineTourneyId), homeTeam: new Types.ObjectId(baselineRegId), awayTeam: new Types.ObjectId(baselineRegBId), round: 'DelAdm', scheduledAt: futTime, durationMinutes: 90, endsAt: new Date(futTime.getTime() + 90 * 60000), venue: new Types.ObjectId(baselineVenueId), status: 'Scheduled' }),
+        Match.create({ tournament: new Types.ObjectId(baselineTourneyId), homeTeam: new Types.ObjectId(baselineRegId), awayTeam: new Types.ObjectId(baselineRegBId), round: 'DelOrg', scheduledAt: new Date(futTime.getTime() + 10000000), durationMinutes: 90, endsAt: new Date(futTime.getTime() + 10000000 + 90 * 60000), venue: new Types.ObjectId(baselineVenueId), status: 'Scheduled' }),
+        Match.create({ tournament: new Types.ObjectId(baselineTourneyId), homeTeam: new Types.ObjectId(baselineRegId), awayTeam: new Types.ObjectId(baselineRegBId), round: 'DelOth', scheduledAt: new Date(futTime.getTime() + 20000000), durationMinutes: 90, endsAt: new Date(futTime.getTime() + 20000000 + 90 * 60000), venue: new Types.ObjectId(baselineVenueId), status: 'Scheduled' }),
+      ]);
+      createdMatchIds.push(delMAdm._id, delMOrg._id, delMOth._id);
+
       const secondHalfEndpoints = [
-        { name: 'POST /venues', method: 'POST', path: '/venues', body: { name: `V2 ${runId}`, address: 'Addr' } },
-        { name: 'GET /venues', method: 'GET', path: '/venues' },
-        { name: 'PATCH /venues/:id', method: 'PATCH', path: `/venues/${baselineVenueId}`, body: { name: 'V-Edit' } },
-        { name: 'DELETE /venues/:id', method: 'DELETE', path: `/venues/${baselineVenueId}` },
-        { name: 'POST /officials', method: 'POST', path: '/officials', body: { name: `Off2 ${runId}`, type: 'Scorer' } },
-        { name: 'GET /officials', method: 'GET', path: '/officials' },
-        { name: 'PATCH /officials/:id', method: 'PATCH', path: `/officials/${baselineOfficialId}`, body: { name: 'O-Edit' } },
-        { name: 'DELETE /officials/:id', method: 'DELETE', path: `/officials/${baselineOfficialId}` },
-        { name: 'POST /tournaments/:id/matches', method: 'POST', path: `/tournaments/${baselineTourneyId}/matches`, body: { homeTeam: baselineRegId, awayTeam: baselineRegBId, round: 'Semi', scheduledAt: new Date(Date.now() + 300000000).toISOString(), venue: baselineVenueId } },
-        { name: 'GET /tournaments/:id/matches', method: 'GET', path: `/tournaments/${baselineTourneyId}/matches` },
-        { name: 'GET /matches/:id', method: 'GET', path: `/matches/${baselineMatchId}` },
-        { name: 'PATCH /matches/:id', method: 'PATCH', path: `/matches/${baselineMatchId}`, body: { round: 'Final' } },
-        { name: 'PATCH /matches/:id/result', method: 'PATCH', path: `/matches/${baselineMatchId}/result`, body: { homeScore: 2, awayScore: 1 } },
-        { name: 'DELETE /matches/:id', method: 'DELETE', path: `/matches/${baselineMatchId}` },
-        { name: 'GET /public/tournaments', method: 'GET', path: '/public/tournaments' },
-        { name: 'GET /public/tournaments/:id', method: 'GET', path: `/public/tournaments/${baselineTourneyId}` },
-        { name: 'GET /public/tournaments/:id/matches', method: 'GET', path: `/public/tournaments/${baselineTourneyId}/matches` },
+        {
+          name: 'POST /venues',
+          method: 'POST',
+          getPath: () => '/venues',
+          getBody: () => ({ name: `V2 ${runId}`, address: 'Addr' }),
+        },
+        {
+          name: 'GET /venues',
+          method: 'GET',
+          getPath: () => '/venues',
+        },
+        {
+          name: 'PATCH /venues/:id',
+          method: 'PATCH',
+          getPath: () => `/venues/${baselineVenueId}`,
+          getBody: () => ({ name: 'V-Edit' }),
+        },
+        {
+          name: 'DELETE /venues/:id',
+          method: 'DELETE',
+          getPath: (roleName: string) => {
+            if (roleName === 'Admin') return `/venues/${vDelAdm._id}`;
+            if (roleName === 'Organizer A') return `/venues/${vDelOrg._id}`;
+            return `/venues/${vDelOth._id}`;
+          },
+        },
+        {
+          name: 'POST /officials',
+          method: 'POST',
+          getPath: () => '/officials',
+          getBody: () => ({ name: `Off2 ${runId}`, type: 'Scorer' }),
+        },
+        {
+          name: 'GET /officials',
+          method: 'GET',
+          getPath: () => '/officials',
+        },
+        {
+          name: 'PATCH /officials/:id',
+          method: 'PATCH',
+          getPath: () => `/officials/${baselineOfficialId}`,
+          getBody: () => ({ name: 'O-Edit' }),
+        },
+        {
+          name: 'DELETE /officials/:id',
+          method: 'DELETE',
+          getPath: (roleName: string) => {
+            if (roleName === 'Admin') return `/officials/${offDelAdm._id}`;
+            if (roleName === 'Organizer A') return `/officials/${offDelOrg._id}`;
+            return `/officials/${offDelOth._id}`;
+          },
+        },
+        {
+          name: 'POST /tournaments/:id/matches',
+          method: 'POST',
+          getPath: () => `/tournaments/${baselineTourneyId}/matches`,
+          getBody: (roleName: string) => {
+            const offset = roleName === 'Admin' ? 50 : roleName === 'Organizer A' ? 55 : 60;
+            return {
+              homeTeam: baselineRegId,
+              awayTeam: baselineRegBId,
+              round: 'MatrixSlot',
+              scheduledAt: new Date(Date.now() + offset * 86400000).toISOString(),
+              durationMinutes: 90,
+              venue: baselineVenueId,
+            };
+          },
+        },
+        {
+          name: 'GET /tournaments/:id/matches',
+          method: 'GET',
+          getPath: () => `/tournaments/${baselineTourneyId}/matches`,
+        },
+        {
+          name: 'GET /matches/:id',
+          method: 'GET',
+          getPath: () => `/matches/${baselineMatchId}`,
+        },
+        {
+          name: 'PATCH /matches/:id',
+          method: 'PATCH',
+          getPath: () => `/matches/${baselineMatchId}`,
+          getBody: () => ({ round: 'MatrixUpdated' }),
+        },
+        {
+          name: 'PATCH /matches/:id/result',
+          method: 'PATCH',
+          getPath: (roleName: string) => {
+            if (roleName === 'Admin') return `/matches/${pastMAdm._id}/result`;
+            if (roleName === 'Organizer A') return `/matches/${pastMOrg._id}/result`;
+            return `/matches/${pastMOth._id}/result`;
+          },
+          getBody: () => ({ homeScore: 2, awayScore: 1 }),
+        },
+        {
+          name: 'DELETE /matches/:id',
+          method: 'DELETE',
+          getPath: (roleName: string) => {
+            if (roleName === 'Admin') return `/matches/${delMAdm._id}`;
+            if (roleName === 'Organizer A') return `/matches/${delMOrg._id}`;
+            return `/matches/${delMOth._id}`;
+          },
+        },
+        {
+          name: 'GET /public/tournaments',
+          method: 'GET',
+          getPath: () => '/public/tournaments',
+        },
+        {
+          name: 'GET /public/tournaments/:id',
+          method: 'GET',
+          getPath: () => `/public/tournaments/${baselineTourneyId}`,
+        },
+        {
+          name: 'GET /public/tournaments/:id/matches',
+          method: 'GET',
+          getPath: () => `/public/tournaments/${baselineTourneyId}/matches`,
+        },
       ];
 
       for (const ep of secondHalfEndpoints) {
         const statuses: number[] = [];
         for (const role of roles) {
-          const res = await fetch1B(ep.path, {
+          const path = ep.getPath(role.name);
+          const body = ep.getBody ? ep.getBody(role.name) : undefined;
+          const res = await fetch1B(path, {
             method: ep.method,
             headers: role.headers,
-            body: ep.body ? JSON.stringify(ep.body) : undefined,
+            body: body ? JSON.stringify(body) : undefined,
           });
           statuses.push(res.status);
           if (res.status === 201 && res.body && typeof res.body === 'object') {
@@ -519,9 +779,9 @@ async function run(): Promise<void> {
             const createdIdStr = bodyObj.data?.id;
             if (createdIdStr) {
               const objId = new Types.ObjectId(createdIdStr);
-              if (ep.path === '/venues') createdVenueIds.push(objId);
-              else if (ep.path === '/officials') createdOfficialIds.push(objId);
-              else if (ep.path.includes('/matches')) createdMatchIds.push(objId);
+              if (path === '/venues') createdVenueIds.push(objId);
+              else if (path === '/officials') createdOfficialIds.push(objId);
+              else if (path.includes('/matches')) createdMatchIds.push(objId);
             }
           }
         }
@@ -533,24 +793,24 @@ async function run(): Promise<void> {
 
       assert(true, 'Live role x endpoint permissions matrix generated successfully');
       assert(group1B.getRequestCount() < 90, `Group 1B request count (${group1B.getRequestCount()}) strictly < 90`);
+      groupCounts.push({ name: 'Group 1B', count: group1B.getRequestCount() });
     } finally {
       await group1B.close();
     }
 
     // ==============================================================
-    // GROUP 2: SCOPING & IDOR ISOLATION (ORGANIZER B & COACH B)
+    // GROUP 2: SCOPING & IDOR ISOLATION
     // ==============================================================
     console.log('\n--- GROUP 2: SCOPING & IDOR ISOLATION ---');
     const { group: group2, fetchGroup: fetch2 } = startServerGroup();
 
     try {
-      // Create isolated tournament for Org A
       const tourneyA = await Tournament.create({
-        name: `Tournament A ${runId}`,
+        name: `Org A Tourney ${runId}`,
         sport: testSport._id,
-        category: 'Pro',
+        category: 'Cup',
         ageGroup: 'U18',
-        format: 'League',
+        format: 'Knockout',
         startDate: new Date(Date.now() + 86400000),
         endDate: new Date(Date.now() + 5 * 86400000),
         status: 'Registration Open',
@@ -560,7 +820,7 @@ async function run(): Promise<void> {
 
       const venueA = await Venue.create({
         name: `Venue A ${runId}`,
-        address: 'Loc A',
+        address: '123 Street',
         createdBy: orgAUser._id,
       });
       createdVenueIds.push(venueA._id);
@@ -618,11 +878,10 @@ async function run(): Promise<void> {
       const coachBRegTeamA = await fetch2(`/tournaments/${tourneyA._id}/registrations`, {
         method: 'POST',
         headers: coachBAuth,
-        body: JSON.stringify({ team: teamA._id.toString() }),
+        body: JSON.stringify({ team: teamA._id.toString(), squad: [athleteA1._id.toString()] }),
       });
       assert(coachBRegTeamA.status === 404, 'Coach B attempting to register Team A returns 404');
 
-      // Coach A registers Team A successfully
       const coachARegTeamA = await fetch2(`/tournaments/${tourneyA._id}/registrations`, {
         method: 'POST',
         headers: coachAAuth,
@@ -648,7 +907,143 @@ async function run(): Promise<void> {
       });
       assert(orgBReviewReg.status === 404, 'Organizer B reviewing registration on Tourney A returns 404');
 
+      // Coach B cannot withdraw Coach A's registration => 404
+      const coachBWithdrawCoachA = await fetch2(`/registrations/${regAId}`, {
+        method: 'DELETE',
+        headers: coachBAuth,
+      });
+      assert(coachBWithdrawCoachA.status === 404, "Coach B cannot withdraw Coach A's registration (404)");
+
+      // Create match under Tourney A for Org B isolation testing
+      const regBForMatch = await TournamentTeam.create({
+        tournament: tourneyA._id,
+        team: teamB._id,
+        status: 'Approved',
+        registeredBy: coachBUser._id,
+      });
+      createdRegIds.push(regBForMatch._id);
+
+      await TournamentTeam.findByIdAndUpdate(regAId, { status: 'Approved' });
+
+      const matchA = await Match.create({
+        tournament: tourneyA._id,
+        homeTeam: new Types.ObjectId(regAId),
+        awayTeam: regBForMatch._id,
+        round: 'Semi',
+        scheduledAt: new Date(Date.now() - 3600000), // 1 hour ago
+        durationMinutes: 90,
+        endsAt: new Date(Date.now() - 3600000 + 90 * 60000),
+        venue: venueA._id,
+        status: 'Scheduled',
+      });
+      createdMatchIds.push(matchA._id);
+
+      // Organizer B on EVERY match endpoint of Organizer A's tournament => 404
+      const orgBPostMatch = await fetch2(`/tournaments/${tourneyA._id}/matches`, {
+        method: 'POST',
+        headers: orgBAuth,
+        body: JSON.stringify({
+          homeTeam: regAId,
+          awayTeam: regBForMatch._id.toString(),
+          round: 'Final',
+          scheduledAt: new Date(Date.now() + 86400000).toISOString(),
+          venue: venueA._id.toString(),
+        }),
+      });
+      assert(orgBPostMatch.status === 404, "Organizer B POST matches on Org A's tournament returns 404");
+
+      const orgBGetMatches = await fetch2(`/tournaments/${tourneyA._id}/matches`, {
+        method: 'GET',
+        headers: orgBAuth,
+      });
+      assert(orgBGetMatches.status === 404, "Organizer B GET matches on Org A's tournament returns 404");
+
+      const orgBGetSingleMatch = await fetch2(`/matches/${matchA._id}`, {
+        method: 'GET',
+        headers: orgBAuth,
+      });
+      assert(orgBGetSingleMatch.status === 404, "Organizer B GET match/:id on Org A's tournament returns 404");
+
+      const orgBPatchMatch = await fetch2(`/matches/${matchA._id}`, {
+        method: 'PATCH',
+        headers: orgBAuth,
+        body: JSON.stringify({ round: 'Hacked' }),
+      });
+      assert(orgBPatchMatch.status === 404, "Organizer B PATCH match/:id on Org A's tournament returns 404");
+
+      const orgBPatchMatchResult = await fetch2(`/matches/${matchA._id}/result`, {
+        method: 'PATCH',
+        headers: orgBAuth,
+        body: JSON.stringify({ homeScore: 1, awayScore: 0 }),
+      });
+      assert(orgBPatchMatchResult.status === 404, "Organizer B PATCH match/:id/result on Org A's tournament returns 404");
+
+      const orgBDeleteMatch = await fetch2(`/matches/${matchA._id}`, {
+        method: 'DELETE',
+        headers: orgBAuth,
+      });
+      assert(orgBDeleteMatch.status === 404, "Organizer B DELETE match/:id on Org A's tournament returns 404");
+
+      // Coach A cannot withdraw an Approved registration => 400
+      const coachAWithdrawApproved = await fetch2(`/registrations/${regAId}`, {
+        method: 'DELETE',
+        headers: coachAAuth,
+      });
+      assert(coachAWithdrawApproved.status === 400, 'Coach A cannot withdraw an Approved registration (400)');
+
+      // Coach A withdraws his own Pending registration => 200
+      const teamPen = await Team.create({ name: `Team Pen ${runId}`, slug: `pen-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' });
+      createdTeamIds.push(teamPen._id);
+      const regPen = await TournamentTeam.create({ tournament: tourneyA._id, team: teamPen._id, status: 'Pending', registeredBy: coachAUser._id });
+      createdRegIds.push(regPen._id);
+
+      const coachAWithdrawPending = await fetch2(`/registrations/${regPen._id}`, {
+        method: 'DELETE',
+        headers: coachAAuth,
+      });
+      assert(coachAWithdrawPending.status === 200, 'Coach A withdraws his own Pending registration (200)');
+
+      // Athlete reads his own team's registration status (200) and not another team's (empty list)
+      const athleteReadOwnReg = await fetch2(`/tournaments/${tourneyA._id}/registrations`, {
+        method: 'GET',
+        headers: athleteAAuth,
+      });
+      assert(athleteReadOwnReg.status === 200, "Athlete reads own team's registration status (200)");
+      const athleteList = (athleteReadOwnReg.body as { data: { team: { _id?: string; id?: string } }[] })?.data;
+      assert(athleteList.length === 1, 'Athlete sees exactly 1 registration (for their team)');
+
+      // Create Tourney with only Team B registered
+      const tourneyOnlyB = await Tournament.create({
+        name: `Tourney Only B ${runId}`,
+        sport: testSport._id,
+        category: 'Cup',
+        ageGroup: 'U18',
+        format: 'Knockout',
+        startDate: new Date(Date.now() + 86400000),
+        endDate: new Date(Date.now() + 5 * 86400000),
+        status: 'Registration Open',
+        organizer: orgAUser._id,
+      });
+      createdTourneyIds.push(tourneyOnlyB._id);
+
+      const regOnlyB = await TournamentTeam.create({
+        tournament: tourneyOnlyB._id,
+        team: teamB._id,
+        status: 'Pending',
+        registeredBy: coachBUser._id,
+      });
+      createdRegIds.push(regOnlyB._id);
+
+      const athleteReadOtherReg = await fetch2(`/tournaments/${tourneyOnlyB._id}/registrations`, {
+        method: 'GET',
+        headers: athleteAAuth,
+      });
+      assert(athleteReadOtherReg.status === 200, "Athlete GET registrations for tournament with another team returns 200");
+      const otherList = (athleteReadOtherReg.body as { data: unknown[] })?.data;
+      assert(otherList.length === 0, 'Athlete receives empty array and does NOT see another team registration');
+
       assert(group2.getRequestCount() < 90, `Group 2 request count (${group2.getRequestCount()}) strictly < 90`);
+      groupCounts.push({ name: 'Group 2', count: group2.getRequestCount() });
     } finally {
       await group2.close();
     }
@@ -660,7 +1055,6 @@ async function run(): Promise<void> {
     const { group: group3, fetchGroup: fetch3 } = startServerGroup();
 
     try {
-      // Draft tournament => registrations blocked (400)
       const draftTourney = await Tournament.create({
         name: `Draft Tourney ${runId}`,
         sport: testSport._id,
@@ -674,6 +1068,7 @@ async function run(): Promise<void> {
       });
       createdTourneyIds.push(draftTourney._id);
 
+      // Registering for Draft tournament => 400
       const regDraft = await fetch3(`/tournaments/${draftTourney._id}/registrations`, {
         method: 'POST',
         headers: coachAAuth,
@@ -681,54 +1076,59 @@ async function run(): Promise<void> {
       });
       assert(regDraft.status === 400, 'Registering for Draft tournament returns 400');
 
-      // Open tournament with maxTeams: 2
       const max2Tourney = await Tournament.create({
-        name: `Max2 Tourney ${runId}`,
+        name: `Max 2 Tourney ${runId}`,
         sport: testSport._id,
         category: 'Cup',
         ageGroup: 'U18',
         format: 'Knockout',
+        maxTeams: 2,
         startDate: new Date(Date.now() + 86400000),
         endDate: new Date(Date.now() + 5 * 86400000),
         status: 'Registration Open',
-        maxTeams: 2,
         organizer: orgAUser._id,
       });
       createdTourneyIds.push(max2Tourney._id);
 
-      // Wrong sport: Team C (Cricket) registering for Football tournament => 400
-      const wrongSportReg = await fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
+      // Team with wrong sport => 400
+      const regWrongSport = await fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
         method: 'POST',
         headers: coachAAuth,
         body: JSON.stringify({ team: teamC._id.toString() }),
       });
-      assert(wrongSportReg.status === 400, 'Team with wrong sport returns 400');
+      assert(regWrongSport.status === 400, 'Team with wrong sport returns 400');
 
-      // Athlete not on team in squad => 400
-      const notOnTeamSquad = await fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
+      // Squad containing athlete not on team => 400
+      const regWrongAthlete = await fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
         method: 'POST',
         headers: coachAAuth,
         body: JSON.stringify({ team: teamA._id.toString(), squad: [athleteB1._id.toString()] }),
       });
-      assert(notOnTeamSquad.status === 400, 'Squad containing athlete not on team returns 400');
+      assert(regWrongAthlete.status === 400, 'Squad containing athlete not on team returns 400');
 
-      // Duplicate athletes in squad => 400
-      const dupSquad = await fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
+      // Squad with duplicate athletes => 400
+      const regDupSquad = await fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
         method: 'POST',
         headers: coachAAuth,
-        body: JSON.stringify({
-          team: teamA._id.toString(),
-          squad: [athleteA1._id.toString(), athleteA1._id.toString()],
-        }),
+        body: JSON.stringify({ team: teamA._id.toString(), squad: [athleteA1._id.toString(), athleteA1._id.toString()] }),
       });
-      assert(dupSquad.status === 400, 'Squad with duplicate athletes returns 400');
+      assert(regDupSquad.status === 400, 'Squad with duplicate athletes returns 400');
 
-      // Duplicate registration race via Promise.all: exactly one succeeds (201), one rejected (409)
-      const [raceReg1, raceReg2] = await Promise.all([
+      // Squad with 31 distinct valid ObjectIds => 400
+      const squad31 = Array.from({ length: 31 }, () => new Types.ObjectId().toString());
+      const reg31Squad = await fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
+        method: 'POST',
+        headers: coachAAuth,
+        body: JSON.stringify({ team: teamA._id.toString(), squad: squad31 }),
+      });
+      assert(reg31Squad.status === 400, 'Squad with 31 distinct valid ObjectIds returns 400');
+
+      // Parallel duplicate registration race via Promise.all
+      const [race1, race2] = await Promise.all([
         fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
           method: 'POST',
           headers: coachAAuth,
-          body: JSON.stringify({ team: teamA._id.toString(), squad: [athleteA1._id.toString()] }),
+          body: JSON.stringify({ team: teamA._id.toString(), squad: [athleteA1._id.toString(), athleteA2._id.toString()] }),
         }),
         fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
           method: 'POST',
@@ -737,16 +1137,15 @@ async function run(): Promise<void> {
         }),
       ]);
 
-      const raceStatuses = [raceReg1.status, raceReg2.status].sort();
+      const raceStatuses = [race1.status, race2.status].sort();
       assert(
         raceStatuses[0] === 201 && raceStatuses[1] === 409,
         `Duplicate registration race: exactly one 201 and one 409 (got ${raceStatuses.join(', ')})`
       );
 
-      const winningRegId = ((raceReg1.status === 201 ? raceReg1.body : raceReg2.body) as { data?: { id?: string } })?.data?.id;
-      if (winningRegId) createdRegIds.push(new Types.ObjectId(winningRegId));
+      const winningRegId = (race1.status === 201 ? race1.body : race2.body) as { data: { id: string } };
+      createdRegIds.push(new Types.ObjectId(winningRegId.data.id));
 
-      // Coach B registers Team B
       const regTeamB = await fetch3(`/tournaments/${max2Tourney._id}/registrations`, {
         method: 'POST',
         headers: coachBAuth,
@@ -757,7 +1156,7 @@ async function run(): Promise<void> {
       createdRegIds.push(new Types.ObjectId(regBId));
 
       // Approve Team A (Count: 1)
-      const appA = await fetch3(`/registrations/${winningRegId}/review`, {
+      const appA = await fetch3(`/registrations/${winningRegId.data.id}/review`, {
         method: 'PATCH',
         headers: orgAAuth,
         body: JSON.stringify({ status: 'Approved' }),
@@ -765,14 +1164,14 @@ async function run(): Promise<void> {
       assert(appA.status === 200, 'Admin/Org approves Team A (200)');
 
       // Second review on already approved Team A returns 409
-      const appATwice = await fetch3(`/registrations/${winningRegId}/review`, {
+      const appATwice = await fetch3(`/registrations/${winningRegId.data.id}/review`, {
         method: 'PATCH',
         headers: orgAAuth,
         body: JSON.stringify({ status: 'Approved' }),
       });
       assert(appATwice.status === 409, 'Reviewing already reviewed registration returns 409');
 
-      // Approve Team B (Count: 2 = maxTeams)
+      // Approve Team B (Count: 2 => reaches maxTeams)
       const appB = await fetch3(`/registrations/${regBId}/review`, {
         method: 'PATCH',
         headers: orgAAuth,
@@ -780,7 +1179,7 @@ async function run(): Promise<void> {
       });
       assert(appB.status === 200, 'Admin/Org approves Team B (200, reaches maxTeams 2)');
 
-      // Create a 3rd team to test maxTeams enforcement
+      // Register Team D under Coach A
       const teamD = await Team.create({
         name: `Team D ${runId}`,
         slug: `team-d-${runId}`,
@@ -809,39 +1208,39 @@ async function run(): Promise<void> {
       assert(rejNoReason.status === 400, 'Rejecting registration without reason returns 400');
 
       // Approving Team D fails with 400 because maxTeams (2) is reached
-      const appDOverMax = await fetch3(`/registrations/${regDId}/review`, {
+      const appDOverLimit = await fetch3(`/registrations/${regDId}/review`, {
         method: 'PATCH',
         headers: orgAAuth,
         body: JSON.stringify({ status: 'Approved' }),
       });
-      assert(appDOverMax.status === 400, 'Approving team beyond maxTeams returns 400');
+      assert(appDOverLimit.status === 400, 'Approving team beyond maxTeams returns 400');
 
-      // Reject Team D with reason (200)
+      // Rejecting with reason succeeds (200)
       const rejWithReason = await fetch3(`/registrations/${regDId}/review`, {
         method: 'PATCH',
         headers: orgAAuth,
-        body: JSON.stringify({ status: 'Rejected', reason: 'Capacity full' }),
+        body: JSON.stringify({ status: 'Rejected', reason: 'Capacity reached' }),
       });
       assert(rejWithReason.status === 200, 'Rejecting registration with reason returns 200');
 
       assert(group3.getRequestCount() < 90, `Group 3 request count (${group3.getRequestCount()}) strictly < 90`);
+      groupCounts.push({ name: 'Group 3', count: group3.getRequestCount() });
     } finally {
       await group3.close();
     }
 
     // ==============================================================
-    // GROUP 4: TOURNAMENT LIFECYCLE & STATUS TRANSITIONS & DELETION
+    // GROUP 4: TOURNAMENT LIFECYCLE & DELETION RULES
     // ==============================================================
     console.log('\n--- GROUP 4: TOURNAMENT LIFECYCLE & DELETION RULES ---');
     const { group: group4, fetchGroup: fetch4 } = startServerGroup();
 
     try {
-      // Create fresh tournament in Draft
       const tRes = await fetch4('/tournaments', {
         method: 'POST',
         headers: orgAAuth,
         body: JSON.stringify({
-          name: `Lifecycle Tourney ${runId}`,
+          name: `Status Lifecycle ${runId}`,
           sport: testSport._id.toString(),
           category: 'League',
           ageGroup: 'U18',
@@ -852,6 +1251,14 @@ async function run(): Promise<void> {
       });
       const tId = (tRes.body as { data: { id: string } }).data.id;
       createdTourneyIds.push(new Types.ObjectId(tId));
+
+      // Transition Draft -> In Progress directly returns 400
+      const stInvalid = await fetch4(`/tournaments/${tId}`, {
+        method: 'PATCH',
+        headers: orgAAuth,
+        body: JSON.stringify({ status: 'In Progress' }),
+      });
+      assert(stInvalid.status === 400, 'Invalid transition Draft -> In Progress returns 400');
 
       // Transition Draft -> Registration Open (200)
       const st1 = await fetch4(`/tournaments/${tId}`, {
@@ -877,31 +1284,58 @@ async function run(): Promise<void> {
       });
       assert(st3.status === 200, 'Transition In Progress -> Completed (200)');
 
-      // Cannot leave Completed => 400
-      const stLeaveCompleted = await fetch4(`/tournaments/${tId}`, {
+      // Transition Completed -> Draft returns 400 (cannot change Completed)
+      const st4 = await fetch4(`/tournaments/${tId}`, {
         method: 'PATCH',
         headers: orgAAuth,
-        body: JSON.stringify({ status: 'In Progress' }),
+        body: JSON.stringify({ status: 'Draft' }),
       });
-      assert(stLeaveCompleted.status === 400, 'Cannot change status of Completed tournament (400)');
+      assert(st4.status === 400, 'Cannot change status of Completed tournament (400)');
 
-      // Cannot delete Completed tournament => 409
+      // DELETE non-Draft tournament returns 409
       const delCompleted = await fetch4(`/tournaments/${tId}`, {
         method: 'DELETE',
         headers: orgAAuth,
       });
       assert(delCompleted.status === 409, 'Cannot delete non-Draft tournament (409)');
 
-      // Create Draft with a registration to verify delete guard
-      const tDraft2 = await Tournament.create({
-        name: `Draft With Reg ${runId}`,
+      // Draft -> Cancelled (200)
+      const tDraftCancel = await Tournament.create({
+        name: `Draft To Cancel ${runId}`,
         sport: testSport._id,
         category: 'Cup',
         ageGroup: 'U18',
         format: 'Knockout',
-        startDate: new Date(Date.now() + 86400000),
-        endDate: new Date(Date.now() + 5 * 86400000),
-        status: 'Draft',
+        startDate: new Date(),
+        endDate: new Date(),
+        organizer: orgAUser._id,
+      });
+      createdTourneyIds.push(tDraftCancel._id);
+
+      const stDraftCancel = await fetch4(`/tournaments/${tDraftCancel._id}`, {
+        method: 'PATCH',
+        headers: orgAAuth,
+        body: JSON.stringify({ status: 'Cancelled' }),
+      });
+      assert(stDraftCancel.status === 200, 'Transition Draft -> Cancelled succeeds (200)');
+
+      // Cancelled -> Registration Open returns 400
+      const stCancelReopen = await fetch4(`/tournaments/${tDraftCancel._id}`, {
+        method: 'PATCH',
+        headers: orgAAuth,
+        body: JSON.stringify({ status: 'Registration Open' }),
+      });
+      assert(stCancelReopen.status === 400, 'Transition Cancelled -> Registration Open returns 400');
+
+      // Create Draft with registrations to test DELETE 409
+      const tDraft2 = await Tournament.create({
+        name: `Draft With Regs ${runId}`,
+        sport: testSport._id,
+        category: 'Cup',
+        ageGroup: 'U18',
+        format: 'Knockout',
+        startDate: new Date(),
+        endDate: new Date(),
         organizer: orgAUser._id,
       });
       createdTourneyIds.push(tDraft2._id);
@@ -931,12 +1365,13 @@ async function run(): Promise<void> {
       assert(delDraftEmpty.status === 200, 'Deleting empty Draft tournament succeeds (200)');
 
       assert(group4.getRequestCount() < 90, `Group 4 request count (${group4.getRequestCount()}) strictly < 90`);
+      groupCounts.push({ name: 'Group 4', count: group4.getRequestCount() });
     } finally {
       await group4.close();
     }
 
     // ==============================================================
-    // GROUP 5: MATCH SCHEDULING, OVERLAP RACE & RESULT ENTRY
+    // GROUP 5: MATCH SCHEDULING, OVERLAPS & RESULT ENTRY
     // ==============================================================
     console.log('\n--- GROUP 5: MATCH OVERLAP RACE & RESULTS ---');
     const { group: group5, fetchGroup: fetch5 } = startServerGroup();
@@ -955,41 +1390,42 @@ async function run(): Promise<void> {
       });
       createdTourneyIds.push(matchTourney._id);
 
-      const [reg1, reg2, regUnapproved] = await Promise.all([
-        TournamentTeam.create({
-          tournament: matchTourney._id,
-          team: teamA._id,
-          status: 'Approved',
-          registeredBy: coachAUser._id,
-        }),
-        TournamentTeam.create({
-          tournament: matchTourney._id,
-          team: teamB._id,
-          status: 'Approved',
-          registeredBy: coachBUser._id,
-        }),
-        TournamentTeam.create({
-          tournament: matchTourney._id,
-          team: teamC._id,
-          status: 'Pending',
-          registeredBy: coachAUser._id,
-        }),
+      const teamX = await Team.create({ name: `Team X ${runId}`, slug: `x-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' });
+      const teamY = await Team.create({ name: `Team Y ${runId}`, slug: `y-${runId}`, sport: testSport._id, ageGroup: 'U18', coach: coachA._id, status: 'Active' });
+      createdTeamIds.push(teamX._id, teamY._id);
+
+      const [reg1, reg2, regUnapproved, regX, regY] = await Promise.all([
+        TournamentTeam.create({ tournament: matchTourney._id, team: teamA._id, status: 'Approved', registeredBy: coachAUser._id }),
+        TournamentTeam.create({ tournament: matchTourney._id, team: teamB._id, status: 'Approved', registeredBy: coachBUser._id }),
+        TournamentTeam.create({ tournament: matchTourney._id, team: teamC._id, status: 'Pending', registeredBy: coachAUser._id }),
+        TournamentTeam.create({ tournament: matchTourney._id, team: teamX._id, status: 'Approved', registeredBy: coachAUser._id }),
+        TournamentTeam.create({ tournament: matchTourney._id, team: teamY._id, status: 'Approved', registeredBy: coachAUser._id }),
       ]);
-      createdRegIds.push(reg1._id, reg2._id, regUnapproved._id);
+      createdRegIds.push(reg1._id, reg2._id, regUnapproved._id, regX._id, regY._id);
 
       const testVenue = await Venue.create({
         name: `Pitch 1 ${runId}`,
         address: 'Sector 4',
         createdBy: orgAUser._id,
       });
-      createdVenueIds.push(testVenue._id);
+      const testVenue2 = await Venue.create({
+        name: `Pitch 2 ${runId}`,
+        address: 'Sector 5',
+        createdBy: orgAUser._id,
+      });
+      createdVenueIds.push(testVenue._id, testVenue2._id);
 
       const testOfficial = await Official.create({
         name: `Referee Smith ${runId}`,
         type: 'Referee',
         createdBy: orgAUser._id,
       });
-      createdOfficialIds.push(testOfficial._id);
+      const testOfficial2 = await Official.create({
+        name: `Referee Jones ${runId}`,
+        type: 'Referee',
+        createdBy: orgAUser._id,
+      });
+      createdOfficialIds.push(testOfficial._id, testOfficial2._id);
 
       // Same team twice => 400
       const sameTeamMatch = await fetch5(`/tournaments/${matchTourney._id}/matches`, {
@@ -1056,13 +1492,85 @@ async function run(): Promise<void> {
         `Venue overlap race: exactly one 201 and one 409 (got ${mRaceStatuses.join(', ')})`
       );
 
-      if (raceM1.status === 201 && (raceM1.body as { data?: { id?: string } })?.data?.id) {
-        createdMatchIds.push(new Types.ObjectId((raceM1.body as { data: { id: string } }).data.id));
-      }
-      if (raceM2.status === 201 && (raceM2.body as { data?: { id?: string } })?.data?.id) {
-        createdMatchIds.push(new Types.ObjectId((raceM2.body as { data: { id: string } }).data.id));
-      }
-      const winningMatchId = ((raceM1.status === 201 ? raceM1.body : raceM2.body) as { data?: { id?: string } })?.data?.id;
+      const winningMatchRes = raceM1.status === 201 ? raceM1 : raceM2;
+      const winningData = (winningMatchRes.body as { data: { id: string; scheduledAt: string } }).data;
+      const winningMatchId = winningData.id;
+      const winningScheduledAt = winningData.scheduledAt;
+      createdMatchIds.push(new Types.ObjectId(winningMatchId));
+
+      // Team overlap (home team in two matches at the same time) => 409
+      const teamOverlapMatch = await fetch5(`/tournaments/${matchTourney._id}/matches`, {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          homeTeam: reg1._id.toString(),
+          awayTeam: regX._id.toString(),
+          round: 'Round 1',
+          scheduledAt: winningScheduledAt,
+          durationMinutes: 90,
+          venue: testVenue2._id.toString(),
+          referee: testOfficial2._id.toString(),
+        }),
+      });
+      assert(teamOverlapMatch.status === 409, 'Team overlap (home team in two matches at the same time) returns 409');
+
+      // Referee overlap => 409
+      const refOverlapMatch = await fetch5(`/tournaments/${matchTourney._id}/matches`, {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          homeTeam: regX._id.toString(),
+          awayTeam: regY._id.toString(),
+          round: 'Round 1',
+          scheduledAt: winningScheduledAt,
+          durationMinutes: 90,
+          venue: testVenue2._id.toString(),
+          referee: testOfficial._id.toString(),
+        }),
+      });
+      assert(refOverlapMatch.status === 409, 'Referee overlap returns 409');
+
+      // Same time at a DIFFERENT venue with different teams/referee => 201
+      const diffVenueMatch = await fetch5(`/tournaments/${matchTourney._id}/matches`, {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          homeTeam: regX._id.toString(),
+          awayTeam: regY._id.toString(),
+          round: 'Round 1 Diff',
+          scheduledAt: winningScheduledAt,
+          durationMinutes: 90,
+          venue: testVenue2._id.toString(),
+          referee: testOfficial2._id.toString(),
+        }),
+      });
+      assert(diffVenueMatch.status === 201, 'Same time at a DIFFERENT venue with different teams/referee returns 201');
+      const diffMId = (diffVenueMatch.body as { data: { id: string } }).data.id;
+      createdMatchIds.push(new Types.ObjectId(diffMId));
+
+      // PATCH into an overlap => 409 and original scheduledAt is unchanged in DB
+      const origDiffTime = new Date(matchTime.getTime() + 10 * 86400000);
+      const mToPatch = await Match.create({
+        tournament: matchTourney._id,
+        homeTeam: reg1._id,
+        awayTeam: reg2._id,
+        round: 'PatchTest',
+        scheduledAt: origDiffTime,
+        durationMinutes: 90,
+        endsAt: new Date(origDiffTime.getTime() + 90 * 60000),
+        venue: testVenue._id,
+        status: 'Scheduled',
+      });
+      createdMatchIds.push(mToPatch._id);
+
+      const patchOverlapRes = await fetch5(`/matches/${mToPatch._id}`, {
+        method: 'PATCH',
+        headers: orgAAuth,
+        body: JSON.stringify({ scheduledAt: winningScheduledAt }), // overlaps winningMatch at testVenue
+      });
+      assert(patchOverlapRes.status === 409, 'PATCH into an overlap returns 409');
+      const unchDoc = await Match.findById(mToPatch._id);
+      assert(unchDoc?.scheduledAt.getTime() === origDiffTime.getTime(), 'Original scheduledAt is unchanged in DB after 409');
 
       // Attempt deleting venue while referenced by scheduled match => 409
       const delRefVenue = await fetch5(`/venues/${testVenue._id}`, {
@@ -1101,31 +1609,29 @@ async function run(): Promise<void> {
       });
       createdMatchIds.push(pastMatch._id);
 
-      // Negative score => 400
-      const negScore = await fetch5(`/matches/${pastMatch._id}/result`, {
+      // Score validation tests: -1, 100, 1.5
+      const resNeg = await fetch5(`/matches/${pastMatch._id}/result`, {
         method: 'PATCH',
         headers: orgAAuth,
         body: JSON.stringify({ homeScore: -1, awayScore: 0 }),
       });
-      assert(negScore.status === 400, 'Negative score returns 400');
+      assert(resNeg.status === 400, 'Negative score returns 400');
 
-      // Score > 99 => 400
-      const hugeScore = await fetch5(`/matches/${pastMatch._id}/result`, {
+      const resOver100 = await fetch5(`/matches/${pastMatch._id}/result`, {
         method: 'PATCH',
         headers: orgAAuth,
         body: JSON.stringify({ homeScore: 100, awayScore: 0 }),
       });
-      assert(hugeScore.status === 400, 'Score > 99 returns 400');
+      assert(resOver100.status === 400, 'Score > 99 returns 400');
 
-      // Decimal score => 400
-      const floatScore = await fetch5(`/matches/${pastMatch._id}/result`, {
+      const resDecimal = await fetch5(`/matches/${pastMatch._id}/result`, {
         method: 'PATCH',
         headers: orgAAuth,
         body: JSON.stringify({ homeScore: 1.5, awayScore: 0 }),
       });
-      assert(floatScore.status === 400, 'Decimal score returns 400');
+      assert(resDecimal.status === 400, 'Decimal score returns 400');
 
-      // Valid result entry => 200, sets Completed
+      // Valid result entry sets status to Completed
       const validResult = await fetch5(`/matches/${pastMatch._id}/result`, {
         method: 'PATCH',
         headers: orgAAuth,
@@ -1175,6 +1681,7 @@ async function run(): Promise<void> {
       assert(cancelledResult.status === 400, 'Entering result on Cancelled match returns 400');
 
       assert(group5.getRequestCount() < 90, `Group 5 request count (${group5.getRequestCount()}) strictly < 90`);
+      groupCounts.push({ name: 'Group 5', count: group5.getRequestCount() });
     } finally {
       await group5.close();
     }
@@ -1186,7 +1693,6 @@ async function run(): Promise<void> {
     const { group: group6, fetchGroup: fetch6 } = startServerGroup();
 
     try {
-      // Create public visible tournament and draft tournament
       const pubTourney = await Tournament.create({
         name: `Public Tourney ${runId}`,
         sport: testSport._id,
@@ -1201,9 +1707,9 @@ async function run(): Promise<void> {
       createdTourneyIds.push(pubTourney._id);
 
       const pubDraftTourney = await Tournament.create({
-        name: `Secret Draft Tourney ${runId}`,
+        name: `Public Draft ${runId}`,
         sport: testSport._id,
-        category: 'Secret',
+        category: 'Open',
         ageGroup: 'All',
         format: 'Knockout',
         startDate: new Date(Date.now() + 86400000),
@@ -1213,55 +1719,180 @@ async function run(): Promise<void> {
       });
       createdTourneyIds.push(pubDraftTourney._id);
 
-      // GET /public/tournaments
-      const pubList = await fetch6('/public/tournaments');
-      assert(pubList.status === 200, 'GET /public/tournaments returns 200');
-      const pubListJson = pubList.body as { items?: Array<{ id: string; name: string }> };
-      const hasDraft = pubListJson.items?.some((t) => t.id === pubDraftTourney._id.toString());
+      const pRegA = await TournamentTeam.create({ tournament: pubTourney._id, team: teamA._id, status: 'Approved', registeredBy: coachAUser._id });
+      const pRegB = await TournamentTeam.create({ tournament: pubTourney._id, team: teamB._id, status: 'Approved', registeredBy: coachBUser._id });
+      createdRegIds.push(pRegA._id, pRegB._id);
+
+      const pVenue = await Venue.create({ name: `PubVenue ${runId}`, address: 'St', createdBy: orgAUser._id });
+      createdVenueIds.push(pVenue._id);
+
+      const pMatch = await Match.create({
+        tournament: pubTourney._id,
+        homeTeam: pRegA._id,
+        awayTeam: pRegB._id,
+        round: 'PubSemi',
+        scheduledAt: new Date(Date.now() + 86400000),
+        durationMinutes: 90,
+        endsAt: new Date(Date.now() + 86400000 + 90 * 60000),
+        venue: pVenue._id,
+        status: 'Scheduled',
+      });
+      createdMatchIds.push(pMatch._id);
+
+      const pubListRes = await fetch6('/public/tournaments');
+      assert(pubListRes.status === 200, 'GET /public/tournaments returns 200');
+      const pubList = (pubListRes.body as { data: { items: { name: string }[] } })?.data?.items || [];
+      const hasDraft = pubList.some((t) => t.name === pubDraftTourney.name);
       assert(!hasDraft, 'Draft tournament is strictly omitted from public list');
 
-      // Draft tournament returns 404 on public single and matches
-      const pubSingleDraft = await fetch6(`/public/tournaments/${pubDraftTourney._id}`);
-      assert(pubSingleDraft.status === 404, 'GET /public/tournaments/:id on Draft returns 404');
+      const pubDraftSingle = await fetch6(`/public/tournaments/${pubDraftTourney._id}`);
+      assert(pubDraftSingle.status === 404, 'GET /public/tournaments/:id on Draft returns 404');
 
-      const pubMatchesDraft = await fetch6(`/public/tournaments/${pubDraftTourney._id}/matches`);
-      assert(pubMatchesDraft.status === 404, 'GET /public/tournaments/:id/matches on Draft returns 404');
+      const pubDraftMatches = await fetch6(`/public/tournaments/${pubDraftTourney._id}/matches`);
+      assert(pubDraftMatches.status === 404, 'GET /public/tournaments/:id/matches on Draft returns 404');
 
-      // Single public tournament response
-      const pubSingle = await fetch6(`/public/tournaments/${pubTourney._id}`);
-      assert(pubSingle.status === 200, 'GET /public/tournaments/:id on active returns 200');
+      const pubActiveSingle = await fetch6(`/public/tournaments/${pubTourney._id}`);
+      assert(pubActiveSingle.status === 200, 'GET /public/tournaments/:id on active returns 200');
 
-      // Deep scan for sensitive field leaks
-      const forbiddenKeys = [
-        'organizer',
+      const pubMatchesRes = await fetch6(`/public/tournaments/${pubTourney._id}/matches`);
+      assert(pubMatchesRes.status === 200, 'GET /public/tournaments/:id/matches on active returns 200');
+
+      // Deep scan for sensitive field leaks across public endpoints
+      const sensitiveKeys = [
         'email',
+        'phone',
         'password',
         'passwordHash',
-        'squad',
-        'athlete',
         'medicalNotes',
         'guardian',
+        'organizer',
+        'registeredBy',
+        'reviewedBy',
         'reason',
-        'phone',
-        'refreshTokens',
+        'squad',
+        'athlete',
       ];
 
-      const leakedInList = deepFindKeys(pubList.body, forbiddenKeys);
+      const leakedInList = deepFindKeys(pubListRes.body, sensitiveKeys);
       assert(leakedInList.length === 0, `DEEP SCAN: No sensitive fields leaked in public list (found: ${leakedInList.join(', ')})`);
 
-      const leakedInSingle = deepFindKeys(pubSingle.body, forbiddenKeys);
+      const leakedInSingle = deepFindKeys(pubActiveSingle.body, sensitiveKeys);
       assert(leakedInSingle.length === 0, `DEEP SCAN: No sensitive fields leaked in public single (found: ${leakedInSingle.join(', ')})`);
 
-      // Injection and input validation
-      const malformedIdRes = await fetch6('/public/tournaments/not-a-valid-id');
-      assert(malformedIdRes.status === 400, 'Malformed ObjectId param returns 400');
+      const leakedInMatches = deepFindKeys(pubMatchesRes.body, sensitiveKeys);
+      assert(leakedInMatches.length === 0, `DEEP SCAN: No sensitive fields leaked in public matches (found: ${leakedInMatches.join(', ')})`);
 
-      const noSqlRes = await fetch6('/public/tournaments?name[$ne]=Football');
-      assert(noSqlRes.status === 400, 'NoSQL operator key in query returns 400');
+      // Allowed keys check on public matches
+      const pubMatchesData = (pubMatchesRes.body as { data: Record<string, unknown>[] })?.data || [];
+      const allowedMatchKeys = ['id', 'round', 'group', 'scheduledAt', 'durationMinutes', 'status', 'venue', 'homeTeam', 'awayTeam', 'result'];
+      let extraKeysFound = false;
+      for (const m of pubMatchesData) {
+        for (const k of Object.keys(m)) {
+          if (!allowedMatchKeys.includes(k)) {
+            extraKeysFound = true;
+          }
+        }
+      }
+      assert(!extraKeysFound, 'Public /matches response strictly conforms to allowed keys only');
 
       assert(group6.getRequestCount() < 90, `Group 6 request count (${group6.getRequestCount()}) strictly < 90`);
+      groupCounts.push({ name: 'Group 6', count: group6.getRequestCount() });
     } finally {
       await group6.close();
+    }
+
+    // ==============================================================
+    // GROUP 7: INJECTION, MALFORMED IDS & STRICT BODY VALIDATION
+    // ==============================================================
+    console.log('\n--- GROUP 7: INJECTION, MALFORMED IDS & STRICT BODY VALIDATION ---');
+    const { group: group7, fetchGroup: fetch7 } = startServerGroup();
+
+    try {
+      // Malformed ObjectId param returns 400
+      const badIdRes = await fetch7('/public/tournaments/not-a-valid-id');
+      assert(badIdRes.status === 400, 'Malformed ObjectId param returns 400');
+
+      // NoSQL operator query injection returns 400
+      const nosqlQueryRes = await fetch7('/public/tournaments?name[$ne]=Football');
+      assert(nosqlQueryRes.status === 400, 'NoSQL operator key in query returns 400');
+
+      // Body injection on tournament create
+      const nosqlTourneyBody = await fetch7('/tournaments', {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          name: `Injection ${runId}`,
+          sport: testSport._id.toString(),
+          category: 'Cup',
+          ageGroup: 'U18',
+          format: 'Knockout',
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 86400000).toISOString(),
+          $where: 'sleep(1000)',
+        }),
+      });
+      assert(nosqlTourneyBody.status === 400, 'NoSQL operator in tournament body returns 400');
+
+      const unknownKeyTourney = await fetch7('/tournaments', {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          name: `Unknown Key ${runId}`,
+          sport: testSport._id.toString(),
+          category: 'Cup',
+          ageGroup: 'U18',
+          format: 'Knockout',
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 86400000).toISOString(),
+          hackedField: true,
+        }),
+      });
+      assert(unknownKeyTourney.status === 400, 'Unknown key in tournament create returns 400 (strict validation)');
+
+      // Body injection on venue create
+      const unknownVenueBody = await fetch7('/venues', {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({ name: `V Inj ${runId}`, address: 'Addr', $gt: 1 }),
+      });
+      assert(unknownVenueBody.status === 400, 'NoSQL operator in venue body returns 400');
+
+      // Body injection on official create
+      const unknownOffBody = await fetch7('/officials', {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({ name: `Off Inj ${runId}`, type: 'Referee', unknownField: 'test' }),
+      });
+      assert(unknownOffBody.status === 400, 'Unknown field in official body returns 400');
+
+      // Body injection on match create
+      const unknownMatchBody = await fetch7(`/tournaments/${baselineTourneyId}/matches`, {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          homeTeam: baselineRegId,
+          awayTeam: baselineRegBId,
+          round: 'InjRound',
+          scheduledAt: new Date(Date.now() + 100 * 86400000).toISOString(),
+          durationMinutes: 90,
+          venue: baselineVenueId,
+          $regex: '.*',
+        }),
+      });
+      assert(unknownMatchBody.status === 400, 'NoSQL operator in match body returns 400');
+
+      // Body injection on registration update squad
+      const unknownSquadBody = await fetch7(`/registrations/${baselineRegId}/squad`, {
+        method: 'PATCH',
+        headers: coachAAuth,
+        body: JSON.stringify({ squad: [athleteA1._id.toString()], extraData: true }),
+      });
+      assert(unknownSquadBody.status === 400, 'Unknown field in registration squad body returns 400');
+
+      assert(group7.getRequestCount() < 90, `Group 7 request count (${group7.getRequestCount()}) strictly < 90`);
+      groupCounts.push({ name: 'Group 7', count: group7.getRequestCount() });
+    } finally {
+      await group7.close();
     }
   } finally {
     // ==============================================================
@@ -1349,10 +1980,18 @@ async function run(): Promise<void> {
     await mongoose.disconnect();
   }
 
+  const sumGroupCounts = groupCounts.reduce((acc, g) => acc + g.count, 0);
+
   console.log('\n========================================');
   console.log(`Summary: ${passed} passed, ${failed} failed`);
   console.log(`Total HTTP Requests Executed: ${totalHttpRequests}`);
+  console.log(`Per-group counts breakdown: ${groupCounts.map((g) => `${g.name}=${g.count}`).join(', ')} (Sum: ${sumGroupCounts})`);
   console.log('========================================\n');
+
+  if (sumGroupCounts !== totalHttpRequests) {
+    console.error(`Mismatch between sum of per-group counts (${sumGroupCounts}) and total (${totalHttpRequests})!`);
+    process.exit(1);
+  }
 
   if (failed > 0) {
     process.exit(1);

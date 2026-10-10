@@ -391,9 +391,7 @@ export class TournamentService {
       filter.team = { $in: coachedTeams.map((t) => t._id) };
     } else if (user.role === 'Athlete') {
       const athlete = await Athlete.findOne({ user: user.id });
-      if (athlete?.team) {
-        filter.team = athlete.team;
-      }
+      filter.team = athlete?.team ? athlete.team : new Types.ObjectId();
     }
 
     return TournamentTeam.find(filter)
@@ -965,6 +963,10 @@ export class TournamentService {
       throw new ApiError(404, 'Tournament not found');
     }
 
+    if (user?.role === 'Organizer' && tournament.organizer.toString() !== user.id) {
+      throw new ApiError(404, 'Tournament not found');
+    }
+
     if (tournament.status === 'Draft' && (!user || (user.role !== 'Admin' && tournament.organizer.toString() !== user.id))) {
       throw new ApiError(404, 'Tournament not found');
     }
@@ -1009,7 +1011,15 @@ export class TournamentService {
     }
 
     const tournament = await Tournament.findById(match.tournament);
-    if (tournament?.status === 'Draft' && (!user || (user.role !== 'Admin' && tournament.organizer.toString() !== user.id))) {
+    if (!tournament) {
+      throw new ApiError(404, 'Match not found');
+    }
+
+    if (user?.role === 'Organizer' && tournament.organizer.toString() !== user.id) {
+      throw new ApiError(404, 'Match not found');
+    }
+
+    if (tournament.status === 'Draft' && (!user || (user.role !== 'Admin' && tournament.organizer.toString() !== user.id))) {
       throw new ApiError(404, 'Match not found');
     }
 
