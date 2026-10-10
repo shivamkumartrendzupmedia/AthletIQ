@@ -139,6 +139,23 @@ export const AUDIT_ACTIONS = [
   'ATHLETE_GOAL_CREATED',
   'ATHLETE_GOAL_UPDATED',
   'REFRESH_GRACE_REUSE',
+  'TOURNAMENT_CREATED',
+  'TOURNAMENT_UPDATED',
+  'TOURNAMENT_DELETED',
+  'TOURNAMENT_TEAM_REGISTERED',
+  'TOURNAMENT_TEAM_REVIEWED',
+  'TOURNAMENT_TEAM_SQUAD_UPDATED',
+  'TOURNAMENT_TEAM_WITHDRAWN',
+  'VENUE_CREATED',
+  'VENUE_UPDATED',
+  'VENUE_DELETED',
+  'OFFICIAL_CREATED',
+  'OFFICIAL_UPDATED',
+  'OFFICIAL_DELETED',
+  'MATCH_CREATED',
+  'MATCH_UPDATED',
+  'MATCH_RESULT_ENTERED',
+  'MATCH_DELETED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -161,5 +178,26 @@ export const SKILL_NAMES = [
   'workRate',
 ] as const;
 export type SkillName = (typeof SKILL_NAMES)[number];
+
+export const TOURNAMENT_FORMATS = ['League', 'Knockout'] as const;
+export type TournamentFormat = (typeof TOURNAMENT_FORMATS)[number];
+
+export const TOURNAMENT_STATUSES = [
+  'Draft',
+  'Registration Open',
+  'In Progress',
+  'Completed',
+  'Cancelled',
+] as const;
+export type TournamentStatus = (typeof TOURNAMENT_STATUSES)[number];
+
+export const TOURNAMENT_TEAM_STATUSES = ['Pending', 'Approved', 'Rejected'] as const;
+export type TournamentTeamStatus = (typeof TOURNAMENT_TEAM_STATUSES)[number];
+
+export const OFFICIAL_TYPES = ['Referee', 'Assistant Referee', 'Scorer'] as const;
+export type OfficialType = (typeof OFFICIAL_TYPES)[number];
+
+export const MATCH_STATUSES = ['Scheduled', 'Completed', 'Cancelled'] as const;
+export type MatchStatus = (typeof MATCH_STATUSES)[number];
 
 

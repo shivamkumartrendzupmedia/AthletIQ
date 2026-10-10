@@ -12,6 +12,11 @@ import { announcementRoutes } from './announcement.routes.js';
 import { documentRoutes } from './document.routes.js';
 import { feedbackRoutes } from './feedback.routes.js';
 import { goalRoutes } from './goal.routes.js';
+import { tournamentRoutes } from './tournament.routes.js';
+import { registrationRoutes } from './registration.routes.js';
+import { venueRoutes } from './venue.routes.js';
+import { officialRoutes } from './official.routes.js';
+import { matchRoutes } from './match.routes.js';
 
 const router = Router();
 
@@ -38,4 +43,12 @@ router.use('/documents', documentRoutes);
 router.use('/feedback', feedbackRoutes);
 router.use('/goals', goalRoutes);
 
+// Mount tournament domain routes
+router.use('/tournaments', tournamentRoutes);
+router.use('/registrations', registrationRoutes);
+router.use('/venues', venueRoutes);
+router.use('/officials', officialRoutes);
+router.use('/matches', matchRoutes);
+
 export const apiRouter = router;
+

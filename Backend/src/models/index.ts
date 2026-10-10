@@ -37,4 +37,9 @@ export {
   type IAthleteGoal,
 } from './AthleteGoal.js';
 export { AuditLog, type IAuditLog } from './AuditLog.js';
+export { Tournament, type ITournament } from './Tournament.js';
+export { TournamentTeam, type ITournamentTeam } from './TournamentTeam.js';
+export { Venue, type IVenue } from './Venue.js';
+export { Official, type IOfficial } from './Official.js';
+export { Match, type IMatch, type IMatchResult } from './Match.js';
 

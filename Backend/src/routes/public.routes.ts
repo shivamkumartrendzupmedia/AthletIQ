@@ -1,6 +1,8 @@
 import { Router, type Request } from 'express';
 import { publicController } from '../controllers/public.controller.js';
 import { commsController } from '../controllers/comms.controller.js';
+import { tournamentController } from '../controllers/tournament.controller.js';
+import { validateObjectId } from '../utils/objectId.js';
 import { sanitizeInput } from '../middlewares/sanitizeInput.js';
 
 const router = Router();
@@ -31,4 +33,30 @@ router.get('/announcements', (req, res, next) =>
   commsController.listPublicAnnouncements(req, res, next)
 );
 
+// Public tournament endpoints (/public/tournaments)
+router.get('/tournaments', (req, res, next) =>
+  tournamentController.getPublicTournaments(req, res, next)
+);
+router.get(
+  '/tournaments/:id/matches',
+  validateObjectId('id'),
+  (req, res, next) =>
+    tournamentController.getPublicTournamentMatches(
+      req as unknown as Request<{ id: string }>,
+      res,
+      next
+    )
+);
+router.get(
+  '/tournaments/:id',
+  validateObjectId('id'),
+  (req, res, next) =>
+    tournamentController.getPublicTournamentById(
+      req as unknown as Request<{ id: string }>,
+      res,
+      next
+    )
+);
+
 export const publicRoutes = router;
+

@@ -17,6 +17,7 @@
     "verify:training": "tsx scripts/verify-training.ts",
     "verify:comms": "tsx scripts/verify-comms.ts",
     "verify:development": "tsx scripts/verify-development.ts",
+    "verify:tournaments": "tsx scripts/verify-tournaments.ts",
     "create:user": "tsx scripts/create-user.ts"
   },
   "keywords": [
