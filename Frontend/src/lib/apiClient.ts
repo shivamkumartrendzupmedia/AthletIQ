@@ -45,45 +45,84 @@ export const setSessionExpiredHandler = (handler: SessionExpiredHandler): void =
   onSessionExpired = handler;
 };
 
+export interface RefreshResult {
+  accessToken: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    avatar?: string;
+  };
+}
+
 const BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
-  'http://localhost:5000/api';
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL
+    ? (import.meta.env.VITE_API_BASE_URL as string)
+    : undefined) || 'http://localhost:5000/api';
 
-// Mutex promise to guarantee single-flight refresh across concurrent 401 requests
-let refreshPromise: Promise<string | null> | null = null;
+// Mutex promise to guarantee single-flight refresh across concurrent 401 requests and startup restore
+let refreshPromise: Promise<RefreshResult | null> | null = null;
 
-const executeRefreshToken = async (): Promise<string | null> => {
-  try {
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!res.ok) {
-      setAccessToken(null);
-      localStorage.removeItem('athletiq_has_session');
-      if (onSessionExpired) onSessionExpired();
-      return null;
-    }
-
-    const json = (await res.json()) as ApiResponse<{ accessToken: string }>;
-    const newToken = json.data?.accessToken || null;
-    setAccessToken(newToken);
-    if (newToken) {
-      localStorage.setItem('athletiq_has_session', '1');
-    }
-    return newToken;
-  } catch {
-    setAccessToken(null);
-    localStorage.removeItem('athletiq_has_session');
-    if (onSessionExpired) onSessionExpired();
-    return null;
-  } finally {
-    refreshPromise = null;
+export const refreshAccessToken = async (): Promise<RefreshResult | null> => {
+  if (refreshPromise) {
+    return refreshPromise;
   }
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        setAccessToken(null);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('athletiq_has_session');
+        }
+        if (onSessionExpired) {
+          onSessionExpired();
+        }
+        return null;
+      }
+
+      const json = (await res.json()) as ApiResponse<RefreshResult>;
+      const data = json.data;
+      if (data?.accessToken && data?.user) {
+        setAccessToken(data.accessToken);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('athletiq_has_session', '1');
+        }
+        return data;
+      }
+
+      setAccessToken(null);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('athletiq_has_session');
+      }
+      if (onSessionExpired) {
+        onSessionExpired();
+      }
+      return null;
+    } catch {
+      setAccessToken(null);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('athletiq_has_session');
+      }
+      if (onSessionExpired) {
+        onSessionExpired();
+      }
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 };
 
 interface RequestOptions extends RequestInit {
@@ -126,10 +165,8 @@ export const apiClient = async <T = unknown>(
 
   // Handle 401 token expiry on non-auth endpoints with single-flight refresh
   if (response.status === 401 && !isAuthEndpoint && !options.skipAuthRefresh) {
-    if (!refreshPromise) {
-      refreshPromise = executeRefreshToken();
-    }
-    const newAccessToken = await refreshPromise;
+    const refreshData = await refreshAccessToken();
+    const newAccessToken = refreshData?.accessToken || null;
 
     if (newAccessToken) {
       const retryHeaders = new Headers(options.headers || {});
@@ -159,8 +196,10 @@ export const apiClient = async <T = unknown>(
         );
       }
 
-      return retryResponse.json() as Promise<ApiResponse<T>>;
+      return (await retryResponse.json()) as ApiResponse<T>;
     }
+
+    throw new ApiClientError(401, 'Authorization token missing or invalid');
   }
 
   if (!response.ok) {
@@ -196,10 +235,8 @@ export const apiDownload = async (endpoint: string): Promise<Blob> => {
   });
 
   if (response.status === 401) {
-    if (!refreshPromise) {
-      refreshPromise = executeRefreshToken();
-    }
-    const newAccessToken = await refreshPromise;
+    const refreshData = await refreshAccessToken();
+    const newAccessToken = refreshData?.accessToken || null;
     if (newAccessToken) {
       const retryHeaders = new Headers();
       retryHeaders.set('Authorization', `Bearer ${newAccessToken}`);
@@ -213,6 +250,7 @@ export const apiDownload = async (endpoint: string): Promise<Blob> => {
       }
       return retryResponse.blob();
     }
+    throw new ApiClientError(401, 'Authorization token missing or invalid');
   }
 
   if (!response.ok) {

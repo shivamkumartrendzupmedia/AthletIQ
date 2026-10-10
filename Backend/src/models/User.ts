@@ -1,11 +1,17 @@
 import { Schema, model, type Document } from 'mongoose';
 import { ROLES, type Role } from './constants.js';
 
+export interface IRecentHash {
+  hash: string;
+  at: Date;
+}
+
 export interface IRefreshToken {
   tokenHash: string;
   expiresAt: Date;
   createdAt: Date;
   userAgent?: string;
+  recentHashes?: IRecentHash[];
 }
 
 export interface IUser extends Document {
@@ -26,12 +32,21 @@ export interface IUser extends Document {
   updatedAt: Date;
 }
 
+const recentHashSchema = new Schema<IRecentHash>(
+  {
+    hash: { type: String, required: true },
+    at: { type: Date, required: true },
+  },
+  { _id: false }
+);
+
 const refreshTokenSchema = new Schema<IRefreshToken>(
   {
     tokenHash: { type: String, required: true },
     expiresAt: { type: Date, required: true },
     createdAt: { type: Date, default: Date.now },
     userAgent: { type: String },
+    recentHashes: { type: [recentHashSchema], default: [] },
   },
   { _id: false }
 );

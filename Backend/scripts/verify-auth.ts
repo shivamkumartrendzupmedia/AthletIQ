@@ -3,8 +3,11 @@ import mongoose, { Types } from 'mongoose';
 import { createApp } from '../src/app.js';
 import { connectDB } from '../src/config/db.js';
 import { User } from '../src/models/User.js';
+import { AuditLog } from '../src/models/AuditLog.js';
+import { env } from '../src/config/env.js';
 import { authService } from '../src/services/auth.service.js';
 import { ApiError } from '../src/utils/ApiError.js';
+import { authLimiter } from '../src/middlewares/rateLimiter.js';
 
 let passed = 0;
 let failed = 0;
@@ -30,6 +33,7 @@ async function run(): Promise<void> {
   console.log('\n--- VERIFYING ATHLETIQ AUTHENTICATION SYSTEM ---\n');
 
   await connectDB();
+  (env as { REFRESH_GRACE_MS: number }).REFRESH_GRACE_MS = 0;
   const app = createApp();
 
   const server = app.listen(0);
@@ -54,7 +58,7 @@ async function run(): Promise<void> {
         role: 'Admin', // Must be ignored and role forced to Athlete
       }),
     });
-    const regJson = (await regRes.json()) as any;
+    const regJson = (await regRes.json()) as { data?: { user?: { role?: string }; accessToken?: string } };
     assert(regRes.status === 201, 'POST /register returns 201 Created');
     assert(
       regJson.data?.user?.role === 'Athlete',
@@ -112,7 +116,7 @@ async function run(): Promise<void> {
       }),
     });
     failedHttpCount++;
-    const wrongLoginJson = (await wrongLoginRes.json()) as any;
+    const wrongLoginJson = (await wrongLoginRes.json()) as { message?: string };
     assert(wrongLoginRes.status === 401, 'POST /login with wrong password returns 401 Unauthorized');
     assert(
       wrongLoginJson.message === 'Invalid email or password',
@@ -128,7 +132,7 @@ async function run(): Promise<void> {
         password: 'Password123',
       }),
     });
-    const loginJson = (await loginRes.json()) as any;
+    const loginJson = (await loginRes.json()) as { data?: { accessToken?: string } };
     assert(loginRes.status === 200, 'POST /login with valid credentials returns 200 OK');
     const accessToken = loginJson.data?.accessToken as string;
     const cookie1 = extractCookie(loginRes.headers.get('set-cookie'));
@@ -149,7 +153,7 @@ async function run(): Promise<void> {
     const meRes = await fetch(`${baseUrl}/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    const meJson = (await meRes.json()) as any;
+    const meJson = (await meRes.json()) as { data?: { user?: { email?: string; passwordHash?: unknown; refreshTokens?: unknown; lockUntil?: unknown; failedLoginAttempts?: unknown } } };
     assert(meRes.status === 200, 'GET /me with valid Bearer token returns 200 OK');
     assert(
       meJson.data?.user?.email === user1Email,
@@ -247,7 +251,7 @@ async function run(): Promise<void> {
           password: 'WrongPassword999',
         })
         .then(() => ({ success: true, status: 200 }))
-        .catch((err: any) => ({
+        .catch((err: unknown) => ({
           success: false,
           status: err instanceof ApiError ? err.statusCode : 500,
         }))
@@ -280,7 +284,7 @@ async function run(): Promise<void> {
         email: user2Email,
         password: 'Password123', // CORRECT password
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ApiError && err.statusCode === 423) {
         correctAttemptLocked = true;
       }
@@ -297,7 +301,7 @@ async function run(): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: user1Email, password: 'Password123' }),
     });
-    const pwdLoginJson = (await user1LoginForPwd.json()) as any;
+    const pwdLoginJson = (await user1LoginForPwd.json()) as { data?: { accessToken?: string } };
     const oldAccessToken = pwdLoginJson.data?.accessToken as string;
 
     // Small pause to guarantee passwordChangedAt second is strictly after access token iat
@@ -353,6 +357,257 @@ async function run(): Promise<void> {
       failedHttpCount <= 8,
       `Total failed HTTP requests on auth-limited endpoints: ${failedHttpCount} (strictly <= 8, safe from 10-failure threshold)`
     );
+
+    // 10. REFRESH TOKEN GRACE WINDOW & CONCURRENCY RACE (STEP 7-FIX-2)
+    console.log('\n10. Refresh Token Grace Window & Concurrency:');
+    const app10 = createApp();
+    const server10 = app10.listen(0);
+    const address10 = server10.address() as AddressInfo;
+    const baseUrl10 = `http://127.0.0.1:${address10.port}/api/auth`;
+    let failedHttpCount10 = 0;
+
+    try {
+      const limiter = authLimiter as unknown as { resetKey?: (k: string) => Promise<void> };
+      if (typeof limiter.resetKey === 'function') {
+        await limiter.resetKey('127.0.0.1');
+        await limiter.resetKey('::1');
+        await limiter.resetKey('::ffff:127.0.0.1');
+      }
+      (env as { REFRESH_GRACE_MS: number }).REFRESH_GRACE_MS = 30000;
+      // (a) Old token presented within grace window => 200 with new token, sessions NOT revoked
+      const g1Email = `verify-auth-${testRunId}-g1@athletiq.test`;
+      const g1Reg = await fetch(`${baseUrl10}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Grace User 1', email: g1Email, password: 'Password123' }),
+      });
+      const g1RegJson = (await g1Reg.json()) as { data?: { user?: { id: string } } };
+      if (g1RegJson.data?.user?.id) {
+        createdUserIds.push(new Types.ObjectId(g1RegJson.data.user.id));
+      }
+      const cookie1 = extractCookie(g1Reg.headers.get('set-cookie'));
+
+      // First rotation
+      const rot1Res = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: cookie1 },
+      });
+      assert(rot1Res.status === 200, 'Initial token rotation succeeds (200 OK)');
+      extractCookie(rot1Res.headers.get('set-cookie'));
+
+      // Re-present cookie1 within grace window (e.g. rapid reload F5)
+      const graceRes = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: cookie1 },
+      });
+      if (graceRes.status !== 200) {
+        console.log('graceRes error response:', await graceRes.json());
+      }
+      assert(
+        graceRes.status === 200,
+        'Old token presented within grace window returns 200 with new token (test a)'
+      );
+      const userG1 = await User.findOne({ email: g1Email }).select('+refreshTokens');
+      assert(
+        (userG1?.refreshTokens?.length ?? 0) === 1,
+        'Sessions not revoked on grace reuse (test a)'
+      );
+
+      // (b) Same old token after window (expired) => 401 and ALL sessions revoked
+      const originalGraceMs = env.REFRESH_GRACE_MS;
+      (env as { REFRESH_GRACE_MS: number }).REFRESH_GRACE_MS = 100; // 100ms
+      await new Promise((resolve) => setTimeout(resolve, 150)); // wait past window
+
+      const expiredGraceRes = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: cookie1 },
+      });
+      failedHttpCount10++;
+      assert(
+        expiredGraceRes.status === 401,
+        'Old token presented after grace window returns 401 (test b)'
+      );
+      const userG1AfterExpire = await User.findOne({ email: g1Email }).select('+refreshTokens');
+      assert(
+        (userG1AfterExpire?.refreshTokens?.length ?? 0) === 0,
+        'ALL sessions revoked when token presented after grace window (test b)'
+      );
+      (env as { REFRESH_GRACE_MS: number }).REFRESH_GRACE_MS = originalGraceMs;
+
+      // (c) Promise.all of 2 refreshes with same token => no 500, and BOTH returned tokens can each do ONE refresh
+      const g2Email = `verify-auth-${testRunId}-g2@athletiq.test`;
+      const g2Reg = await fetch(`${baseUrl10}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Grace User 2', email: g2Email, password: 'Password123' }),
+      });
+      const g2RegJson = (await g2Reg.json()) as { data?: { user?: { id: string } } };
+      if (g2RegJson.data?.user?.id) {
+        createdUserIds.push(new Types.ObjectId(g2RegJson.data.user.id));
+      }
+      const g2CookieInitial = extractCookie(g2Reg.headers.get('set-cookie'));
+
+      const [raceRes1, raceRes2] = await Promise.all([
+        fetch(`${baseUrl10}/refresh`, { method: 'POST', headers: { Cookie: g2CookieInitial } }),
+        fetch(`${baseUrl10}/refresh`, { method: 'POST', headers: { Cookie: g2CookieInitial } }),
+      ]);
+      assert(
+        raceRes1.status === 200 && raceRes2.status === 200,
+        'Parallel refreshes with same token both succeed with 200 without 500 (test c)'
+      );
+
+      const returnedCookie1 = extractCookie(raceRes1.headers.get('set-cookie'));
+      const returnedCookie2 = extractCookie(raceRes2.headers.get('set-cookie'));
+
+      const postRaceRes1 = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: returnedCookie1 },
+      });
+      assert(
+        postRaceRes1.status === 200,
+        'First returned token can successfully refresh inside window (test c)'
+      );
+
+      const postRaceRes2 = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: returnedCookie2 },
+      });
+      assert(
+        postRaceRes2.status === 200,
+        'Second returned token can successfully refresh inside window (test c)'
+      );
+
+      // (d) Window is not extendable: present old token A inside window, then after original window ends => 401
+      const g3Email = `verify-auth-${testRunId}-g3@athletiq.test`;
+      const g3Reg = await fetch(`${baseUrl10}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Grace User 3', email: g3Email, password: 'Password123' }),
+      });
+      const g3RegJson = (await g3Reg.json()) as { data?: { user?: { id: string } } };
+      if (g3RegJson.data?.user?.id) {
+        createdUserIds.push(new Types.ObjectId(g3RegJson.data.user.id));
+      }
+      const tokenA = extractCookie(g3Reg.headers.get('set-cookie'));
+
+      (env as { REFRESH_GRACE_MS: number }).REFRESH_GRACE_MS = 300; // 300ms window
+
+      // Replace token A -> token B
+      const repRes = await fetch(`${baseUrl10}/refresh`, { method: 'POST', headers: { Cookie: tokenA } });
+      assert(repRes.status === 200, 'Token A rotated to Token B (200 OK)');
+
+      // At 50ms (well inside 300ms window), present token A
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const graceReuseA = await fetch(`${baseUrl10}/refresh`, { method: 'POST', headers: { Cookie: tokenA } });
+      assert(graceReuseA.status === 200, 'Grace rotation of Token A succeeds inside window (test d)');
+
+      // Wait 350ms (total time since Token A was replaced is ~400ms > 300ms window)
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      const lateReuseA = await fetch(`${baseUrl10}/refresh`, { method: 'POST', headers: { Cookie: tokenA } });
+      failedHttpCount10++;
+      assert(
+        lateReuseA.status === 401,
+        'Re-presenting Token A after original window ended returns 401 (unextendable window) (test d)'
+      );
+      const userG3 = await User.findOne({ email: g3Email }).select('+refreshTokens');
+      assert(
+        (userG3?.refreshTokens?.length ?? 0) === 0,
+        'Sessions revoked when old token reused after original window expired (test d)'
+      );
+      (env as { REFRESH_GRACE_MS: number }).REFRESH_GRACE_MS = originalGraceMs;
+
+      // (e) Random token => 401 with no side effect on second user's sessions
+      const g4Email = `verify-auth-${testRunId}-g4@athletiq.test`;
+      const g4Reg = await fetch(`${baseUrl10}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Grace User 4', email: g4Email, password: 'Password123' }),
+      });
+      const g4RegJson = (await g4Reg.json()) as { data?: { user?: { id: string } } };
+      if (g4RegJson.data?.user?.id) {
+        createdUserIds.push(new Types.ObjectId(g4RegJson.data.user.id));
+      }
+
+      const randomRes = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: 'refreshToken=definitely.invalid.token' },
+      });
+      failedHttpCount10++;
+      assert(randomRes.status === 401, 'Random invalid token returns 401 (test e)');
+      const userG4 = await User.findOne({ email: g4Email }).select('+refreshTokens');
+      assert(
+        (userG4?.refreshTokens?.length ?? 0) === 1,
+        'Second user sessions completely untouched by random token (test e)'
+      );
+
+      // (f) User with TWO sessions: grace rotation of session 1 does not touch session 2
+      const g5Email = `verify-auth-${testRunId}-g5@athletiq.test`;
+      const g5Reg = await fetch(`${baseUrl10}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': 'DesktopBrowser' },
+        body: JSON.stringify({ name: 'Grace User 5', email: g5Email, password: 'Password123' }),
+      });
+      const g5RegJson = (await g5Reg.json()) as { data?: { user?: { id: string } } };
+      if (g5RegJson.data?.user?.id) {
+        createdUserIds.push(new Types.ObjectId(g5RegJson.data.user.id));
+      }
+      const sess1Cookie = extractCookie(g5Reg.headers.get('set-cookie'));
+
+      // Login from mobile device to create session 2
+      const g5Login2 = await fetch(`${baseUrl10}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': 'MobileBrowser' },
+        body: JSON.stringify({ email: g5Email, password: 'Password123' }),
+      });
+      const sess2Cookie = extractCookie(g5Login2.headers.get('set-cookie'));
+
+      // Rotate session 1
+      const sess1Rot = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: sess1Cookie },
+      });
+      assert(sess1Rot.status === 200, 'Session 1 rotated (200 OK)');
+
+      // Grace rotate session 1 using old sess1Cookie
+      const sess1Grace = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: sess1Cookie },
+      });
+      assert(
+        sess1Grace.status === 200,
+        'User with two sessions: grace rotation of session 1 succeeds (test f)'
+      );
+
+      // Session 2 is untouched and can still refresh
+      const sess2Rot = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: sess2Cookie },
+      });
+      assert(
+        sess2Rot.status === 200,
+        'Session 2 remains active and valid after grace rotation of session 1 (test f)'
+      );
+
+      // (g) Audit action REFRESH_GRACE_REUSE exists with IDs only
+      const graceAudit = await AuditLog.findOne({ action: 'REFRESH_GRACE_REUSE' }).sort({ createdAt: -1 });
+      assert(
+        graceAudit !== null,
+        'AuditLog entry exists for REFRESH_GRACE_REUSE (test g)'
+      );
+      const auditMetaKeys = Object.keys(graceAudit?.meta ?? {});
+      const hasOnlyIds = auditMetaKeys.every((k) => k.toLowerCase().includes('id'));
+      assert(
+        hasOnlyIds,
+        'AuditLog meta contains IDs only with zero sensitive fields (test g)'
+      );
+
+      assert(
+        failedHttpCount10 <= 8,
+        `Group 10 failed HTTP requests count: ${failedHttpCount10} (strictly <= 8)`
+      );
+    } finally {
+      server10.close();
+    }
   } finally {
     // Guaranteed Cleanup of created test data and ephemeral server
     console.log('\nCleaning up verification resources...');

@@ -9,6 +9,7 @@ import React, {
 import {
   apiClient,
   setAccessToken,
+  refreshAccessToken,
   setSessionExpiredHandler,
   ApiClientError,
 } from '../lib/apiClient';
@@ -96,30 +97,6 @@ const AuthContext = createContext<AuthContextType>({
   setUser: () => {},
 });
 
-// Module-level single-flight promise protecting startup silent refresh against React StrictMode double invocation
-let startupRefreshPromise: Promise<{ user: User; accessToken: string } | null> | null = null;
-
-const executeStartupRefresh = async (): Promise<{
-  user: User;
-  accessToken: string;
-} | null> => {
-  try {
-    const refreshRes = await apiClient<{ user: User; accessToken: string }>(
-      '/auth/refresh',
-      { method: 'POST', skipAuthRefresh: true }
-    );
-    if (refreshRes.data?.accessToken && refreshRes.data?.user) {
-      setAccessToken(refreshRes.data.accessToken);
-      localStorage.setItem('athletiq_has_session', '1');
-      return refreshRes.data;
-    }
-    return null;
-  } catch {
-    setAccessToken(null);
-    localStorage.removeItem('athletiq_has_session');
-    return null;
-  }
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -165,15 +142,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
-    if (!startupRefreshPromise) {
-      startupRefreshPromise = executeStartupRefresh();
-    }
-
-    startupRefreshPromise.then((result) => {
+    refreshAccessToken().then((result) => {
       if (!mountedRef.current) return;
       if (result) {
-        setUserState(result.user);
-        setRoleState(result.user.role);
+        setUserState(result.user as User);
+        setRoleState(result.user.role as UserRole);
       } else {
         setUserState(null);
         setRoleState(null);

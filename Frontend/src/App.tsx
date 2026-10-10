@@ -97,6 +97,30 @@ function App() {
             }
           />
           <Route
+            path="/athlete/me"
+            element={
+              <ProtectedRoute allowedRoles={['Athlete']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <AthleteProfilePage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/athlete/:id"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <AthleteProfilePage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/dashboard/coaches"
             element={
               <ProtectedRoute allowedRoles={['Admin']}>
@@ -266,7 +290,6 @@ function App() {
                     <Route path="/achievements" element={<AchievementsPage />} />
                     <Route path="/tournaments" element={<TournamentsPage />} />
                     <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
-                    <Route path="/athlete/:id" element={<AthleteProfilePage />} />
                     <Route path="/gallery" element={<GalleryPage />} />
                     <Route path="/news" element={<NewsPage />} />
                     <Route path="/contact" element={<ContactPage />} />

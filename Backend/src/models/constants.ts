@@ -138,6 +138,7 @@ export const AUDIT_ACTIONS = [
   'COACH_FEEDBACK_DELETED',
   'ATHLETE_GOAL_CREATED',
   'ATHLETE_GOAL_UPDATED',
+  'REFRESH_GRACE_REUSE',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

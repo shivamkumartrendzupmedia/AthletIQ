@@ -24,6 +24,7 @@ const envSchema = z
       .min(32, { message: 'JWT_REFRESH_SECRET must be at least 32 characters long' }),
     JWT_ACCESS_EXPIRES: z.string().default('15m'),
     JWT_REFRESH_EXPIRES: z.string().default('7d'),
+    REFRESH_GRACE_MS: z.coerce.number().int().nonnegative().default(30000),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),
     DOCUMENT_UPLOAD_DIR: z.string().default('./uploads/documents'),

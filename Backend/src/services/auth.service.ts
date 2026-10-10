@@ -1,4 +1,6 @@
 import { User, type IUser } from '../models/User.js';
+import { AuditLog } from '../models/AuditLog.js';
+import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
 import {
   hashPassword,
@@ -186,17 +188,128 @@ export class AuthService {
       throw new ApiError(401, 'Invalid or expired refresh token');
     }
 
-    const oldTokenHash = hashToken(rawRefreshToken);
+    const presentedHash = hashToken(rawRefreshToken);
+    const now = new Date();
+    const graceMs = env.REFRESH_GRACE_MS;
+    const graceThreshold = new Date(now.getTime() - graceMs);
 
-    // Atomic pull of the consumed token
-    const user = await User.findOneAndUpdate(
-      { _id: payload.sub, 'refreshTokens.tokenHash': oldTokenHash },
-      { $pull: { refreshTokens: { tokenHash: oldTokenHash } } },
+    const { token: newRefreshToken, expiresAt } = signRefreshToken(payload.sub);
+    const newTokenHash = hashToken(newRefreshToken);
+
+    // Branch 1: Normal path (presentedHash equals current tokenHash)
+    let user: IUser | null = (await User.findOneAndUpdate(
+      {
+        _id: payload.sub,
+        refreshTokens: { $elemMatch: { tokenHash: presentedHash } },
+      },
+      {
+        $set: {
+          'refreshTokens.$.tokenHash': newTokenHash,
+          'refreshTokens.$.expiresAt': expiresAt,
+          'refreshTokens.$.userAgent': userAgent,
+        },
+        $push: {
+          'refreshTokens.$.recentHashes': {
+            $each: [{ hash: presentedHash, at: now }],
+            $slice: -5,
+          },
+        },
+      },
       { new: true }
-    ).select('+refreshTokens');
+    ).select('+refreshTokens')) as IUser | null;
+
+    let isGrace = false;
+
+    // Branch 2: Grace path (presentedHash was rotated within grace window)
+    if (!user) {
+      user = (await User.findOneAndUpdate(
+        {
+          _id: payload.sub,
+          refreshTokens: {
+            $elemMatch: {
+              'recentHashes.hash': presentedHash,
+              'recentHashes.at': { $gte: graceThreshold },
+            },
+          },
+        },
+        [
+          {
+            $set: {
+              refreshTokens: {
+                $map: {
+                  input: '$refreshTokens',
+                  as: 'sess',
+                  in: {
+                    $cond: [
+                      {
+                        $gt: [
+                          {
+                            $size: {
+                              $filter: {
+                                input: { $ifNull: ['$$sess.recentHashes', []] },
+                                as: 'rh',
+                                cond: {
+                                  $and: [
+                                    { $eq: ['$$rh.hash', presentedHash] },
+                                    { $gte: ['$$rh.at', graceThreshold] },
+                                  ],
+                                },
+                              },
+                            },
+                          },
+                          0,
+                        ],
+                      },
+                      {
+                        $mergeObjects: [
+                          '$$sess',
+                          {
+                            tokenHash: newTokenHash,
+                            expiresAt: expiresAt,
+                            userAgent: userAgent,
+                            recentHashes: {
+                              $slice: [
+                                {
+                                  $concatArrays: [
+                                    {
+                                      $filter: {
+                                        input: { $ifNull: ['$$sess.recentHashes', []] },
+                                        as: 'rh',
+                                        cond: { $gte: ['$$rh.at', graceThreshold] },
+                                      },
+                                    },
+                                    [
+                                      {
+                                        hash: '$$sess.tokenHash',
+                                        at: now,
+                                      },
+                                    ],
+                                  ],
+                                },
+                                -5,
+                              ],
+                            },
+                          },
+                        ],
+                      },
+                      '$$sess',
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        ],
+        { new: true }
+      ).select('+refreshTokens')) as unknown as IUser | null;
+
+      if (user) {
+        isGrace = true;
+      }
+    }
 
     if (!user) {
-      // REUSE DETECTION: Valid signature but tokenHash missing from stored tokens.
+      // REUSE DETECTION: Valid signature but token missing from current tokens and grace window expired/missing.
       // Immediately revoke all sessions for this user.
       await User.findByIdAndUpdate(payload.sub, {
         $set: { refreshTokens: [] },
@@ -215,22 +328,19 @@ export class AuthService {
       throw new ApiError(401, 'User account is deactivated');
     }
 
-    const accessToken = signAccessToken(user.id, user.role);
-    const { token: newRefreshToken, expiresAt } = signRefreshToken(user.id);
-    const newTokenHash = hashToken(newRefreshToken);
-
-    user.refreshTokens.push({
-      tokenHash: newTokenHash,
-      expiresAt,
-      createdAt: new Date(),
-      userAgent,
-    });
-
-    if (user.refreshTokens.length > 5) {
-      user.refreshTokens = user.refreshTokens.slice(-5);
+    if (isGrace) {
+      await AuditLog.create({
+        action: 'REFRESH_GRACE_REUSE',
+        actor: user._id,
+        targetId: user._id,
+        targetType: 'User',
+        meta: {
+          userId: user._id.toString(),
+        },
+      });
     }
 
-    await user.save();
+    const accessToken = signAccessToken(user.id, user.role);
 
     return { user, accessToken, refreshToken: newRefreshToken };
   }
