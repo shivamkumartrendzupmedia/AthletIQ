@@ -38,6 +38,9 @@ import { DocumentsPage } from './pages/dashboard/DocumentsPage';
 import { AnnouncementsPage } from './pages/dashboard/AnnouncementsPage';
 import { TrainingCalendarPage } from './pages/dashboard/TrainingCalendarPage';
 import { TournamentManagementPage } from './pages/dashboard/TournamentManagementPage';
+import { TournamentDetailPage as DashboardTournamentDetailPage } from './pages/dashboard/TournamentDetailPage';
+import { VenuesPage } from './pages/dashboard/VenuesPage';
+import { OfficialsPage } from './pages/dashboard/OfficialsPage';
 import { UserAccountsPage } from './pages/dashboard/UserAccountsPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -219,10 +222,46 @@ function App() {
           <Route
             path="/dashboard/tournaments"
             element={
-              <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Organizer']}>
+              <ProtectedRoute allowedRoles={['Admin', 'Organizer', 'Coach', 'Athlete']}>
                 <DashboardLayout>
                   <ErrorBoundary>
                     <TournamentManagementPage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/tournaments/:id"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <DashboardTournamentDetailPage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/venues"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <VenuesPage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/officials"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <OfficialsPage />
                   </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>

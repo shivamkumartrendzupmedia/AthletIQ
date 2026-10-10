@@ -1,381 +1,815 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  tournamentService,
-  type FullTournamentData,
-  type RegisteredTeam,
-} from '../../services/tournamentService';
+import React, { useState, useEffect, useCallback, useId } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
 import {
   Trophy,
   Plus,
-  CheckCircle2,
-  XCircle,
   AlertTriangle,
-  FileText,
-  Calendar,
-  MapPin,
-  Users,
+  CheckCircle2,
+  X,
+  Edit2,
+  Trash2,
+  ArrowRight,
   Shield,
-  Clock,
-  Eye,
+  Users,
+  Calendar,
+  Layers,
 } from 'lucide-react';
+import { StateContainer } from '../../components/StateContainer';
+import {
+  academyApi,
+  type TournamentItem,
+  type TournamentTeamItem,
+  type SportItem,
+  type TeamItem,
+  mapFieldErrors,
+} from '../../services/academyApi';
+import { useAuth } from '../../context/AuthContext';
+import { ApiClientError } from '../../lib/apiClient';
+import { toDatetimeLocalString, fromDatetimeLocalString } from '../../lib/datetime';
+
+const VALID_TRANSITIONS: Record<string, Array<'Registration Open' | 'In Progress' | 'Completed' | 'Cancelled'>> = {
+  Draft: ['Registration Open', 'Cancelled'],
+  'Registration Open': ['In Progress', 'Cancelled'],
+  'In Progress': ['Completed', 'Cancelled'],
+  Completed: [],
+  Cancelled: [],
+};
 
 export const TournamentManagementPage: React.FC = () => {
-  const [tournaments, setTournaments] = useState<FullTournamentData[]>([]);
-  const [selectedTournament, setSelectedTournament] = useState<FullTournamentData | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const role = user?.role || 'Athlete';
 
-  // Rejection modal state
-  const [rejectingTeam, setRejectingTeam] = useState<RegisteredTeam | null>(null);
-  const [rejectionReason, setRejectionReason] = useState<string>('');
+  // Data states
+  const [tournaments, setTournaments] = useState<TournamentItem[]>([]);
+  const [sports, setSports] = useState<SportItem[]>([]);
+  const [myTeams, setMyTeams] = useState<TeamItem[]>([]);
+  const [registrations, setRegistrations] = useState<TournamentTeamItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Create form state
-  const [name, setName] = useState<string>('');
-  const [sport, setSport] = useState<string>('Football');
-  const [category, setCategory] = useState<FullTournamentData['category']>('Academy Championship');
-  const [ageGroup, setAgeGroup] = useState<FullTournamentData['ageGroup']>('U16');
-  const [format, setFormat] = useState<FullTournamentData['format']>('Group Stage + Knockout');
-  const [startDate, setStartDate] = useState<string>('2026-11-01');
-  const [endDate, setEndDate] = useState<string>('2026-11-07');
-  const [regDeadline, setRegDeadline] = useState<string>('2026-10-20');
-  const [venue, setVenue] = useState<string>('AthletiQ Main Sports Complex');
-  const [description, setDescription] = useState<string>('');
-  const [rulesText, setRulesText] = useState<string>('');
+  // Global banners
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
-  const loadData = async () => {
-    const list = await tournamentService.getTournaments();
-    setTournaments(list);
-    if (!selectedTournament && list.length > 0) {
-      setSelectedTournament(list[0]);
-    } else if (selectedTournament) {
-      const updated = list.find((t) => t.id === selectedTournament.id);
-      if (updated) setSelectedTournament(updated);
+  // Create/Edit Tournament Modal (Admin, Organizer)
+  const [showTournamentModal, setShowTournamentModal] = useState(false);
+  const [editingTournament, setEditingTournament] = useState<TournamentItem | null>(null);
+  const [tournamentSubmitting, setTournamentSubmitting] = useState(false);
+  const [tournamentFieldErrors, setTournamentFieldErrors] = useState<Record<string, string>>({});
+
+  // Tournament Form fields
+  const [formName, setFormName] = useState('');
+  const [formSport, setFormSport] = useState('');
+  const [formCategory, setFormCategory] = useState('');
+  const [formAgeGroup, setFormAgeGroup] = useState('U18');
+  const [formFormat, setFormFormat] = useState<'League' | 'Knockout'>('Knockout');
+  const [formStartDate, setFormStartDate] = useState('');
+  const [formEndDate, setFormEndDate] = useState('');
+  const [formRules, setFormRules] = useState('');
+  const [formMaxTeams, setFormMaxTeams] = useState('');
+
+  // Coach Register Team Modal
+  const [registeringTournament, setRegisteringTournament] = useState<TournamentItem | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [selectedSquad, setSelectedSquad] = useState<string[]>([]);
+  const [teamAthletes, setTeamAthletes] = useState<Array<{ id: string; name: string; jerseyNumber?: number }>>([]);
+  const [registerSubmitting, setRegisterSubmitting] = useState(false);
+  const [registerFieldErrors, setRegisterFieldErrors] = useState<Record<string, string>>({});
+
+
+  // Unique accessible form IDs
+  const tNameId = useId();
+  const tSportId = useId();
+  const tCategoryId = useId();
+  const tAgeGroupId = useId();
+  const tFormatId = useId();
+  const tStartId = useId();
+  const tEndId = useId();
+  const tRulesId = useId();
+  const tMaxTeamsId = useId();
+
+  // Load Initial Data (strictly <= 4 requests)
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setErrorBanner(null);
+    try {
+      if (role === 'Admin' || role === 'Organizer') {
+        // Request 1: Tournaments, Request 2: Sports
+        const [tournRes, sportsRes] = await Promise.all([
+          academyApi.listTournaments({ limit: 100 }),
+          academyApi.listSports({ limit: 100 }),
+        ]);
+        setTournaments(tournRes.items);
+        setSports(sportsRes.items);
+        if (sportsRes.items.length > 0 && !formSport) {
+          setFormSport(sportsRes.items[0].id);
+        }
+      } else if (role === 'Coach') {
+        // Request 1: Tournaments, Request 2: My Coached Teams
+        const [tournRes, teamsRes] = await Promise.all([
+          academyApi.listTournaments({ limit: 100 }),
+          academyApi.listTeams({ limit: 100 }),
+        ]);
+        setTournaments(tournRes.items);
+        setMyTeams(teamsRes.items);
+
+        // Request 3: Load registrations for the tournaments
+        const openTourneys = tournRes.items.filter((t) => t.status === 'Registration Open');
+        if (openTourneys.length > 0) {
+          const regRes = await Promise.all(
+            openTourneys.slice(0, 2).map((t) => academyApi.listRegistrations(t.id, { limit: 100 }))
+          );
+          setRegistrations(regRes.flatMap((r) => r.items));
+        }
+      } else {
+        // Athlete: Request 1: Tournaments
+        const tournRes = await academyApi.listTournaments({ limit: 100 });
+        setTournaments(tournRes.items.filter((t) => t.status !== 'Draft'));
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof ApiClientError ? err.message : 'Failed to load tournament data.';
+      setErrorBanner(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [role, formSport]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadData]);
+
+  // When coach selects a team to register, load athletes from team roster (1 request)
+  useEffect(() => {
+    if (!selectedTeamId) {
+      const timer = setTimeout(() => {
+        setTeamAthletes([]);
+        setSelectedSquad([]);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    let active = true;
+    const loadRoster = async () => {
+      try {
+        const athletesRes = await academyApi.listAthletes({ team: selectedTeamId, limit: 100 });
+        if (!active) return;
+        const list = athletesRes.items.map((a) => ({
+          id: a.id,
+          name: a.user?.name || `Athlete #${a.jerseyNumber || ''}`,
+          jerseyNumber: a.jerseyNumber,
+        }));
+        setTeamAthletes(list);
+        setSelectedSquad(list.slice(0, 30).map((a) => a.id));
+      } catch {
+        if (active) setTeamAthletes([]);
+      }
+    };
+    loadRoster();
+    return () => {
+      active = false;
+    };
+  }, [selectedTeamId]);
+
+  // Open Create Tournament Modal
+  const openCreateTournament = () => {
+    setEditingTournament(null);
+    setFormName('');
+    if (sports.length > 0) setFormSport(sports[0].id);
+    setFormCategory('Academy Cup');
+    setFormAgeGroup('U18');
+    setFormFormat('Knockout');
+    const now = new Date();
+    const future = new Date(now.getTime() + 7 * 86400000);
+    setFormStartDate(toDatetimeLocalString(now.toISOString()));
+    setFormEndDate(toDatetimeLocalString(future.toISOString()));
+    setFormRules('');
+    setFormMaxTeams('16');
+    setTournamentFieldErrors({});
+    setShowTournamentModal(true);
+  };
+
+  // Open Edit Tournament Modal
+  const openEditTournament = (t: TournamentItem) => {
+    setEditingTournament(t);
+    setFormName(t.name);
+    setFormSport(t.sport.id);
+    setFormCategory(t.category);
+    setFormAgeGroup(t.ageGroup);
+    setFormFormat(t.format);
+    setFormStartDate(toDatetimeLocalString(t.startDate));
+    setFormEndDate(toDatetimeLocalString(t.endDate));
+    setFormRules(t.rules || '');
+    setFormMaxTeams(t.maxTeams !== undefined ? String(t.maxTeams) : '');
+    setTournamentFieldErrors({});
+    setShowTournamentModal(true);
+  };
+
+  // Handle Create / Update Tournament
+  const handleSaveTournament = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTournamentSubmitting(true);
+    setTournamentFieldErrors({});
+    setErrorBanner(null);
+
+    const startIso = fromDatetimeLocalString(formStartDate);
+    const endIso = fromDatetimeLocalString(formEndDate);
+
+    try {
+      if (editingTournament) {
+        await academyApi.updateTournament(editingTournament.id, {
+          name: formName,
+          sport: formSport,
+          category: formCategory,
+          ageGroup: formAgeGroup,
+          format: formFormat,
+          startDate: startIso,
+          endDate: endIso,
+          rules: formRules,
+          maxTeams: formMaxTeams ? Number(formMaxTeams) : null,
+        });
+        setSuccessBanner('Tournament updated successfully.');
+      } else {
+        await academyApi.createTournament({
+          name: formName,
+          sport: formSport,
+          category: formCategory,
+          ageGroup: formAgeGroup,
+          format: formFormat,
+          startDate: startIso,
+          endDate: endIso,
+          rules: formRules,
+          maxTeams: formMaxTeams ? Number(formMaxTeams) : undefined,
+        });
+        setSuccessBanner('Tournament created successfully.');
+      }
+      setShowTournamentModal(false);
+      loadData();
+    } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      setTournamentFieldErrors(mapped);
+      if (err instanceof ApiClientError && !Object.keys(mapped).length) {
+        setErrorBanner(err.message);
+      }
+    } finally {
+      setTournamentSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-    const unsub = tournamentService.subscribe(loadData);
-    return () => unsub();
-  }, []);
+  // Status transition buttons
+  const handleTransitionStatus = async (
+    t: TournamentItem,
+    nextStatus: 'Registration Open' | 'In Progress' | 'Completed' | 'Cancelled'
+  ) => {
+    if (!window.confirm(`Advance status of "${t.name}" to "${nextStatus}"?`)) return;
+    setErrorBanner(null);
+    setSuccessBanner(null);
+    try {
+      await academyApi.updateTournament(t.id, { status: nextStatus });
+      setSuccessBanner(`Tournament status updated to ${nextStatus}.`);
+      loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof ApiClientError ? err.message : 'Status transition failed.';
+      setErrorBanner(msg);
+    }
+  };
 
-  const handleCreateTournament = async (e: React.FormEvent) => {
+  // Delete draft tournament
+  const handleDeleteDraft = async (t: TournamentItem) => {
+    if (!window.confirm(`Permanently delete Draft tournament "${t.name}"?`)) return;
+    setErrorBanner(null);
+    setSuccessBanner(null);
+    try {
+      await academyApi.deleteTournament(t.id);
+      setSuccessBanner(`Draft tournament "${t.name}" deleted.`);
+      loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof ApiClientError ? err.message : 'Failed to delete tournament.';
+      setErrorBanner(msg);
+    }
+  };
+
+  // Coach registers team
+  const openRegisterModal = (t: TournamentItem) => {
+    setRegisteringTournament(t);
+    setSelectedTeamId(myTeams.length > 0 ? myTeams[0].id : '');
+    setSelectedSquad([]);
+    setRegisterFieldErrors({});
+  };
+
+  const handleRegisterTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!registeringTournament || !selectedTeamId) return;
+    setRegisterSubmitting(true);
+    setRegisterFieldErrors({});
+    setErrorBanner(null);
+    try {
+      await academyApi.registerTournamentTeam(registeringTournament.id, {
+        team: selectedTeamId,
+        squad: selectedSquad,
+      });
+      setSuccessBanner('Team registration submitted for review.');
+      setRegisteringTournament(null);
+      loadData();
+    } catch (err: unknown) {
+      const mapped = mapFieldErrors(err);
+      setRegisterFieldErrors(mapped);
+      if (err instanceof ApiClientError && !Object.keys(mapped).length) {
+        setErrorBanner(err.message);
+      }
+    } finally {
+      setRegisterSubmitting(false);
+    }
+  };
 
-    const created = await tournamentService.createTournament({
-      name,
-      sport,
-      category,
-      ageGroup,
-      format,
-      startDate,
-      endDate,
-      registrationDeadline: regDeadline,
-      status: 'Upcoming',
-      venue,
-      description: description || 'Official AthletiQ sanctioned academy tournament.',
-      bannerImage: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1200&auto=format&fit=crop',
-      rulesText: rulesText || 'Standard tournament rules apply.',
+  // Coach withdraws registration
+  const handleWithdrawRegistration = async (r: TournamentTeamItem) => {
+    if (!window.confirm('Withdraw your pending registration for this tournament?')) return;
+    setErrorBanner(null);
+    setSuccessBanner(null);
+    try {
+      await academyApi.withdrawRegistration(r.id);
+      setSuccessBanner('Registration withdrawn successfully.');
+      loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof ApiClientError ? err.message : 'Failed to withdraw registration.';
+      setErrorBanner(msg);
+    }
+  };
+
+  // Toggle athlete in squad selector
+  const toggleSquadAthlete = (id: string) => {
+    setSelectedSquad((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((x) => x !== id);
+      }
+      if (prev.length >= 30) {
+        alert('Maximum squad size is 30 athletes.');
+        return prev;
+      }
+      return [...prev, id];
     });
-
-    setSelectedTournament(created);
-    setShowCreateModal(false);
-    setName('');
   };
 
-  const handleApproveTeam = async (teamId: string) => {
-    if (!selectedTournament) return;
-    await tournamentService.updateTeamStatus(selectedTournament.id, teamId, 'Approved');
-  };
-
-  const handleConfirmRejectTeam = async () => {
-    if (!selectedTournament || !rejectingTeam) return;
-    await tournamentService.updateTeamStatus(
-      selectedTournament.id,
-      rejectingTeam.id,
-      'Rejected',
-      rejectionReason || 'Documentation or eligibility verification failed.'
-    );
-    setRejectingTeam(null);
-    setRejectionReason('');
+  const getStatusBadgeVariant = (status: string): 'lime' | 'orange' | 'dark' => {
+    switch (status) {
+      case 'Registration Open':
+        return 'lime';
+      case 'In Progress':
+        return 'orange';
+      case 'Completed':
+      case 'Cancelled':
+      default:
+        return 'dark';
+    }
   };
 
   return (
-    <div className="space-y-8 bg-[#F7F1E8] p-4 md:p-8 rounded-[2.5rem]">
-      {/* Top Banner */}
-      <div className="bg-[#171044] text-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border border-white/10">
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <AthleticBadge variant="lime">ADMIN CONTROL CENTER</AthleticBadge>
-          <h1 className="text-3xl md:text-5xl font-black font-display text-white uppercase tracking-tight mt-2">
-            Tournament Management <CrossAccent color="lime" size="lg" />
-          </h1>
-          <p className="text-sm text-white/80 mt-1">
-            Create, verify rosters, approve applications, and manage match schedules.
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-[#171044]">Tournaments & Championships</h1>
+            <CrossAccent color="orange" size="sm" />
+          </div>
+          <p className="text-sm text-[#111111]/60">
+            {role === 'Admin' || role === 'Organizer'
+              ? 'Organize tournaments, review registrations, fixtures, and scores'
+              : role === 'Coach'
+              ? 'Register coached teams, manage rosters, and track tournament fixtures'
+              : 'View upcoming championships, fixture schedules, and match results'}
           </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-6 py-3 bg-[#FF5A00] text-white font-display font-black text-xs uppercase tracking-wider rounded-full hover:bg-[#e04f00] transition-colors flex items-center gap-2 shadow-lg"
-        >
-          <Plus size={16} /> Create New Tournament
-        </button>
+        {(role === 'Admin' || role === 'Organizer') && (
+          <Button onClick={openCreateTournament} variant="primary" className="inline-flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            <span>Create Tournament</span>
+          </Button>
+        )}
       </div>
 
-      {/* Tournament Selector Bar */}
-      <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
-        {tournaments.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setSelectedTournament(t)}
-            className={`px-5 py-3 rounded-2xl font-display font-black text-xs uppercase tracking-wider whitespace-nowrap transition-all ${
-              selectedTournament?.id === t.id
-                ? 'bg-[#171044] text-[#D8F500] shadow-md'
-                : 'bg-white text-[#171044] hover:bg-[#171044]/10'
-            }`}
-          >
-            {t.name} ({t.sport})
+      {/* Global Alerts */}
+      {errorBanner && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800 text-sm">
+          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1 font-medium">{errorBanner}</div>
+          <button onClick={() => setErrorBanner(null)} className="text-red-500 hover:text-red-700">
+            <X className="w-4 h-4" />
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {selectedTournament && (
-        <div className="space-y-8">
-          {/* Selected Tournament Overview */}
-          <div className="bg-white p-8 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <AthleticBadge variant="orange">{selectedTournament.sport}</AthleticBadge>
-                  <AthleticBadge variant="dark">{selectedTournament.ageGroup}</AthleticBadge>
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
-                    {selectedTournament.status}
-                  </span>
+      {successBanner && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 text-emerald-800 text-sm">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="flex-1 font-medium">{successBanner}</div>
+          <button onClick={() => setSuccessBanner(null)} className="text-emerald-500 hover:text-emerald-700">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Tournaments List Container */}
+      <StateContainer
+        loading={loading}
+        empty={tournaments.length === 0}
+        emptyMessage="No tournaments found. Create a new tournament to start registration."
+        onRetry={loadData}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tournaments.map((t) => (
+            <Card
+              key={t.id}
+              className="p-5 flex flex-col justify-between hover:shadow-lg transition-all duration-200 border-[#171044]/10"
+            >
+              <div className="space-y-4">
+                {/* Title & Status */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-[#E65100]/10 flex items-center justify-center shrink-0">
+                      <Trophy className="w-5 h-5 text-[#E65100]" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-[#171044] leading-tight">{t.name}</h3>
+                      <span className="text-xs text-[#111111]/60 font-medium">
+                        {t.sport?.name} • {t.category}
+                      </span>
+                    </div>
+                  </div>
+                  <AthleticBadge variant={getStatusBadgeVariant(t.status)} size="sm">
+                    {t.status}
+                  </AthleticBadge>
                 </div>
-                <h2 className="text-3xl font-black font-display text-[#171044]">{selectedTournament.name}</h2>
-                <p className="text-xs text-[#171044]/70 mt-1">{selectedTournament.venue}</p>
-              </div>
 
-              <div className="text-right">
-                <div className="text-xs text-[#171044]/60 font-bold">Registration Deadline</div>
-                <div className="text-sm font-black text-[#FF5A00]">{selectedTournament.registrationDeadline}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-              <div className="p-4 bg-[#F7F1E8] rounded-2xl">
-                <div className="text-[10px] font-extrabold uppercase text-[#171044]/60">Category</div>
-                <div className="text-sm font-black text-[#171044]">{selectedTournament.category}</div>
-              </div>
-              <div className="p-4 bg-[#F7F1E8] rounded-2xl">
-                <div className="text-[10px] font-extrabold uppercase text-[#171044]/60">Format</div>
-                <div className="text-sm font-black text-[#171044]">{selectedTournament.format}</div>
-              </div>
-              <div className="p-4 bg-[#F7F1E8] rounded-2xl">
-                <div className="text-[10px] font-extrabold uppercase text-[#171044]/60">Total Teams</div>
-                <div className="text-sm font-black text-[#FF5A00]">{selectedTournament.teams.length} Teams</div>
-              </div>
-              <div className="p-4 bg-[#F7F1E8] rounded-2xl">
-                <div className="text-[10px] font-extrabold uppercase text-[#171044]/60">Dates</div>
-                <div className="text-sm font-black text-[#171044]">{selectedTournament.datesFormatted}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Team Approvals & Roster Verification Workflow */}
-          <div className="bg-white p-8 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-                Team Registration Approvals & Roster Verification <CrossAccent color="orange" size="sm" />
-              </h3>
-              <span className="text-xs font-bold text-[#171044]/60">
-                {selectedTournament.teams.filter((t) => t.status === 'Pending Review').length} Pending Approval
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              {selectedTournament.teams.length === 0 ? (
-                <div className="p-8 text-center text-xs font-bold text-[#171044]/60 bg-[#F7F1E8] rounded-2xl">
-                  No teams have registered for this tournament yet.
+                {/* Details Pills */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-[#171044]/5 p-2 rounded-lg flex items-center gap-1.5 text-[#171044]">
+                    <Layers className="w-3.5 h-3.5 opacity-70" />
+                    <span>{t.format}</span>
+                  </div>
+                  <div className="bg-[#171044]/5 p-2 rounded-lg flex items-center gap-1.5 text-[#171044]">
+                    <Users className="w-3.5 h-3.5 opacity-70" />
+                    <span>
+                      {t.approvedTeamsCount} {t.maxTeams ? `/ ${t.maxTeams}` : ''} Teams
+                    </span>
+                  </div>
+                  <div className="bg-[#171044]/5 p-2 rounded-lg flex items-center gap-1.5 text-[#171044] col-span-2">
+                    <Calendar className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                    <span className="truncate">
+                      {new Date(t.startDate).toLocaleDateString()} – {new Date(t.endDate).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
-              ) : (
-                selectedTournament.teams.map((t) => (
-                  <div key={t.id} className="p-6 bg-[#F7F1E8] rounded-3xl border border-[#171044]/10 space-y-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{t.logo}</span>
-                        <div>
-                          <h4 className="font-black font-display text-lg text-[#171044]">{t.name}</h4>
-                          <div className="text-xs text-[#171044]/70">
-                            Coach: {t.coachName} • Email: {t.contactEmail} • Applied: {t.appliedDate}
-                          </div>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-black ${
-                            t.status === 'Approved'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : t.status === 'Rejected'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
+                {t.rules && (
+                  <p className="text-xs text-[#111111]/70 line-clamp-2 italic">
+                    Rules: {t.rules}
+                  </p>
+                )}
+
+                {/* Organizer detail */}
+                {t.organizer?.name && (
+                  <div className="text-[11px] text-[#111111]/50">
+                    Organizer: {t.organizer.name}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-5 pt-4 border-t border-[#111111]/10 flex flex-col gap-2">
+                {/* Admin/Organizer Controls */}
+                {(role === 'Admin' || role === 'Organizer') && (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <Button
+                        onClick={() => navigate(`/dashboard/tournaments/${t.id}`)}
+                        variant="primary"
+                        size="sm"
+                        className="w-full inline-flex items-center justify-center gap-1.5"
+                      >
+                        <span>Manage & Fixtures</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        onClick={() => openEditTournament(t)}
+                        variant="outline"
+                        size="sm"
+                        className="inline-flex items-center gap-1"
+                        title="Edit Details"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </Button>
+                      {t.status === 'Draft' && (
+                        <Button
+                          onClick={() => handleDeleteDraft(t)}
+                          variant="outline"
+                          size="sm"
+                          className="inline-flex items-center gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                          title="Delete Draft"
                         >
-                          {t.status}
-                        </span>
-
-                        {t.status === 'Pending Review' && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleApproveTeam(t.id)}
-                              className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 transition-colors flex items-center gap-1"
-                            >
-                              <CheckCircle2 size={14} /> Approve
-                            </button>
-                            <button
-                              onClick={() => setRejectingTeam(t)}
-                              className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-black hover:bg-red-700 transition-colors flex items-center gap-1"
-                            >
-                              <XCircle size={14} /> Reject
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
 
-                    {/* Roster Submission Details */}
-                    <div className="space-y-2 pt-2 border-t border-[#171044]/10">
-                      <div className="text-xs font-black uppercase text-[#171044]/60">Submitted Player Roster</div>
-                      <div className="flex flex-wrap gap-2">
-                        {t.roster.map((p) => (
-                          <div key={p.id} className="p-2.5 bg-white rounded-xl text-xs font-bold text-[#171044] flex items-center gap-2 border">
-                            <span>#{p.jerseyNumber} {p.name} ({p.position})</span>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold">
-                              {p.verificationStatus}
-                            </span>
-                          </div>
+                    {/* Status Advance Controls */}
+                    {VALID_TRANSITIONS[t.status] && VALID_TRANSITIONS[t.status].length > 0 && (
+                      <div className="flex items-center gap-1.5 pt-1 overflow-x-auto">
+                        <span className="text-[10px] uppercase font-bold text-[#111111]/40 shrink-0">
+                          Advance:
+                        </span>
+                        {VALID_TRANSITIONS[t.status].map((nextSt) => (
+                          <button
+                            key={nextSt}
+                            onClick={() => handleTransitionStatus(t, nextSt)}
+                            className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#171044]/5 hover:bg-[#171044]/10 text-[#171044] border border-[#171044]/10 transition-colors shrink-0"
+                          >
+                            → {nextSt}
+                          </button>
                         ))}
                       </div>
-                    </div>
+                    )}
+                  </>
+                )}
 
-                    {t.rejectionReason && (
-                      <div className="text-xs text-red-700 font-bold bg-red-50 p-3 rounded-xl">
-                        Rejection Reason: {t.rejectionReason}
-                      </div>
+                {/* Coach Register Button */}
+                {role === 'Coach' && (
+                  <div className="flex items-center justify-between gap-2">
+                    {t.status === 'Registration Open' ? (
+                      <Button
+                        onClick={() => openRegisterModal(t)}
+                        variant="primary"
+                        size="sm"
+                        className="w-full inline-flex items-center justify-center gap-1.5"
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        <span>Register Team</span>
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-[#111111]/50 italic">Registration Closed</span>
                     )}
                   </div>
-                ))
-              )}
-            </div>
+                )}
+
+                {/* Athlete View Link */}
+                {role === 'Athlete' && (
+                  <Button
+                    onClick={() => navigate(`/tournaments/${t.id}`)}
+                    variant="outline"
+                    size="sm"
+                    className="w-full inline-flex items-center justify-center gap-1.5"
+                  >
+                    <span>View Matches & Results</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </StateContainer>
+
+      {/* Coach Registered Teams Section */}
+      {role === 'Coach' && registrations.length > 0 && (
+        <div className="space-y-4 pt-6 border-t border-[#111111]/10">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-[#171044]">My Team Registrations</h2>
+            <CrossAccent color="orange" size="sm" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {registrations.map((r) => (
+              <Card key={r.id} className="p-5 flex flex-col justify-between space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-bold text-base text-[#171044]">{r.team?.name}</h3>
+                    <AthleticBadge
+                      variant={
+                        r.status === 'Approved'
+                          ? 'lime'
+                          : r.status === 'Pending'
+                          ? 'orange'
+                          : 'dark'
+                      }
+                      size="sm"
+                    >
+                      {r.status}
+                    </AthleticBadge>
+                  </div>
+
+                  {r.reason && (
+                    <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800">
+                      <span className="font-bold">Rejection reason:</span> {r.reason}
+                    </div>
+                  )}
+
+                  <div className="text-xs text-[#111111]/60">
+                    Squad: {r.squad?.length || 0} athletes registered
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#111111]/10">
+                  {r.status === 'Pending' && (
+                    <Button
+                      onClick={() => handleWithdrawRegistration(r)}
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      Withdraw
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            ))}
           </div>
         </div>
       )}
 
-      {/* CREATE TOURNAMENT MODAL */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-[#171044]/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] p-8 max-w-xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-              Create New Tournament <CrossAccent color="orange" size="sm" />
-            </h3>
+      {/* Create / Edit Tournament Modal */}
+      {showTournamentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-[#171044]/10 space-y-4 my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-[#111111]/10">
+              <h2 className="text-xl font-bold text-[#171044]">
+                {editingTournament ? 'Edit Tournament Details' : 'Create New Tournament'}
+              </h2>
+              <button
+                onClick={() => setShowTournamentModal(false)}
+                className="text-[#111111]/40 hover:text-[#111111]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-            <form onSubmit={handleCreateTournament} className="space-y-4">
+            {Object.keys(tournamentFieldErrors).length > 0 && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1 text-xs text-red-800">
+                {Object.entries(tournamentFieldErrors).map(([field, msg]) => (
+                  <div key={field}>
+                    <span className="font-bold capitalize">{field}:</span> {msg}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveTournament} className="space-y-4">
               <div>
-                <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Tournament Name</label>
+                <label htmlFor={tNameId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                  Tournament Name *
+                </label>
                 <input
+                  id={tNameId}
                   type="text"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. AthletiQ Winter Cup 2026"
-                  className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl border border-[#171044]/10 text-sm font-bold text-[#171044]"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. Summer Academy Championship"
+                  className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Sport</label>
-                  <select value={sport} onChange={(e) => setSport(e.target.value)} className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]">
-                    <option value="Football">Football</option>
-                    <option value="Basketball">Basketball</option>
-                    <option value="Tennis">Tennis</option>
-                    <option value="Swimming">Swimming</option>
+                  <label htmlFor={tSportId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                    Sport *
+                  </label>
+                  <select
+                    id={tSportId}
+                    required
+                    value={formSport}
+                    onChange={(e) => setFormSport(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                  >
+                    {sports.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Age Group</label>
-                  <select value={ageGroup} onChange={(e) => setAgeGroup(e.target.value as any)} className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]">
-                    <option value="U14">U14 Junior</option>
-                    <option value="U16">U16 Strikers</option>
-                    <option value="U18">U18 Youth</option>
-                    <option value="Senior Elite">Senior Elite</option>
-                  </select>
+                  <label htmlFor={tCategoryId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                    Category *
+                  </label>
+                  <input
+                    id={tCategoryId}
+                    type="text"
+                    required
+                    value={formCategory}
+                    onChange={(e) => setFormCategory(e.target.value)}
+                    placeholder="e.g. Academy Cup"
+                    className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Category</label>
-                  <select value={category} onChange={(e) => setCategory(e.target.value as any)} className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]">
-                    <option value="Academy Championship">Academy Championship</option>
-                    <option value="Invitational">Invitational</option>
-                    <option value="Open League">Open League</option>
+                  <label htmlFor={tAgeGroupId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                    Age Group *
+                  </label>
+                  <input
+                    id={tAgeGroupId}
+                    type="text"
+                    required
+                    value={formAgeGroup}
+                    onChange={(e) => setFormAgeGroup(e.target.value)}
+                    placeholder="e.g. U18"
+                    className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor={tFormatId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                    Format *
+                  </label>
+                  <select
+                    id={tFormatId}
+                    value={formFormat}
+                    onChange={(e) => setFormFormat(e.target.value as 'League' | 'Knockout')}
+                    className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                  >
+                    <option value="Knockout">Knockout</option>
+                    <option value="League">League</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Format</label>
-                  <select value={format} onChange={(e) => setFormat(e.target.value as any)} className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]">
-                    <option value="Group Stage + Knockout">Group Stage + Knockout</option>
-                    <option value="Single Elimination">Single Elimination</option>
-                    <option value="Round Robin">Round Robin</option>
-                  </select>
+                  <label htmlFor={tMaxTeamsId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                    Max Teams (2-64)
+                  </label>
+                  <input
+                    id={tMaxTeamsId}
+                    type="number"
+                    min="2"
+                    max="64"
+                    value={formMaxTeams}
+                    onChange={(e) => setFormMaxTeams(e.target.value)}
+                    placeholder="e.g. 16"
+                    className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Start Date</label>
-                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]" />
+                  <label htmlFor={tStartId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                    Start Date & Time *
+                  </label>
+                  <input
+                    id={tStartId}
+                    type="datetime-local"
+                    required
+                    value={formStartDate}
+                    onChange={(e) => setFormStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                  />
                 </div>
+
                 <div>
-                  <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Reg. Deadline</label>
-                  <input type="date" value={regDeadline} onChange={(e) => setRegDeadline(e.target.value)} className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]" />
+                  <label htmlFor={tEndId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                    End Date & Time *
+                  </label>
+                  <input
+                    id={tEndId}
+                    type="datetime-local"
+                    required
+                    value={formEndDate}
+                    onChange={(e) => setFormEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Venue Location</label>
-                <input
-                  type="text"
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                  placeholder="e.g. Moncton Sports Complex..."
-                  className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Rules & Regulations</label>
+                <label htmlFor={tRulesId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                  Tournament Rules & Regulations
+                </label>
                 <textarea
+                  id={tRulesId}
                   rows={3}
-                  value={rulesText}
-                  onChange={(e) => setRulesText(e.target.value)}
-                  placeholder="Enter official tournament rules..."
-                  className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]"
+                  value={formRules}
+                  onChange={(e) => setFormRules(e.target.value)}
+                  placeholder="Official tournament rules, eligibility, code of conduct..."
+                  className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" size="sm" type="button" onClick={() => setShowCreateModal(false)} className="flex-1">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#111111]/10">
+                <Button type="button" variant="outline" onClick={() => setShowTournamentModal(false)}>
                   Cancel
                 </Button>
-                <Button variant="primary" size="sm" type="submit" className="flex-1">
-                  Publish Tournament
+                <Button type="submit" variant="primary" disabled={tournamentSubmitting}>
+                  {tournamentSubmitting
+                    ? 'Saving...'
+                    : editingTournament
+                    ? 'Update Tournament'
+                    : 'Create Tournament'}
                 </Button>
               </div>
             </form>
@@ -383,32 +817,111 @@ export const TournamentManagementPage: React.FC = () => {
         </div>
       )}
 
-      {/* REJECTION REASON MODAL */}
-      {rejectingTeam && (
-        <div className="fixed inset-0 z-50 bg-[#171044]/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-xl font-black font-display text-red-600 uppercase">Reject Application: {rejectingTeam.name}</h3>
-            <div>
-              <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Reason for Rejection</label>
-              <textarea
-                rows={3}
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="State reason (e.g. ineligible player age, missing medical waivers)..."
-                className="w-full p-3 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]"
-              />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <Button variant="outline" size="sm" onClick={() => setRejectingTeam(null)} className="flex-1">
-                Cancel
-              </Button>
+      {/* Coach Register Team Modal */}
+      {registeringTournament && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#171044]/10 space-y-4 my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-[#111111]/10">
+              <h2 className="text-xl font-bold text-[#171044]">
+                Register for {registeringTournament.name}
+              </h2>
               <button
-                onClick={handleConfirmRejectTeam}
-                className="flex-1 py-2 bg-red-600 text-white rounded-full font-display font-black text-xs uppercase"
+                onClick={() => setRegisteringTournament(null)}
+                className="text-[#111111]/40 hover:text-[#111111]"
               >
-                Confirm Rejection
+                <X className="w-5 h-5" />
               </button>
             </div>
+
+            {Object.keys(registerFieldErrors).length > 0 && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1 text-xs text-red-800">
+                {Object.entries(registerFieldErrors).map(([field, msg]) => (
+                  <div key={field}>
+                    <span className="font-bold capitalize">{field}:</span> {msg}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <form onSubmit={handleRegisterTeam} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                  Select Coached Team *
+                </label>
+                <select
+                  required
+                  value={selectedTeamId}
+                  onChange={(e) => setSelectedTeamId(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                >
+                  {myTeams.map((tm) => (
+                    <option key={tm.id} value={tm.id}>
+                      {tm.name} ({tm.sport?.name} • {tm.ageGroup})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold uppercase text-[#111111]/60">
+                    Squad Selection ({selectedSquad.length} / 30 selected)
+                  </label>
+                  <span className="text-xs text-[#111111]/50">Max 30 athletes</span>
+                </div>
+
+                {teamAthletes.length === 0 ? (
+                  <div className="p-4 bg-[#F7F1E8] rounded-xl text-xs text-[#111111]/60 text-center">
+                    No athletes assigned to this team roster yet.
+                  </div>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto border border-[#111111]/10 rounded-xl p-2 space-y-1">
+                    {teamAthletes.map((ath) => {
+                      const isSelected = selectedSquad.includes(ath.id);
+                      return (
+                        <div
+                          key={ath.id}
+                          onClick={() => toggleSquadAthlete(ath.id)}
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-[#E65100]/10 text-[#E65100] font-semibold'
+                              : 'hover:bg-[#111111]/5 text-[#111111]/80'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              readOnly
+                              checked={isSelected}
+                              className="w-3.5 h-3.5 text-[#E65100] rounded"
+                            />
+                            <span>{ath.name}</span>
+                          </div>
+                          {ath.jerseyNumber !== undefined && (
+                            <span className="text-[10px] bg-white px-1.5 py-0.5 rounded border border-[#111111]/10">
+                              #{ath.jerseyNumber}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#111111]/10">
+                <Button type="button" variant="outline" onClick={() => setRegisteringTournament(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={registerSubmitting || !selectedTeamId}
+                >
+                  {registerSubmitting ? 'Submitting...' : 'Submit Registration'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

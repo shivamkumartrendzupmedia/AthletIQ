@@ -16,6 +16,7 @@ import {
   Trophy,
   Award,
   User,
+  MapPin,
 } from 'lucide-react';
 
 const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
@@ -36,6 +37,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
           { name: 'Admin Overview', path: '/dashboard/admin', icon: LayoutDashboard },
           { name: 'User Accounts', path: '/dashboard/users', icon: User },
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
+          { name: 'Venues', path: '/dashboard/venues', icon: MapPin },
+          { name: 'Officials', path: '/dashboard/officials', icon: UserCheck },
           { name: 'Athlete Management', path: '/dashboard/athletes', icon: Users },
           { name: 'Coach Management', path: '/dashboard/coaches', icon: UserCheck },
           { name: 'Team Management', path: '/dashboard/teams', icon: Shield },
@@ -59,7 +62,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         return [
           { name: 'Athlete Hub', path: '/dashboard/athlete', icon: LayoutDashboard },
           { name: 'My Profile & Development', path: '/athlete/me', icon: User },
-          { name: 'Tournaments', path: '/tournaments', icon: Trophy },
+          { name: 'Tournaments', path: '/dashboard/tournaments', icon: Trophy },
           { name: 'My Training Schedule', path: '/dashboard/training', icon: Calendar },
           { name: 'My Documents', path: '/dashboard/documents', icon: FileText },
           { name: 'Announcements', path: '/dashboard/announcements', icon: Bell },
@@ -67,6 +70,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Organizer':
         return [
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
+          { name: 'Venues', path: '/dashboard/venues', icon: MapPin },
+          { name: 'Officials', path: '/dashboard/officials', icon: UserCheck },
           { name: 'Teams & Brackets', path: '/dashboard/teams', icon: Shield },
           { name: 'Match Calendar', path: '/dashboard/training', icon: Calendar },
           { name: 'Documents', path: '/dashboard/documents', icon: FileText },

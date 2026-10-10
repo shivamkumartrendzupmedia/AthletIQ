@@ -5,6 +5,32 @@ import {
   type PaginationMeta,
   type PaginatedResult,
 } from './listHelpers';
+import {
+  buildCreateTournamentPayload,
+  buildUpdateTournamentPayload,
+  buildCreateRegistrationPayload,
+  buildUpdateSquadPayload,
+  buildReviewRegistrationPayload,
+  buildCreateVenuePayload,
+  buildUpdateVenuePayload,
+  buildCreateOfficialPayload,
+  buildUpdateOfficialPayload,
+  buildCreateMatchPayload,
+  buildUpdateMatchPayload,
+  buildEnterMatchResultPayload,
+  type CreateTournamentInput,
+  type UpdateTournamentInput,
+  type CreateRegistrationInput,
+  type UpdateSquadInput,
+  type ReviewRegistrationInput,
+  type CreateVenueInput,
+  type UpdateVenueInput,
+  type CreateOfficialInput,
+  type UpdateOfficialInput,
+  type CreateMatchInput,
+  type UpdateMatchInput,
+  type EnterMatchResultInput,
+} from '../lib/tournamentPayloads';
 
 export type { PaginationMeta, PaginatedResult };
 
@@ -1020,6 +1046,276 @@ export const academyApi = {
     const res = await apiClient('/athletes/me/development');
     return normalizeSingleResponse<AthleteDevelopmentView>(res);
   },
+
+  // ==================== TOURNAMENTS (STEP 8B) ====================
+  listTournaments: async (
+    query: TournamentQuery = {}
+  ): Promise<PaginatedResult<TournamentItem>> => {
+    const res = await apiClient(
+      `/tournaments${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<TournamentItem>(res);
+  },
+
+  getTournament: async (id: string): Promise<TournamentItem | null> => {
+    const res = await apiClient(`/tournaments/${id}`);
+    return normalizeSingleResponse<TournamentItem>(res);
+  },
+
+  createTournament: async (
+    payload: CreateTournamentInput
+  ): Promise<TournamentItem | null> => {
+    const res = await apiClient('/tournaments', {
+      method: 'POST',
+      body: JSON.stringify(buildCreateTournamentPayload(payload)),
+    });
+    return normalizeSingleResponse<TournamentItem>(res);
+  },
+
+  updateTournament: async (
+    id: string,
+    payload: UpdateTournamentInput
+  ): Promise<TournamentItem | null> => {
+    const res = await apiClient(`/tournaments/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(buildUpdateTournamentPayload(payload)),
+    });
+    return normalizeSingleResponse<TournamentItem>(res);
+  },
+
+  deleteTournament: async (
+    id: string
+  ): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/tournaments/${id}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
+  },
+
+  // ==================== REGISTRATIONS (STEP 8B) ====================
+  listRegistrations: async (
+    tournamentId: string,
+    query: RegistrationQuery = {}
+  ): Promise<PaginatedResult<TournamentTeamItem>> => {
+    const res = await apiClient(
+      `/tournaments/${tournamentId}/registrations${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<TournamentTeamItem>(res);
+  },
+
+  registerTournamentTeam: async (
+    tournamentId: string,
+    payload: CreateRegistrationInput
+  ): Promise<TournamentTeamItem | null> => {
+    const res = await apiClient(`/tournaments/${tournamentId}/registrations`, {
+      method: 'POST',
+      body: JSON.stringify(buildCreateRegistrationPayload(payload)),
+    });
+    return normalizeSingleResponse<TournamentTeamItem>(res);
+  },
+
+  updateRegistrationSquad: async (
+    registrationId: string,
+    payload: UpdateSquadInput
+  ): Promise<TournamentTeamItem | null> => {
+    const res = await apiClient(`/registrations/${registrationId}/squad`, {
+      method: 'PATCH',
+      body: JSON.stringify(buildUpdateSquadPayload(payload)),
+    });
+    return normalizeSingleResponse<TournamentTeamItem>(res);
+  },
+
+  reviewRegistration: async (
+    registrationId: string,
+    payload: ReviewRegistrationInput
+  ): Promise<TournamentTeamItem | null> => {
+    const res = await apiClient(`/registrations/${registrationId}/review`, {
+      method: 'PATCH',
+      body: JSON.stringify(buildReviewRegistrationPayload(payload)),
+    });
+    return normalizeSingleResponse<TournamentTeamItem>(res);
+  },
+
+  withdrawRegistration: async (
+    registrationId: string
+  ): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/registrations/${registrationId}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
+  },
+
+  // ==================== VENUES (STEP 8B) ====================
+  listVenues: async (
+    query: VenueQuery = {}
+  ): Promise<PaginatedResult<VenueItem>> => {
+    const res = await apiClient(
+      `/venues${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<VenueItem>(res);
+  },
+
+  getVenue: async (id: string): Promise<VenueItem | null> => {
+    const res = await apiClient(`/venues/${id}`);
+    return normalizeSingleResponse<VenueItem>(res);
+  },
+
+  createVenue: async (
+    payload: CreateVenueInput
+  ): Promise<VenueItem | null> => {
+    const res = await apiClient('/venues', {
+      method: 'POST',
+      body: JSON.stringify(buildCreateVenuePayload(payload)),
+    });
+    return normalizeSingleResponse<VenueItem>(res);
+  },
+
+  updateVenue: async (
+    id: string,
+    payload: UpdateVenueInput
+  ): Promise<VenueItem | null> => {
+    const res = await apiClient(`/venues/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(buildUpdateVenuePayload(payload)),
+    });
+    return normalizeSingleResponse<VenueItem>(res);
+  },
+
+  deleteVenue: async (
+    id: string
+  ): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/venues/${id}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
+  },
+
+  // ==================== OFFICIALS (STEP 8B) ====================
+  listOfficials: async (
+    query: OfficialQuery = {}
+  ): Promise<PaginatedResult<OfficialItem>> => {
+    const res = await apiClient(
+      `/officials${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<OfficialItem>(res);
+  },
+
+  getOfficial: async (id: string): Promise<OfficialItem | null> => {
+    const res = await apiClient(`/officials/${id}`);
+    return normalizeSingleResponse<OfficialItem>(res);
+  },
+
+  createOfficial: async (
+    payload: CreateOfficialInput
+  ): Promise<OfficialItem | null> => {
+    const res = await apiClient('/officials', {
+      method: 'POST',
+      body: JSON.stringify(buildCreateOfficialPayload(payload)),
+    });
+    return normalizeSingleResponse<OfficialItem>(res);
+  },
+
+  updateOfficial: async (
+    id: string,
+    payload: UpdateOfficialInput
+  ): Promise<OfficialItem | null> => {
+    const res = await apiClient(`/officials/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(buildUpdateOfficialPayload(payload)),
+    });
+    return normalizeSingleResponse<OfficialItem>(res);
+  },
+
+  deleteOfficial: async (
+    id: string
+  ): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/officials/${id}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
+  },
+
+  // ==================== MATCHES (STEP 8B) ====================
+  listMatches: async (
+    tournamentId: string,
+    query: MatchQuery = {}
+  ): Promise<PaginatedResult<MatchItem>> => {
+    const res = await apiClient(
+      `/tournaments/${tournamentId}/matches${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<MatchItem>(res);
+  },
+
+  getMatch: async (id: string): Promise<MatchItem | null> => {
+    const res = await apiClient(`/matches/${id}`);
+    return normalizeSingleResponse<MatchItem>(res);
+  },
+
+  createMatch: async (
+    tournamentId: string,
+    payload: CreateMatchInput
+  ): Promise<MatchItem | null> => {
+    const res = await apiClient(`/tournaments/${tournamentId}/matches`, {
+      method: 'POST',
+      body: JSON.stringify(buildCreateMatchPayload(payload)),
+    });
+    return normalizeSingleResponse<MatchItem>(res);
+  },
+
+  updateMatch: async (
+    id: string,
+    payload: UpdateMatchInput
+  ): Promise<MatchItem | null> => {
+    const res = await apiClient(`/matches/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(buildUpdateMatchPayload(payload)),
+    });
+    return normalizeSingleResponse<MatchItem>(res);
+  },
+
+  enterMatchResult: async (
+    id: string,
+    payload: EnterMatchResultInput
+  ): Promise<MatchItem | null> => {
+    const res = await apiClient(`/matches/${id}/result`, {
+      method: 'PATCH',
+      body: JSON.stringify(buildEnterMatchResultPayload(payload)),
+    });
+    return normalizeSingleResponse<MatchItem>(res);
+  },
+
+  deleteMatch: async (
+    id: string
+  ): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/matches/${id}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
+  },
+
+  // ==================== PUBLIC PORTAL (STEP 8B) ====================
+  getPublicTournaments: async (
+    query: TournamentQuery = {}
+  ): Promise<PaginatedResult<PublicTournamentItem>> => {
+    const res = await apiClient(
+      `/public/tournaments${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<PublicTournamentItem>(res);
+  },
+
+  getPublicTournament: async (
+    id: string
+  ): Promise<PublicTournamentItem | null> => {
+    const res = await apiClient(`/public/tournaments/${id}`);
+    return normalizeSingleResponse<PublicTournamentItem>(res);
+  },
+
+  getPublicTournamentMatches: async (
+    id: string
+  ): Promise<PublicMatchItem[]> => {
+    const res = await apiClient(`/public/tournaments/${id}/matches`);
+    return normalizeListResponse<PublicMatchItem>(res).items;
+  },
 };
 
 // Announcement & Document Interfaces
@@ -1220,6 +1516,136 @@ export interface AthleteDevelopmentView {
   assessmentHistory: SkillAssessmentItem[];
   feedback: CoachFeedbackItem[];
   goals: AthleteGoalItem[];
+}
+
+// ==================== TOURNAMENT CONTRACTS (STEP 8B) ====================
+export interface TournamentQuery extends PaginationQuery {
+  sport?: string;
+  status?: string;
+  format?: string;
+  search?: string;
+}
+
+export interface TournamentItem {
+  id: string;
+  name: string;
+  sport: { id: string; name: string; slug: string };
+  category: string;
+  ageGroup: string;
+  format: 'League' | 'Knockout';
+  startDate: string;
+  endDate: string;
+  rules?: string;
+  maxTeams?: number;
+  approvedTeamsCount: number;
+  status: 'Draft' | 'Registration Open' | 'In Progress' | 'Completed' | 'Cancelled';
+  organizer: { id: string; name: string; email: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RegistrationQuery extends PaginationQuery {
+  status?: string;
+}
+
+export interface TournamentTeamItem {
+  id: string;
+  tournament: string | { id: string; name: string };
+  team: { id: string; name: string; slug?: string; logo?: string; sport?: { name: string } };
+  status: 'Pending' | 'Approved' | 'Rejected';
+  reason?: string;
+  squad: Array<{
+    id: string;
+    jerseyNumber?: number;
+    position?: string;
+    user?: { id: string; name: string } | null;
+  }>;
+  registeredBy: { id: string; name: string };
+  reviewedBy?: { id: string; name: string } | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VenueQuery extends PaginationQuery {
+  active?: boolean;
+}
+
+export interface VenueItem {
+  id: string;
+  name: string;
+  address: string;
+  capacity?: number;
+  createdBy: { id: string; name: string };
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OfficialQuery extends PaginationQuery {
+  type?: string;
+  active?: boolean;
+}
+
+export interface OfficialItem {
+  id: string;
+  name: string;
+  type: 'Referee' | 'Assistant Referee' | 'Scorer';
+  createdBy: { id: string; name: string };
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MatchQuery extends PaginationQuery {
+  round?: string;
+  status?: string;
+}
+
+export interface MatchItem {
+  id: string;
+  tournament: string | { id: string; name: string };
+  homeTeam: { id: string; team: { id: string; name: string; logo?: string } };
+  awayTeam: { id: string; team: { id: string; name: string; logo?: string } };
+  round: string;
+  group?: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  endsAt: string;
+  venue: { id: string; name: string; address?: string };
+  referee?: { id: string; name: string; type?: string } | null;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  result?: { homeScore: number; awayScore: number; enteredAt: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicTournamentItem {
+  id: string;
+  name: string;
+  sport: { id: string; name: string; slug: string };
+  category: string;
+  ageGroup: string;
+  format: 'League' | 'Knockout';
+  startDate: string;
+  endDate: string;
+  rules?: string;
+  status: 'Registration Open' | 'In Progress' | 'Completed' | 'Cancelled';
+  maxTeams?: number;
+  approvedTeamsCount: number;
+}
+
+export interface PublicMatchItem {
+  id: string;
+  round: string;
+  group?: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  venue: { id: string; name: string; address?: string };
+  homeTeam: { id: string; name: string; logo?: string };
+  awayTeam: { id: string; name: string; logo?: string };
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  result?: { homeScore: number; awayScore: number } | null;
 }
 
 

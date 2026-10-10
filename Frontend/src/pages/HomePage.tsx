@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import { coachesData } from '../data/coachesData';
 import { teamsData } from '../data/teamsData';
-import { tournamentsData } from '../data/tournamentsData';
 import { newsData } from '../data/newsData';
 import { motion, AnimatePresence } from 'framer-motion';
 

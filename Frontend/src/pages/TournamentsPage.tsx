@@ -1,118 +1,212 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { tournamentService, type FullTournamentData } from '../services/tournamentService';
 import { Button, Card, CrossAccent, AthleticBadge } from '../design-system';
-import { ArrowRight, Trophy, Calendar, MapPin, Users, Plus } from 'lucide-react';
+import { ArrowRight, Trophy, Calendar, Users, Layers, Search } from 'lucide-react';
+import { StateContainer } from '../components/StateContainer';
+import {
+  academyApi,
+  type PublicTournamentItem,
+  type PublicSportItem,
+} from '../services/academyApi';
+import { ApiClientError } from '../lib/apiClient';
 
 export const TournamentsPage: React.FC = () => {
-  const [filter, setFilter] = useState<'All' | 'Upcoming' | 'Live' | 'Completed'>('All');
-  const [tournaments, setTournaments] = useState<FullTournamentData[]>([]);
+  const [tournaments, setTournaments] = useState<PublicTournamentItem[]>([]);
+  const [sports, setSports] = useState<PublicSportItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+
+  // Filters
+  const [selectedSport, setSelectedSport] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setErrorBanner(null);
+    try {
+      const [tournRes, sportsRes] = await Promise.all([
+        academyApi.getPublicTournaments({
+          sport: selectedSport || undefined,
+          status: selectedStatus || undefined,
+          search: searchQuery || undefined,
+          limit: 100,
+        }),
+        academyApi.getPublicSports(),
+      ]);
+      setTournaments(tournRes.items);
+      setSports(sportsRes.items);
+    } catch (err: unknown) {
+      const msg = err instanceof ApiClientError ? err.message : 'Failed to load tournament catalog.';
+      setErrorBanner(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedSport, selectedStatus, searchQuery]);
 
   useEffect(() => {
-    const load = async () => {
-      const data = await tournamentService.getTournaments();
-      setTournaments(data);
-    };
-    load();
-    const unsub = tournamentService.subscribe(load);
-    return () => unsub();
-  }, []);
+    loadData();
+  }, [loadData]);
 
-  const filteredTournaments =
-    filter === 'All' ? tournaments : tournaments.filter((t) => t.status === filter);
+  const resetFilters = () => {
+    setSelectedSport('');
+    setSelectedStatus('');
+    setSearchQuery('');
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Registration Open':
+        return <AthleticBadge variant="lime">Registration Open</AthleticBadge>;
+      case 'In Progress':
+        return <AthleticBadge variant="orange">In Progress</AthleticBadge>;
+      case 'Completed':
+        return <AthleticBadge variant="dark">Completed</AthleticBadge>;
+      case 'Cancelled':
+        return <AthleticBadge variant="dark">Cancelled</AthleticBadge>;
+      default:
+        return <AthleticBadge variant="dark">{status}</AthleticBadge>;
+    }
+  };
 
   return (
-    <div className="space-y-16 pb-20">
-      {/* Header */}
+    <div className="space-y-12 pb-20">
+      {/* Header Banner */}
       <section className="bg-[#171044] text-white py-16 md:py-20 rounded-b-3xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-          <AthleticBadge variant="lime">COMPETITIONS ENGINE</AthleticBadge>
-          <h1 className="text-4xl md:text-6xl font-black font-display uppercase tracking-tight">
-            TOURNAMENTS & LEAGUES <CrossAccent color="orange" size="lg" />
+          <div className="inline-block">
+            <AthleticBadge variant="lime">PUBLIC COMPETITIONS</AthleticBadge>
+          </div>
+          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight flex items-center justify-center gap-3">
+            <span>Tournaments & Leagues</span>
+            <CrossAccent color="orange" size="lg" />
           </h1>
           <p className="text-base md:text-lg text-white/80 max-w-2xl mx-auto">
-            Explore live championship fixtures, group stages, and bracket trees.
+            Official regional academy championships, live fixture schedules, and bracket results.
           </p>
-          <div className="pt-2">
-            <Link to="/dashboard/tournaments">
-              <Button variant="primary" size="sm">
-                <Plus size={16} /> Tournament Admin Command Center
-              </Button>
-            </Link>
+        </div>
+      </section>
+
+      {/* Filter Toolbar */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white p-4 rounded-2xl border border-[#171044]/10 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full md:w-72">
+            <Search className="w-4 h-4 text-[#111111]/40 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tournament name..."
+              className="w-full pl-9 pr-3 py-2 border border-[#111111]/20 rounded-xl text-sm focus:outline-none focus:border-[#E65100]"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <select
+              value={selectedSport}
+              onChange={(e) => setSelectedSport(e.target.value)}
+              className="px-3 py-2 border border-[#111111]/20 rounded-xl text-sm focus:outline-none focus:border-[#E65100] bg-white"
+            >
+              <option value="">All Sports</option>
+              {sports.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="px-3 py-2 border border-[#111111]/20 rounded-xl text-sm focus:outline-none focus:border-[#E65100] bg-white"
+            >
+              <option value="">All Statuses</option>
+              <option value="Registration Open">Registration Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+
+            {(selectedSport || selectedStatus || searchQuery) && (
+              <button
+                onClick={resetFilters}
+                className="text-xs font-semibold text-[#E65100] hover:underline px-2"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Filter Tabs */}
+      {/* Tournaments Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-center gap-3 mb-10">
-          {(['All', 'Upcoming', 'Live', 'Completed'] as const).map((st) => (
-            <button
-              key={st}
-              onClick={() => setFilter(st)}
-              className={`px-5 py-2.5 rounded-full font-display font-extrabold text-sm transition-all duration-200 ${
-                filter === st
-                  ? 'bg-[#FF5A00] text-white shadow-md'
-                  : 'bg-white text-[#171044] hover:bg-[#171044]/10 border border-[#171044]/10'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-
-        {/* Tournaments List */}
-        <div className="space-y-8">
-          {filteredTournaments.map((t) => (
-            <Card key={t.id} variant="tournament" padding="none" className="group overflow-hidden">
-              <div className="grid grid-cols-1 lg:grid-cols-12 items-center">
-                <div className="lg:col-span-5 h-64 lg:h-full relative overflow-hidden">
-                  <img
-                    src={t.bannerImage}
-                    alt={t.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-4 left-4 flex gap-2">
-                    <AthleticBadge variant={t.status === 'Live' ? 'live' : 'lime'}>{t.status}</AthleticBadge>
-                    <AthleticBadge variant="dark">{t.sport}</AthleticBadge>
+        <StateContainer
+          loading={loading}
+          empty={tournaments.length === 0}
+          emptyMessage="No tournaments match your criteria."
+          onRetry={loadData}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {tournaments.map((t) => (
+              <Card
+                key={t.id}
+                className="p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300 border-[#171044]/10"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-[#E65100]/10 flex items-center justify-center shrink-0">
+                        <Trophy className="w-6 h-6 text-[#E65100]" />
+                      </div>
+                      <div>
+                        <h2 className="font-bold text-lg text-[#171044] leading-tight">{t.name}</h2>
+                        <span className="text-xs text-[#111111]/60 font-semibold">
+                          {t.sport?.name} • {t.category}
+                        </span>
+                      </div>
+                    </div>
                   </div>
+
+                  <div>{getStatusBadge(t.status)}</div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-[#F7F1E8] p-2 rounded-xl flex items-center gap-1.5 text-[#171044] font-medium">
+                      <Layers className="w-3.5 h-3.5 opacity-60" />
+                      <span>{t.format}</span>
+                    </div>
+                    <div className="bg-[#F7F1E8] p-2 rounded-xl flex items-center gap-1.5 text-[#171044] font-medium">
+                      <Users className="w-3.5 h-3.5 opacity-60" />
+                      <span>
+                        {t.approvedTeamsCount} {t.maxTeams ? `/ ${t.maxTeams}` : ''} Teams
+                      </span>
+                    </div>
+                    <div className="bg-[#F7F1E8] p-2 rounded-xl flex items-center gap-1.5 text-[#171044] font-medium col-span-2">
+                      <Calendar className="w-3.5 h-3.5 opacity-60 shrink-0" />
+                      <span>
+                        {new Date(t.startDate).toLocaleDateString()} – {new Date(t.endDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {t.rules && (
+                    <p className="text-xs text-[#111111]/70 line-clamp-2 italic">
+                      {t.rules}
+                    </p>
+                  )}
                 </div>
 
-                <div className="lg:col-span-7 p-8 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-2xl md:text-3xl font-black font-display text-[#171044]">{t.name}</h3>
-                    <span className="text-xs font-bold text-[#FF5A00]">{t.ageGroup}</span>
-                  </div>
-                  <p className="text-xs text-[#171044]/70 leading-relaxed font-medium">{t.description}</p>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 text-xs text-[#171044]">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} className="text-[#FF5A00]" />
-                      <span className="font-semibold">{t.datesFormatted}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin size={16} className="text-[#FF5A00]" />
-                      <span className="font-semibold truncate">{t.venue}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users size={16} className="text-[#FF5A00]" />
-                      <span className="font-semibold">{t.teams.length} Teams Enrolled</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-[#171044]/10 flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#4B2A9B]">{t.fixtures.length} Total Matches</span>
-                    <Link to={`/tournaments/${t.id}`}>
-                      <Button variant="primary" size="sm" iconRight={<ArrowRight size={14} />}>
-                        View Bracket & Fixtures
-                      </Button>
-                    </Link>
-                  </div>
+                <div className="mt-6 pt-4 border-t border-[#111111]/10">
+                  <Link to={`/tournaments/${t.id}`}>
+                    <Button variant="primary" size="sm" className="w-full inline-flex items-center justify-center gap-2">
+                      <span>View Fixtures & Standings</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </Link>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        </StateContainer>
       </section>
     </div>
   );
