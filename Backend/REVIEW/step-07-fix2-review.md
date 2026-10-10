@@ -56,21 +56,27 @@ Both the normal path and the grace path use atomic MongoDB updates with `$elemMa
      ```
 
 2. **Grace Path Update:**
-   - Filter:
+   - Filter (Nested `$elemMatch` ensures `hash` and `at` match on the EXACT same `recentHashes` entry):
      ```ts
      {
        _id: sub,
        refreshTokens: {
          $elemMatch: {
-           'recentHashes.hash': presentedHash,
-           'recentHashes.at': { $gte: graceThreshold },
+           recentHashes: {
+             $elemMatch: {
+               hash: presentedHash,
+               at: { $gte: graceThreshold },
+             },
+           },
          },
        },
      }
      ```
    - Update (Atomic Pipeline):
      Maps over `refreshTokens` to locate the matching session, rotate `tokenHash` to `newHash`, append current `tokenHash` with `at: now`, filter out stale `recentHashes` older than `graceThreshold`, and slice to 5 entries.
-   - Audit Logging: Creates `AuditLog` entry with action `'REFRESH_GRACE_REUSE'`, `targetType: 'User'`, and metadata containing only IDs (`userId`, `targetId`, `presentedHashPrefix`).
+   - Defensive Guard:
+     After the atomic update, verifies that the returned user contains a session whose `tokenHash === newTokenHash`. If not verified, sets `user = null` to immediately cascade to session revocation and 401.
+   - Audit Logging: Creates `AuditLog` entry with action `'REFRESH_GRACE_REUSE'`, `targetType: 'User'`, and metadata containing only IDs (`userId`, `targetId`).
 
 3. **Stolen Token Reuse / Outside Grace Window:**
    - If token signature is valid for user `sub` but not matched by normal or grace filters:

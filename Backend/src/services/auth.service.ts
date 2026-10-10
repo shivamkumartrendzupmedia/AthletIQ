@@ -227,8 +227,12 @@ export class AuthService {
           _id: payload.sub,
           refreshTokens: {
             $elemMatch: {
-              'recentHashes.hash': presentedHash,
-              'recentHashes.at': { $gte: graceThreshold },
+              recentHashes: {
+                $elemMatch: {
+                  hash: presentedHash,
+                  at: { $gte: graceThreshold },
+                },
+              },
             },
           },
         },
@@ -304,7 +308,14 @@ export class AuthService {
       ).select('+refreshTokens')) as unknown as IUser | null;
 
       if (user) {
-        isGrace = true;
+        const hasRotatedSession = user.refreshTokens?.some(
+          (sess) => sess.tokenHash === newTokenHash
+        );
+        if (hasRotatedSession) {
+          isGrace = true;
+        } else {
+          user = null;
+        }
       }
     }
 

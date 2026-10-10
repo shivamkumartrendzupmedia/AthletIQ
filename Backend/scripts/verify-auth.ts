@@ -601,6 +601,69 @@ async function run(): Promise<void> {
         'AuditLog meta contains IDs only with zero sensitive fields (test g)'
       );
 
+      // (h) Cross-element match prevention & grace hardening:
+      // A session with TWO recentHashes entries: X older than window and Y fresh.
+      // Presenting X => 401, ALL sessions revoked, NO access token returned.
+      const g6Email = `verify-auth-${testRunId}-g6@athletiq.test`;
+      const g6Reg = await fetch(`${baseUrl10}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Grace User 6', email: g6Email, password: 'Password123' }),
+      });
+      const g6RegJson = (await g6Reg.json()) as { data?: { user?: { id: string } } };
+      if (g6RegJson.data?.user?.id) {
+        createdUserIds.push(new Types.ObjectId(g6RegJson.data.user.id));
+      }
+      const tokenX = extractCookie(g6Reg.headers.get('set-cookie'));
+
+      (env as { REFRESH_GRACE_MS: number }).REFRESH_GRACE_MS = 250; // 250ms window
+
+      // First rotation: Token X replaced by Token Y (X enters recentHashes at T0)
+      const rotXRes = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: tokenX },
+      });
+      assert(rotXRes.status === 200, 'First rotation (X -> Y) succeeds (200 OK)');
+      const tokenY = extractCookie(rotXRes.headers.get('set-cookie'));
+
+      // Wait 130ms
+      await new Promise((resolve) => setTimeout(resolve, 130));
+
+      // Second rotation: Token Y replaced by Token Z (Y enters recentHashes at T1)
+      const rotYRes = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: tokenY },
+      });
+      assert(rotYRes.status === 200, 'Second rotation (Y -> Z) succeeds (200 OK)');
+
+      // Wait 140ms (now elapsed since T0 is ~270ms > 250ms, so X is expired; elapsed since T1 is ~140ms < 250ms, so Y is fresh)
+      await new Promise((resolve) => setTimeout(resolve, 140));
+
+      // Presenting expired token X must NOT match against fresh entry Y's timestamp
+      const expiredXRes = await fetch(`${baseUrl10}/refresh`, {
+        method: 'POST',
+        headers: { Cookie: tokenX },
+      });
+      failedHttpCount10++;
+      assert(
+        expiredXRes.status === 401,
+        'Presenting expired token X when session contains another fresh entry returns 401 (test h)'
+      );
+
+      const expiredXJson = (await expiredXRes.json()) as { data?: { accessToken?: string } };
+      assert(
+        expiredXJson.data?.accessToken === undefined,
+        'NO access token is returned when presenting expired token X (test h)'
+      );
+
+      const userG6 = await User.findOne({ email: g6Email }).select('+refreshTokens');
+      assert(
+        (userG6?.refreshTokens?.length ?? 0) === 0,
+        'ALL sessions revoked when expired token X is presented (test h)'
+      );
+
+      (env as { REFRESH_GRACE_MS: number }).REFRESH_GRACE_MS = 30000;
+
       assert(
         failedHttpCount10 <= 8,
         `Group 10 failed HTTP requests count: ${failedHttpCount10} (strictly <= 8)`
