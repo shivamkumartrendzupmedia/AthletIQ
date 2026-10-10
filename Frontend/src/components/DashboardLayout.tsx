@@ -58,7 +58,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Athlete':
         return [
           { name: 'Athlete Hub', path: '/dashboard/athlete', icon: LayoutDashboard },
-          { name: 'My Public Profile', path: '/athlete/ath-1', icon: User },
+          { name: 'My Profile & Development', path: '/athlete/me', icon: User },
           { name: 'Tournaments', path: '/tournaments', icon: Trophy },
           { name: 'My Training Schedule', path: '/dashboard/training', icon: Calendar },
           { name: 'My Documents', path: '/dashboard/documents', icon: FileText },

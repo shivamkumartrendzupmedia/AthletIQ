@@ -132,7 +132,33 @@ export const AUDIT_ACTIONS = [
   'ANNOUNCEMENT_DELETED',
   'DOCUMENT_UPLOADED',
   'DOCUMENT_DELETED',
+  'SKILL_ASSESSMENT_CREATED',
+  'COACH_FEEDBACK_CREATED',
+  'COACH_FEEDBACK_ACKNOWLEDGED',
+  'COACH_FEEDBACK_DELETED',
+  'ATHLETE_GOAL_CREATED',
+  'ATHLETE_GOAL_UPDATED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const COACH_FEEDBACK_TYPES = ['Praise', 'Improvement', 'General'] as const;
+export type CoachFeedbackType = (typeof COACH_FEEDBACK_TYPES)[number];
+
+export const ATHLETE_GOAL_STATUSES = ['Active', 'Achieved', 'Dropped'] as const;
+export type AthleteGoalStatus = (typeof ATHLETE_GOAL_STATUSES)[number];
+
+export const SKILL_NAMES = [
+  'pace',
+  'shooting',
+  'passing',
+  'dribbling',
+  'defending',
+  'stamina',
+  'agility',
+  'decisionMaking',
+  'leadership',
+  'workRate',
+] as const;
+export type SkillName = (typeof SKILL_NAMES)[number];
 
 

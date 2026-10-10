@@ -1,742 +1,778 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   AthletiqRadarChart,
-  AthletiqBarChart,
   AthletiqProgressGauge,
-  AthletiqLineChart,
 } from '../design-system/AthletiqCharts';
-import {
-  athleteDevelopmentService,
-  type FullAthleteProfileData,
-  type CoachFeedback,
-  type AthleteGoal,
-} from '../services/athleteDevelopmentService';
 import { StateContainer } from '../components/StateContainer';
-import { Card, CrossAccent, AthleticBadge, Button } from '../design-system';
+import { Card, Button, AthleticBadge } from '../design-system';
 import {
   ArrowLeft,
-  Trophy,
-  Activity,
   Target,
   MessageSquare,
-  Calendar,
-  Clock,
   TrendingUp,
-  Award,
   Zap,
   CheckCircle2,
   Plus,
-  ThumbsUp,
-  Send,
-  Flame,
-  Shield,
-  Star,
-  User,
+  Calendar,
+  Clock,
+  User as UserIcon,
 } from 'lucide-react';
+import {
+  academyApi,
+  type AthleteDevelopmentView,
+  type AthleteGoalItem,
+} from '../services/academyApi';
+import { useAuth } from '../context/AuthContext';
+import { AssessmentModal } from '../components/development/AssessmentModal';
+import { FeedbackModal } from '../components/development/FeedbackModal';
+import { GoalModal } from '../components/development/GoalModal';
+import { ApiClientError } from '../lib/apiClient';
 
 export const AthleteProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const athleteId = id || 'ath-1';
+  const { role, user } = useAuth();
+  const athleteId = id || 'me';
 
-  const [profile, setProfile] = useState<FullAthleteProfileData | null>(null);
+  const [devData, setDevData] = useState<AthleteDevelopmentView | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [notFound, setNotFound] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Active Tab State
-  const [activeTab, setActiveTab] = useState<
-    'performance' | 'skills' | 'goals' | 'feedback' | 'attendance' | 'development' | 'achievements'
-  >('performance');
+  const [activeTab, setActiveTab] = useState<'development' | 'assessments' | 'feedback' | 'goals'>('development');
 
-  // Modal States
-  const [showAddGoalModal, setShowAddGoalModal] = useState<boolean>(false);
-  const [newGoalTitle, setNewGoalTitle] = useState<string>('');
-  const [newGoalCategory, setNewGoalCategory] = useState<'Physical' | 'Technical' | 'Tactical' | 'Mental'>('Technical');
-  const [newGoalDate, setNewGoalDate] = useState<string>('2026-11-30');
+  // Modals
+  const [showAssessmentModal, setShowAssessmentModal] = useState<boolean>(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
+  const [showGoalModal, setShowGoalModal] = useState<boolean>(false);
+  const [editingGoal, setEditingGoal] = useState<AthleteGoalItem | null>(null);
 
-  const [replyInput, setReplyInput] = useState<{ [fbId: string]: string }>({});
+  const isStaff = role === 'Admin' || role === 'Coach';
+  const isSelf = athleteId === 'me' || (devData && devData.athlete.id === user?.id);
 
-  const fetchProfile = async () => {
+  const fetchDevelopmentData = useCallback(async () => {
+    // If id is not 'me' and not a 24-character hex ObjectId (e.g. legacy 'ath-1')
+    if (athleteId !== 'me' && !/^[0-9a-fA-F]{24}$/.test(athleteId)) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setNotFound(false);
+
     try {
-      const data = await athleteDevelopmentService.getAthleteProfile(athleteId);
-      setProfile(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load athlete profile');
+      let data: AthleteDevelopmentView | null = null;
+      if (athleteId === 'me') {
+        data = await academyApi.getAthleteSelfDevelopment();
+      } else {
+        data = await academyApi.getAthleteDevelopment(athleteId);
+      }
+
+      if (!data) {
+        setNotFound(true);
+      } else {
+        setDevData(data);
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError && err.statusCode === 404) {
+        setNotFound(true);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load athlete development profile');
+      }
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchProfile();
-    const unsubscribe = athleteDevelopmentService.subscribe(fetchProfile);
-    return () => unsubscribe();
   }, [athleteId]);
 
-  const handleAcknowledge = async (fbId: string) => {
-    if (!profile) return;
-    await athleteDevelopmentService.acknowledgeFeedback(profile.id, fbId);
+  useEffect(() => {
+    fetchDevelopmentData();
+  }, [fetchDevelopmentData]);
+
+  const handleAcknowledgeFeedback = async (feedbackId: string) => {
+    try {
+      await academyApi.acknowledgeFeedback(feedbackId);
+      fetchDevelopmentData();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to acknowledge feedback');
+    }
   };
 
-  const handleCreateGoal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profile || !newGoalTitle.trim()) return;
-    await athleteDevelopmentService.addAthleteGoal(profile.id, {
-      athleteId: profile.id,
-      title: newGoalTitle,
-      category: newGoalCategory,
-      targetDate: newGoalDate,
-      progressPercentage: 10,
-      checkpoints: [{ text: 'Initial baseline setup', completed: true }],
-    });
-    setNewGoalTitle('');
-    setShowAddGoalModal(false);
+  const handleOpenEditGoal = (g: AthleteGoalItem) => {
+    setEditingGoal(g);
+    setShowGoalModal(true);
   };
 
-  const handleProgressUpdate = async (goalId: string, currentPct: number) => {
-    if (!profile) return;
-    const newPct = Math.min(100, currentPct + 15);
-    await athleteDevelopmentService.updateGoalProgress(profile.id, goalId, newPct);
+  const handleOpenCreateGoal = () => {
+    setEditingGoal(null);
+    setShowGoalModal(true);
   };
 
+  // 1. Clean "Athlete not found" state if ID is invalid or 404
+  if (notFound) {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] p-6 lg:p-12 flex items-center justify-center">
+        <div className="w-full max-w-lg">
+          <StateContainer
+            empty
+            emptyMessage={
+              athleteId === 'ath-1'
+                ? 'The requested demo athlete identifier (ath-1) is no longer valid. Please select a registered athlete from your squad roster.'
+                : 'The requested athlete profile could not be found or you do not have permission to view it.'
+            }
+            emptyActionLabel="Back to Athletes Roster"
+            onEmptyAction={() => {
+              window.location.href = isStaff ? '/dashboard/athletes' : '/dashboard/athlete';
+            }}
+          >
+            <div />
+          </StateContainer>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Loading state
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16">
-        <StateContainer loading={true} children={null} />
+      <div className="min-h-screen bg-[#FAF8F5] p-6 lg:p-12 flex items-center justify-center">
+        <StateContainer loading>
+          <div />
+        </StateContainer>
       </div>
     );
   }
 
-  if (error || !profile) {
+  // 3. Error state
+  if (error || !devData) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16">
-        <StateContainer error={error || 'Athlete profile not found'} onRetry={fetchProfile} children={null} />
+      <div className="min-h-screen bg-[#FAF8F5] p-6 lg:p-12 flex items-center justify-center">
+        <StateContainer
+          error={error || 'An unexpected error occurred while fetching athlete data.'}
+          onRetry={fetchDevelopmentData}
+        >
+          <div />
+        </StateContainer>
       </div>
     );
   }
 
-  // Calculate radar chart metrics from latest assessment
-  const latestAssessment = profile.assessments[0];
+  const { athlete, latestAssessment, skillCategoryAverages, attendanceRate, assessmentHistory, feedback, goals } = devData;
+
   const radarMetrics = [
-    { label: 'Technical', value: latestAssessment?.categories.technical ?? 90 },
-    { label: 'Tactical', value: latestAssessment?.categories.tactical ?? 86 },
-    { label: 'Physical', value: latestAssessment?.categories.physical ?? 92 },
-    { label: 'Mental', value: latestAssessment?.categories.mental ?? 88 },
-    { label: 'Speed/Pace', value: latestAssessment?.subSkills.pace ?? 94 },
-    { label: 'Shooting', value: latestAssessment?.subSkills.shooting ?? 91 },
+    { label: 'Technical', value: (skillCategoryAverages?.technical || 0) * 10 },
+    { label: 'Physical', value: (skillCategoryAverages?.physical || 0) * 10 },
+    { label: 'Tactical', value: (skillCategoryAverages?.tactical || 0) * 10 },
+    { label: 'Mental', value: (skillCategoryAverages?.mental || 0) * 10 },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-      {/* Top Navigation */}
-      <div className="flex items-center justify-between">
-        <Link to="/dashboard/athletes" className="inline-flex items-center gap-2 text-sm font-bold text-[#171044] hover:text-[#FF5A00] transition-colors">
-          <ArrowLeft size={16} /> Back to Athletes Directory
-        </Link>
-        <div className="flex items-center gap-2">
-          <AthleticBadge variant="lime">{profile.statusTag}</AthleticBadge>
-          <AthleticBadge variant="dark">{profile.sport}</AthleticBadge>
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#FAF8F5] text-[#171044] pb-24">
+      {/* Top Banner & Header */}
+      <div className="bg-[#171044] text-white pt-8 pb-12 px-6 lg:px-12 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <Link
+              to={isStaff ? '/dashboard/athletes' : '/dashboard/athlete'}
+              className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-xs font-semibold uppercase tracking-wider"
+            >
+              <ArrowLeft size={16} />
+              <span>{isStaff ? 'Back to Squad' : 'Back to Athlete Hub'}</span>
+            </Link>
 
-      {/* HERO SECTION */}
-      <div className="bg-[#171044] text-white p-8 md:p-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden border border-white/10">
-        {/* Glow backdrop shapes */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF5A00]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-[#D8F500]/15 rounded-full blur-3xl pointer-events-none" />
+            {isStaff && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs"
+                  onClick={() => setShowFeedbackModal(true)}
+                >
+                  <MessageSquare size={14} className="mr-1.5" />
+                  Add Feedback
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setShowAssessmentModal(true)}
+                >
+                  <Plus size={14} className="mr-1.5" />
+                  New Assessment
+                </Button>
+              </div>
+            )}
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
-          {/* Athlete Cutout Portrait & Jersey Badge */}
-          <div className="lg:col-span-4 flex justify-center">
-            <div className="relative group">
-              <div className="w-64 h-72 rounded-3xl overflow-hidden border-4 border-[#D8F500] shadow-2xl relative">
-                <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#171044] via-[#171044]/60 to-transparent p-4 flex justify-between items-end">
-                  <span className="text-3xl font-black font-display text-[#D8F500]">#{profile.jerseyNumber}</span>
-                  <span className="text-xs font-bold bg-white/20 px-3 py-1 rounded-full text-white backdrop-blur-md">
-                    {profile.position}
-                  </span>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pt-4 border-t border-white/10">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FF5A00] to-[#FFA000] flex items-center justify-center text-white font-bold text-2xl font-display shadow-lg shadow-[#FF5A00]/20">
+                {athlete.jerseyNumber ? `#${athlete.jerseyNumber}` : <UserIcon size={32} />}
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl lg:text-3xl font-bold font-display tracking-tight text-white">
+                    {athlete.name}
+                  </h1>
+                  {athlete.position && (
+                    <AthleticBadge variant="white" className="bg-white/10 text-white text-xs">
+                      {athlete.position}
+                    </AthleticBadge>
+                  )}
                 </div>
-              </div>
-
-              {/* Rating Ring Overlay */}
-              <div className="absolute -top-4 -right-4 bg-gradient-to-br from-[#FF5A00] to-[#E04F00] text-white p-3 rounded-2xl shadow-xl text-center border-2 border-white">
-                <div className="text-2xl font-black font-display">{profile.ovr}</div>
-                <div className="text-[9px] font-extrabold uppercase tracking-widest text-[#D8F500]">OVR SCORE</div>
+                <p className="text-xs text-white/70 mt-1">
+                  {athlete.teamName || 'Unassigned Squad'} • {athlete.sportName || 'Academy Discipline'}
+                </p>
               </div>
             </div>
-          </div>
 
-          {/* Hero Details */}
-          <div className="lg:col-span-8 space-y-6">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-xs font-extrabold uppercase text-[#D8F500] tracking-widest">
-                  {profile.teamName} • Age {profile.age}
-                </span>
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-500/30">
-                  🔥 Active Season Record
+            {/* Quick Stats Badges */}
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center min-w-[90px]">
+                <span className="text-[10px] uppercase font-bold text-white/60 block">Overall</span>
+                <span className="text-xl font-bold font-display text-[#D8F500]">
+                  {skillCategoryAverages ? skillCategoryAverages.overall : '—'}
                 </span>
               </div>
-              <h1 className="text-4xl md:text-6xl font-black font-display uppercase tracking-tight text-white">
-                {profile.name} <CrossAccent color="lime" size="lg" />
-              </h1>
-              <p className="text-white/80 font-medium text-sm md:text-base max-w-xl">
-                {profile.performanceTrend}
-              </p>
-            </div>
-
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-              <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                <div className="text-[10px] font-extrabold uppercase text-white/60">Overall Rating</div>
-                <div className="text-2xl font-black font-display text-[#D8F500]">{profile.ovr} / 100</div>
+              <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center min-w-[90px]">
+                <span className="text-[10px] uppercase font-bold text-white/60 block">Attendance</span>
+                <span className="text-xl font-bold font-display text-white">
+                  {attendanceRate !== null ? `${attendanceRate}%` : '—'}
+                </span>
               </div>
-              <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                <div className="text-[10px] font-extrabold uppercase text-white/60">Attendance</div>
-                <div className="text-2xl font-black font-display text-[#FF5A00]">96%</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                <div className="text-[10px] font-extrabold uppercase text-white/60">Goals / Points</div>
-                <div className="text-2xl font-black font-display text-white">14</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                <div className="text-[10px] font-extrabold uppercase text-white/60">Coach Rating</div>
-                <div className="text-2xl font-black font-display text-[#D8F500]">4.9 ⭐</div>
+              <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center min-w-[90px]">
+                <span className="text-[10px] uppercase font-bold text-white/60 block">Active Goals</span>
+                <span className="text-xl font-bold font-display text-[#FF5A00]">
+                  {goals.filter((g) => g.status === 'Active').length}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 7 NAV TABS */}
-      <div className="flex items-center justify-start overflow-x-auto pb-2 gap-2 border-b border-[#171044]/10 scrollbar-none">
-        {[
-          { id: 'performance', label: 'Performance', icon: <Activity size={16} /> },
-          { id: 'skills', label: 'Skills', icon: <Zap size={16} /> },
-          { id: 'goals', label: 'Goals', icon: <Target size={16} /> },
-          { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={16} /> },
-          { id: 'attendance', label: 'Attendance', icon: <Calendar size={16} /> },
-          { id: 'development', label: 'Development', icon: <TrendingUp size={16} /> },
-          { id: 'achievements', label: 'Achievements', icon: <Trophy size={16} /> },
-        ].map((tab) => (
+      {/* Tabs Bar */}
+      <div className="max-w-7xl mx-auto px-6 lg:px-12 -mt-4">
+        <div className="bg-white rounded-xl shadow-sm border border-[#171044]/10 p-1 flex gap-2 overflow-x-auto">
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-5 py-3 rounded-2xl font-display font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'bg-[#171044] text-[#D8F500] shadow-lg scale-105'
-                : 'bg-white text-[#171044] hover:bg-[#171044]/10'
+            onClick={() => setActiveTab('development')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'development'
+                ? 'bg-[#171044] text-white shadow-sm'
+                : 'text-[#171044]/70 hover:text-[#171044]'
             }`}
           >
-            {tab.icon}
-            <span>{tab.label}</span>
+            <TrendingUp size={14} />
+            <span>Development Overview</span>
           </button>
-        ))}
+          <button
+            onClick={() => setActiveTab('assessments')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'assessments'
+                ? 'bg-[#171044] text-white shadow-sm'
+                : 'text-[#171044]/70 hover:text-[#171044]'
+            }`}
+          >
+            <Zap size={14} />
+            <span>Skill History ({assessmentHistory.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('feedback')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'feedback'
+                ? 'bg-[#171044] text-white shadow-sm'
+                : 'text-[#171044]/70 hover:text-[#171044]'
+            }`}
+          >
+            <MessageSquare size={14} />
+            <span>Coach Feedback ({feedback.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('goals')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'goals'
+                ? 'bg-[#171044] text-white shadow-sm'
+                : 'text-[#171044]/70 hover:text-[#171044]'
+            }`}
+          >
+            <Target size={14} />
+            <span>Milestones & Goals ({goals.length})</span>
+          </button>
+        </div>
       </div>
 
-      {/* TAB CONTENTS */}
-      <AnimatePresence mode="wait">
-        {/* 1. PERFORMANCE TAB */}
-        {activeTab === 'performance' && (
-          <motion.div
-            key="performance"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-8"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Radar Chart Card */}
-              <div className="lg:col-span-6 bg-[#171044] text-white p-8 rounded-[2.5rem] shadow-xl flex flex-col items-center justify-center space-y-6">
-                <div className="w-full flex items-center justify-between">
-                  <h3 className="text-xl font-black font-display uppercase tracking-tight text-white">
-                    Performance Spider Web <CrossAccent color="lime" size="sm" />
-                  </h3>
-                  <span className="text-xs text-[#D8F500] font-bold">Latest Q3 Telemetry</span>
-                </div>
-                <AthletiqRadarChart metrics={radarMetrics} size={310} colorScheme="lime" />
-              </div>
-
-              {/* Category Breakdown & Trend Line */}
-              <div className="lg:col-span-6 space-y-6">
-                <Card variant="standard" className="p-8 space-y-6">
-                  <h3 className="text-xl font-black font-display text-[#171044] uppercase tracking-tight">
-                    Biometric & Performance Categories
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-[#F7F1E8] rounded-2xl space-y-1 border border-[#171044]/5">
-                      <div className="text-xs font-extrabold uppercase text-[#171044]/60">Top Sprint Velocity</div>
-                      <div className="text-3xl font-black font-display text-[#FF5A00]">32.4 km/h</div>
-                      <div className="text-[10px] font-bold text-emerald-600">Top 1% Academy Record</div>
-                    </div>
-                    <div className="p-4 bg-[#F7F1E8] rounded-2xl space-y-1 border border-[#171044]/5">
-                      <div className="text-xs font-extrabold uppercase text-[#171044]/60">VO2 Max Score</div>
-                      <div className="text-3xl font-black font-display text-[#171044]">58.2 ml/kg</div>
-                      <div className="text-[10px] font-bold text-[#4B2A9B]">Elite Endurance</div>
-                    </div>
-                    <div className="p-4 bg-[#F7F1E8] rounded-2xl space-y-1 border border-[#171044]/5">
-                      <div className="text-xs font-extrabold uppercase text-[#171044]/60">Vertical Leap</div>
-                      <div className="text-3xl font-black font-display text-[#171044]">64 cm</div>
-                      <div className="text-[10px] font-bold text-[#FF5A00]">+4cm this season</div>
-                    </div>
-                    <div className="p-4 bg-[#F7F1E8] rounded-2xl space-y-1 border border-[#171044]/5">
-                      <div className="text-xs font-extrabold uppercase text-[#171044]/60">Match Intensity Index</div>
-                      <div className="text-3xl font-black font-display text-[#4B2A9B]">94 / 100</div>
-                      <div className="text-[10px] font-bold text-emerald-600">High Work Rate</div>
-                    </div>
-                  </div>
-                </Card>
-
-                {/* Historical Progression Graph */}
-                <Card variant="standard" className="p-8 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-black font-display text-[#171044] uppercase tracking-tight">
-                      Rating Progression (2026)
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto px-6 lg:px-12 mt-8 space-y-8">
+        {activeTab === 'development' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left 2 Cols: Radar Spider Chart & Category Breakdown */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card variant="standard" className="p-6">
+                <div className="flex items-center justify-between mb-4 border-b border-[#171044]/10 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold font-display text-[#171044]">
+                      Skill Radar Matrix
                     </h3>
-                    <span className="text-xs font-black text-[#FF5A00]">+3 OVR Gain</span>
+                    <p className="text-xs text-[#171044]/60">
+                      Multi-dimensional performance evaluation across 4 pillars
+                    </p>
                   </div>
-                  <AthletiqLineChart
-                    points={[
-                      { label: 'May', value: 86 },
-                      { label: 'Jun', value: 87 },
-                      { label: 'Jul', value: 88 },
-                      { label: 'Aug', value: 89 },
-                    ]}
-                    height={130}
-                    colorScheme="orange"
-                  />
-                </Card>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 2. SKILLS TAB */}
-        {activeTab === 'skills' && (
-          <motion.div
-            key="skills"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-8"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Detailed Sub-Skills Breakdown */}
-              <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-                    Technical & Physical Attributes <CrossAccent color="orange" size="sm" />
-                  </h3>
-                  <span className="text-xs font-bold text-[#4B2A9B]">Evaluated by Coach David Vance</span>
+                  {latestAssessment && (
+                    <span className="text-xs text-[#171044]/60 font-semibold flex items-center gap-1">
+                      <Clock size={12} />
+                      Latest: {new Date(latestAssessment.date).toLocaleDateString()}
+                    </span>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {[
-                    { label: 'Pace & Acceleration', score: latestAssessment?.subSkills.pace ?? 94, color: '#FF5A00' },
-                    { label: 'Shooting & Finishing', score: latestAssessment?.subSkills.shooting ?? 91, color: '#171044' },
-                    { label: 'Dribbling & Control', score: latestAssessment?.subSkills.dribbling ?? 93, color: '#D8F500' },
-                    { label: 'Stamina & Recovery', score: latestAssessment?.subSkills.stamina ?? 88, color: '#4B2A9B' },
-                    { label: 'Passing & Distribution', score: latestAssessment?.subSkills.passing ?? 84, color: '#171044' },
-                    { label: 'Defending & Tackling', score: latestAssessment?.subSkills.defending ?? 70, color: '#FF5A00' },
-                    { label: 'Tactical Decision Making', score: latestAssessment?.subSkills.decisionMaking ?? 87, color: '#4B2A9B' },
-                    { label: 'Leadership & Work Rate', score: latestAssessment?.subSkills.workRate ?? 95, color: '#D8F500' },
-                  ].map((skill, idx) => (
-                    <div key={idx} className="space-y-2 p-4 bg-[#F7F1E8] rounded-2xl">
-                      <div className="flex justify-between items-center text-xs font-black font-display uppercase text-[#171044]">
-                        <span>{skill.label}</span>
-                        <span className="text-sm font-black text-[#FF5A00]">{skill.score}</span>
+                {skillCategoryAverages ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div className="flex justify-center p-2 bg-[#171044] rounded-2xl">
+                      <AthletiqRadarChart metrics={radarMetrics} size={280} colorScheme="orange" />
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="p-3 bg-[#FAF8F5] rounded-xl flex justify-between items-center">
+                        <span className="text-xs font-bold text-[#171044]">Technical Pillar</span>
+                        <span className="font-bold text-sm text-[#FF5A00] font-display">
+                          {skillCategoryAverages.technical} / 10
+                        </span>
                       </div>
-                      <div className="h-3 bg-[#171044]/10 rounded-full overflow-hidden">
-                        <motion.div
-                          className="h-full rounded-full bg-[#FF5A00]"
-                          initial={{ width: '0%' }}
-                          animate={{ width: `${skill.score}%` }}
-                          transition={{ duration: 0.8, delay: idx * 0.05 }}
+                      <div className="p-3 bg-[#FAF8F5] rounded-xl flex justify-between items-center">
+                        <span className="text-xs font-bold text-[#171044]">Physical Pillar</span>
+                        <span className="font-bold text-sm text-[#FF5A00] font-display">
+                          {skillCategoryAverages.physical} / 10
+                        </span>
+                      </div>
+                      <div className="p-3 bg-[#FAF8F5] rounded-xl flex justify-between items-center">
+                        <span className="text-xs font-bold text-[#171044]">Tactical Pillar</span>
+                        <span className="font-bold text-sm text-[#FF5A00] font-display">
+                          {skillCategoryAverages.tactical} / 10
+                        </span>
+                      </div>
+                      <div className="p-3 bg-[#FAF8F5] rounded-xl flex justify-between items-center">
+                        <span className="text-xs font-bold text-[#171044]">Mental Pillar</span>
+                        <span className="font-bold text-sm text-[#FF5A00] font-display">
+                          {skillCategoryAverages.mental} / 10
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-[#171044]/60 space-y-3">
+                    <Zap size={32} className="mx-auto text-[#171044]/30" />
+                    <p className="text-sm font-semibold">No skill assessments recorded yet.</p>
+                    {isStaff && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setShowAssessmentModal(true)}
+                      >
+                        Record First Assessment
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </Card>
+
+              {/* Latest Assessment Details */}
+              {latestAssessment && (
+                <Card variant="standard" className="p-6">
+                  <h4 className="font-bold font-display text-base text-[#171044] mb-4">
+                    Latest Metric Breakdown
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">PACE</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.pace}/10</span>
+                    </div>
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">SHOOTING</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.shooting}/10</span>
+                    </div>
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">PASSING</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.passing}/10</span>
+                    </div>
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">DRIBBLING</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.dribbling}/10</span>
+                    </div>
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">DEFENDING</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.defending}/10</span>
+                    </div>
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">STAMINA</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.stamina}/10</span>
+                    </div>
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">AGILITY</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.agility}/10</span>
+                    </div>
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">DECISION</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.decisionMaking}/10</span>
+                    </div>
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">LEADERSHIP</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.leadership}/10</span>
+                    </div>
+                    <div className="p-2.5 bg-white border border-[#171044]/10 rounded-xl">
+                      <span className="text-[#171044]/60 block text-[10px] font-bold">WORK RATE</span>
+                      <span className="font-bold text-sm text-[#171044]">{latestAssessment.workRate}/10</span>
+                    </div>
+                  </div>
+                  {latestAssessment.note && (
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                      <span className="font-bold block mb-1">Coach Assessment Notes:</span>
+                      <p>{latestAssessment.note}</p>
+                    </div>
+                  )}
+                </Card>
+              )}
+            </div>
+
+            {/* Right Column: Attendance & Active Goals */}
+            <div className="space-y-6">
+              {/* Attendance Card */}
+              <Card variant="standard" className="p-6 text-center space-y-4">
+                <h4 className="font-bold font-display text-base text-[#171044]">
+                  Training Attendance Rate
+                </h4>
+                <div className="p-4 bg-[#171044] rounded-2xl flex justify-center text-white">
+                  <AthletiqProgressGauge
+                    score={attendanceRate ?? 0}
+                    label="Punctuality"
+                    colorScheme="orange"
+                    size={140}
+                  />
+                </div>
+                <p className="text-xs text-[#171044]/70">
+                  Calculated across all logged squads. Excused absences are excluded from rate calculation.
+                </p>
+              </Card>
+
+              {/* Active Goals Preview */}
+              <Card variant="standard" className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold font-display text-base text-[#171044]">
+                    Active Targets
+                  </h4>
+                  {isStaff && (
+                    <button
+                      onClick={handleOpenCreateGoal}
+                      className="text-xs font-bold text-[#FF5A00] hover:underline"
+                    >
+                      + Add Goal
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {goals.slice(0, 3).map((g) => (
+                    <div
+                      key={g.id}
+                      className="p-3 bg-white border border-[#171044]/10 rounded-xl space-y-2"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-[#171044]">{g.title}</span>
+                        <span className="font-semibold text-[#FF5A00]">{g.progress}%</span>
+                      </div>
+                      <div className="w-full bg-[#171044]/10 h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-[#FF5A00] h-full transition-all duration-300"
+                          style={{ width: `${g.progress}%` }}
                         />
                       </div>
                     </div>
                   ))}
+                  {goals.length === 0 && (
+                    <p className="text-xs text-[#171044]/60 text-center py-4">
+                      No active milestones assigned.
+                    </p>
+                  )}
                 </div>
-              </div>
-
-              {/* Strengths & Growth Areas */}
-              <div className="lg:col-span-4 space-y-6">
-                <Card variant="standard" className="p-7 space-y-4 bg-[#171044] text-white">
-                  <h4 className="text-lg font-black font-display uppercase tracking-tight text-[#D8F500]">
-                    Key Strengths <CrossAccent color="lime" size="sm" />
-                  </h4>
-                  <ul className="space-y-2">
-                    {latestAssessment?.keyStrengths.map((str, i) => (
-                      <li key={i} className="flex items-center gap-2 text-xs font-bold text-white bg-white/10 p-3 rounded-xl">
-                        <CheckCircle2 size={16} className="text-[#D8F500] shrink-0" />
-                        <span>{str}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-
-                <Card variant="standard" className="p-7 space-y-4">
-                  <h4 className="text-lg font-black font-display uppercase tracking-tight text-[#FF5A00]">
-                    Target Development Areas
-                  </h4>
-                  <ul className="space-y-2">
-                    {latestAssessment?.growthAreas.map((area, i) => (
-                      <li key={i} className="flex items-center gap-2 text-xs font-bold text-[#171044] bg-[#F7F1E8] p-3 rounded-xl">
-                        <Target size={16} className="text-[#FF5A00] shrink-0" />
-                        <span>{area}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              </div>
+              </Card>
             </div>
-          </motion.div>
+          </div>
         )}
 
-        {/* 3. GOALS TAB */}
-        {activeTab === 'goals' && (
-          <motion.div
-            key="goals"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-6"
-          >
-            <div className="flex justify-between items-center">
+        {/* Tab 2: Skill Assessments History */}
+        {activeTab === 'assessments' && (
+          <Card variant="standard" className="p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#171044]/10 pb-4">
               <div>
-                <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-                  Player Development Goals <CrossAccent color="orange" size="sm" />
+                <h3 className="text-lg font-bold font-display text-[#171044]">
+                  Historical Skill Assessments
                 </h3>
-                <p className="text-xs text-[#171044]/60">Short-term & long-term development targets set by player & coach.</p>
+                <p className="text-xs text-[#171044]/60">
+                  Audit log of past evaluations (up to 50 assessments)
+                </p>
               </div>
-              <Button variant="primary" size="sm" onClick={() => setShowAddGoalModal(true)}>
-                <Plus size={16} /> Add Development Goal
-              </Button>
+              {isStaff && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowAssessmentModal(true)}
+                >
+                  <Plus size={14} className="mr-1.5" />
+                  New Assessment
+                </Button>
+              )}
             </div>
 
-            {/* Goals List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {profile.goals.map((goal) => (
-                <div key={goal.id} className="bg-white p-7 rounded-[2rem] border border-[#171044]/10 shadow-xl space-y-4">
-                  <div className="flex justify-between items-start">
-                    <span className="text-[10px] font-extrabold uppercase px-3 py-1 rounded-full bg-[#171044] text-[#D8F500]">
-                      {goal.category} Goal
-                    </span>
-                    <span
-                      className={`text-xs font-extrabold px-3 py-1 rounded-full ${
-                        goal.status === 'Completed'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {goal.status}
+            <div className="divide-y divide-[#171044]/10">
+              {assessmentHistory.map((ass) => (
+                <div key={ass.id} className="py-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-[#171044]">
+                        {new Date(ass.date).toLocaleDateString()}
+                      </span>
+                      <AthleticBadge variant="dark" className="text-xs">
+                        By: {ass.assessedBy.name}
+                      </AthleticBadge>
+                    </div>
+                    <span className="font-bold font-display text-[#FF5A00] text-base">
+                      {ass.overall} / 10
                     </span>
                   </div>
-
-                  <h4 className="text-lg font-black font-display text-[#171044]">{goal.title}</h4>
-
-                  {/* Progress Bar */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-black text-[#171044]">
-                      <span>Target Date: {goal.targetDate}</span>
-                      <span className="text-[#FF5A00]">{goal.progressPercentage}%</span>
-                    </div>
-                    <div className="h-3 bg-[#171044]/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#FF5A00] to-[#D8F500] rounded-full transition-all duration-500"
-                        style={{ width: `${goal.progressPercentage}%` }}
-                      />
-                    </div>
+                  <div className="grid grid-cols-4 gap-2 text-xs text-[#171044]/80">
+                    <div className="p-2 bg-[#FAF8F5] rounded-lg">Tech: {ass.categories.technical}</div>
+                    <div className="p-2 bg-[#FAF8F5] rounded-lg">Phys: {ass.categories.physical}</div>
+                    <div className="p-2 bg-[#FAF8F5] rounded-lg">Tact: {ass.categories.tactical}</div>
+                    <div className="p-2 bg-[#FAF8F5] rounded-lg">Ment: {ass.categories.mental}</div>
                   </div>
-
-                  {/* Checkpoints */}
-                  <div className="space-y-2 pt-2 border-t border-[#171044]/5">
-                    <div className="text-[11px] font-extrabold uppercase text-[#171044]/60">Checkpoints</div>
-                    {goal.checkpoints.map((cp, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-xs font-medium text-[#171044]">
-                        <CheckCircle2
-                          size={14}
-                          className={cp.completed ? 'text-emerald-500' : 'text-gray-300'}
-                        />
-                        <span className={cp.completed ? 'line-through text-gray-400' : ''}>{cp.text}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Simulate Progress Button */}
-                  {goal.status !== 'Completed' && (
-                    <button
-                      onClick={() => handleProgressUpdate(goal.id, goal.progressPercentage)}
-                      className="w-full py-2.5 bg-[#F7F1E8] hover:bg-[#FF5A00] hover:text-white text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-xl transition-all"
-                    >
-                      Update Progress (+15%)
-                    </button>
+                  {ass.note && (
+                    <p className="text-xs text-[#171044]/70 italic mt-1 bg-white p-2 border border-[#171044]/10 rounded-lg">
+                      "{ass.note}"
+                    </p>
                   )}
                 </div>
               ))}
+              {assessmentHistory.length === 0 && (
+                <p className="text-xs text-center py-8 text-[#171044]/60">
+                  No historical assessments available.
+                </p>
+              )}
             </div>
-
-            {/* Add Goal Modal */}
-            {showAddGoalModal && (
-              <div className="fixed inset-0 z-50 bg-[#171044]/80 backdrop-blur-md flex items-center justify-center p-4">
-                <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl space-y-6">
-                  <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-                    Add New Goal <CrossAccent color="orange" size="sm" />
-                  </h3>
-
-                  <form onSubmit={handleCreateGoal} className="space-y-4">
-                    <div>
-                      <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Goal Title</label>
-                      <input
-                        type="text"
-                        required
-                        value={newGoalTitle}
-                        onChange={(e) => setNewGoalTitle(e.target.value)}
-                        placeholder="e.g. Improve sprint acceleration..."
-                        className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl border border-[#171044]/10 text-sm font-bold text-[#171044] focus:outline-none focus:border-[#FF5A00]"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Category</label>
-                        <select
-                          value={newGoalCategory}
-                          onChange={(e) => setNewGoalCategory(e.target.value as any)}
-                          className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl border border-[#171044]/10 text-xs font-bold text-[#171044]"
-                        >
-                          <option value="Technical">Technical</option>
-                          <option value="Physical">Physical</option>
-                          <option value="Tactical">Tactical</option>
-                          <option value="Mental">Mental</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Target Date</label>
-                        <input
-                          type="date"
-                          value={newGoalDate}
-                          onChange={(e) => setNewGoalDate(e.target.value)}
-                          className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl border border-[#171044]/10 text-xs font-bold text-[#171044]"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                      <Button variant="outline" size="sm" type="button" onClick={() => setShowAddGoalModal(false)} className="flex-1">
-                        Cancel
-                      </Button>
-                      <Button variant="primary" size="sm" type="submit" className="flex-1">
-                        Create Goal
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-          </motion.div>
+          </Card>
         )}
 
-        {/* 4. FEEDBACK TAB */}
+        {/* Tab 3: Coach Feedback */}
         {activeTab === 'feedback' && (
-          <motion.div
-            key="feedback"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-6"
-          >
-            <div className="flex justify-between items-center">
+          <Card variant="standard" className="p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#171044]/10 pb-4">
               <div>
-                <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-                  Coach Feedback Stream <CrossAccent color="lime" size="sm" />
+                <h3 className="text-lg font-bold font-display text-[#171044]">
+                  Coach Guidance & Praise
                 </h3>
-                <p className="text-xs text-[#171044]/60">Continuous evaluations & technical advice from coaching staff.</p>
+                <p className="text-xs text-[#171044]/60">
+                  Actionable notes shared with athlete
+                </p>
               </div>
+              {isStaff && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowFeedbackModal(true)}
+                >
+                  <Plus size={14} className="mr-1.5" />
+                  Post Feedback
+                </Button>
+              )}
             </div>
 
             <div className="space-y-4">
-              {profile.feedback.map((fb) => (
-                <div key={fb.id} className="bg-white p-7 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <img src={fb.coachAvatar} alt={fb.coachName} className="w-12 h-12 rounded-2xl object-cover border-2 border-[#171044]" />
-                      <div>
-                        <h4 className="font-bold text-sm text-[#171044]">{fb.coachName}</h4>
-                        <span className="text-[10px] font-bold text-[#FF5A00] bg-[#FF5A00]/10 px-2.5 py-0.5 rounded-full">
-                          {fb.category}
-                        </span>
-                      </div>
+              {feedback.map((fb) => (
+                <div
+                  key={fb.id}
+                  className="p-4 bg-white border border-[#171044]/10 rounded-xl space-y-3"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#171044]">{fb.coach.name}</span>
+                      <AthleticBadge
+                        variant={
+                          fb.type === 'Praise'
+                            ? 'lime'
+                            : fb.type === 'Improvement'
+                            ? 'orange'
+                            : 'white'
+                        }
+                        className="text-[10px]"
+                      >
+                        {fb.type}
+                      </AthleticBadge>
                     </div>
-                    <span className="text-xs font-bold text-[#171044]/50">{fb.date}</span>
+                    <span className="text-[#171044]/50">
+                      {new Date(fb.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
 
-                  <div>
-                    <h5 className="font-black font-display text-base text-[#171044] mb-1">{fb.title}</h5>
-                    <p className="text-xs text-[#171044]/80 leading-relaxed bg-[#F7F1E8] p-4 rounded-2xl">{fb.message}</p>
-                  </div>
+                  <p className="text-xs text-[#171044] leading-relaxed whitespace-pre-wrap">
+                    {fb.text}
+                  </p>
 
-                  {/* Likes & Replies */}
-                  <div className="flex items-center justify-between pt-2">
-                    <button
-                      onClick={() => handleAcknowledge(fb.id)}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black transition-all ${
-                        fb.acknowledged
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-[#171044]/10 text-[#171044] hover:bg-[#171044] hover:text-white'
-                      }`}
-                    >
-                      <ThumbsUp size={14} />
-                      {fb.acknowledged ? `Acknowledged (${fb.likes})` : 'Acknowledge Feedback'}
-                    </button>
-                    {fb.replies && fb.replies.length > 0 && (
-                      <span className="text-xs font-bold text-[#4B2A9B]">
-                        {fb.replies.length} Reply from Athlete
+                  <div className="flex items-center justify-between pt-2 border-t border-[#171044]/5 text-xs">
+                    {fb.acknowledgedAt ? (
+                      <span className="text-emerald-700 font-semibold flex items-center gap-1.5 text-[11px]">
+                        <CheckCircle2 size={13} />
+                        Acknowledged on {new Date(fb.acknowledgedAt).toLocaleDateString()}
+                      </span>
+                    ) : isSelf ? (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => handleAcknowledgeFeedback(fb.id)}
+                        className="text-xs py-1 px-3"
+                      >
+                        Acknowledge Note
+                      </Button>
+                    ) : (
+                      <span className="text-amber-700 font-semibold text-[11px]">
+                        Pending Athlete Acknowledgment
                       </span>
                     )}
                   </div>
                 </div>
               ))}
+              {feedback.length === 0 && (
+                <p className="text-xs text-center py-8 text-[#171044]/60">
+                  No feedback notes recorded yet.
+                </p>
+              )}
             </div>
-          </motion.div>
+          </Card>
         )}
 
-        {/* 5. ATTENDANCE TAB */}
-        {activeTab === 'attendance' && (
-          <motion.div
-            key="attendance"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-8"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Attendance Summary Meter */}
-              <div className="lg:col-span-4 bg-[#171044] text-white p-8 rounded-[2.5rem] shadow-xl flex flex-col items-center justify-center space-y-6">
-                <h3 className="text-xl font-black font-display uppercase tracking-tight text-white">
-                  Attendance Score <CrossAccent color="lime" size="sm" />
+        {/* Tab 4: Athlete Goals */}
+        {activeTab === 'goals' && (
+          <Card variant="standard" className="p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#171044]/10 pb-4">
+              <div>
+                <h3 className="text-lg font-bold font-display text-[#171044]">
+                  Goals & Milestones
                 </h3>
-                <AthletiqProgressGauge score={96} label="Season Attendance" size={170} colorScheme="lime" />
-                <div className="flex items-center gap-2 bg-emerald-950 text-emerald-400 px-4 py-2 rounded-full text-xs font-extrabold border border-emerald-500/30">
-                  <Flame size={16} /> 12 Session Streak 🔥
-                </div>
+                <p className="text-xs text-[#171044]/60">
+                  Individual targets with progress tracking
+                </p>
               </div>
-
-              {/* Attendance Log Table */}
-              <div className="lg:col-span-8 bg-white p-8 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-                    Session Log History
-                  </h3>
-                  <span className="text-xs font-bold text-[#171044]/60">Total Sessions: {profile.attendanceHistory.length}</span>
-                </div>
-
-                <div className="space-y-3">
-                  {profile.attendanceHistory.map((att) => (
-                    <div key={att.id} className="flex items-center justify-between p-4 bg-[#F7F1E8] rounded-2xl border border-[#171044]/5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#171044] text-[#D8F500] flex items-center justify-center font-black text-xs">
-                          {att.type[0]}
-                        </div>
-                        <div>
-                          <div className="font-bold text-sm text-[#171044]">{att.sessionTitle}</div>
-                          <div className="text-[10px] text-[#171044]/60">{att.date} • {att.durationMinutes} mins</div>
-                        </div>
-                      </div>
-
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-black ${
-                          att.status === 'Present'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : att.status === 'Late'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {att.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {isStaff && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleOpenCreateGoal}
+                >
+                  <Plus size={14} className="mr-1.5" />
+                  Assign New Goal
+                </Button>
+              )}
             </div>
-          </motion.div>
-        )}
 
-        {/* 6. DEVELOPMENT TIMELINE TAB */}
-        {activeTab === 'development' && (
-          <motion.div
-            key="development"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-6"
-          >
-            <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-              Development History Timeline <CrossAccent color="orange" size="sm" />
-            </h3>
-
-            <div className="relative border-l-4 border-[#171044]/15 ml-6 space-y-8 pl-8 pt-2">
-              {profile.timeline.map((event, idx) => (
-                <div key={event.id} className="relative group">
-                  {/* Timeline Dot */}
-                  <div className="absolute -left-[42px] top-1 w-6 h-6 rounded-full bg-[#FF5A00] border-4 border-white shadow-md" />
-
-                  <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-lg space-y-2 max-w-2xl">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-extrabold text-[#4B2A9B] uppercase tracking-wider">{event.date}</span>
-                      {event.badge && (
-                        <span className="text-[10px] font-black bg-[#171044] text-[#D8F500] px-3 py-1 rounded-full">
-                          {event.badge}
-                        </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {goals.map((g) => (
+                <div
+                  key={g.id}
+                  className="p-4 bg-white border border-[#171044]/10 rounded-xl space-y-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-bold text-sm text-[#171044]">{g.title}</h4>
+                      {g.description && (
+                        <p className="text-xs text-[#171044]/70 mt-0.5">{g.description}</p>
                       )}
                     </div>
-                    <h4 className="text-lg font-black font-display text-[#171044]">{event.title}</h4>
-                    <p className="text-xs text-[#171044]/70">{event.description}</p>
+                    <AthleticBadge
+                      variant={
+                        g.status === 'Achieved'
+                          ? 'lime'
+                          : g.status === 'Active'
+                          ? 'orange'
+                          : 'white'
+                      }
+                      className="text-[10px]"
+                    >
+                      {g.status}
+                    </AthleticBadge>
                   </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
 
-        {/* 7. ACHIEVEMENTS TAB */}
-        {activeTab === 'achievements' && (
-          <motion.div
-            key="achievements"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-6"
-          >
-            <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-              Trophy Cabinet & Badges <CrossAccent color="lime" size="sm" />
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {profile.achievements.map((ach) => (
-                <div key={ach.id} className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-xl space-y-4 text-center group hover:-translate-y-2 transition-transform">
-                  <div className="w-16 h-16 rounded-2xl bg-[#171044] text-white flex items-center justify-center text-3xl mx-auto shadow-md group-hover:scale-110 transition-transform">
-                    {ach.icon}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-[#171044]/60 font-semibold">Progress</span>
+                      <span className="font-bold text-[#FF5A00]">{g.progress}%</span>
+                    </div>
+                    <div className="w-full bg-[#171044]/10 h-2.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-[#FF5A00] h-full transition-all duration-300"
+                        style={{ width: `${g.progress}%` }}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-[#FF5A00]/10 text-[#FF5A00]">
-                      {ach.tag}
+
+                  <div className="flex items-center justify-between pt-2 border-t border-[#171044]/10 text-xs">
+                    <span className="text-[#171044]/60 font-semibold flex items-center gap-1">
+                      <Calendar size={12} />
+                      Due: {new Date(g.targetDate).toLocaleDateString()}
                     </span>
-                    <h4 className="font-black font-display text-base text-[#171044] mt-1">{ach.title}</h4>
-                    <p className="text-xs text-[#171044]/60 mt-1">{ach.subtitle}</p>
+                    {(isStaff || isSelf) && (
+                      <button
+                        onClick={() => handleOpenEditGoal(g)}
+                        className="text-xs font-bold text-[#FF5A00] hover:underline"
+                      >
+                        {isSelf ? 'Update Progress' : 'Edit Goal'}
+                      </button>
+                    )}
                   </div>
-                  <div className="text-[10px] font-bold text-[#171044]/40 pt-2 border-t border-[#171044]/5">{ach.date}</div>
                 </div>
               ))}
+              {goals.length === 0 && (
+                <div className="col-span-2 text-center py-8 text-[#171044]/60 text-xs">
+                  No development goals currently assigned.
+                </div>
+              )}
             </div>
-          </motion.div>
+          </Card>
         )}
-      </AnimatePresence>
+      </div>
+
+      {/* Modals */}
+      {showAssessmentModal && (
+        <AssessmentModal
+          isOpen={showAssessmentModal}
+          onClose={() => setShowAssessmentModal(false)}
+          onSuccess={fetchDevelopmentData}
+          athleteId={devData.athlete.id}
+          athleteName={devData.athlete.name}
+        />
+      )}
+
+      {showFeedbackModal && (
+        <FeedbackModal
+          isOpen={showFeedbackModal}
+          onClose={() => setShowFeedbackModal(false)}
+          onSuccess={fetchDevelopmentData}
+          athleteId={devData.athlete.id}
+          athleteName={devData.athlete.name}
+        />
+      )}
+
+      {showGoalModal && (
+        <GoalModal
+          isOpen={showGoalModal}
+          onClose={() => {
+            setShowGoalModal(false);
+            setEditingGoal(null);
+          }}
+          onSuccess={fetchDevelopmentData}
+          athleteId={devData.athlete.id}
+          goal={editingGoal}
+          role={role || undefined}
+        />
+      )}
     </div>
   );
 };

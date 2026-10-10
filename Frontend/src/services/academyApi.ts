@@ -910,6 +910,116 @@ export const academyApi = {
     });
     return normalizeSingleResponse<{ success: boolean; message: string }>(res);
   },
+
+  // ==================== ATHLETE DEVELOPMENT (STEP 7) ====================
+  createSkillAssessment: async (
+    athleteId: string,
+    payload: CreateSkillAssessmentInput
+  ): Promise<SkillAssessmentItem | null> => {
+    const res = await apiClient(`/athletes/${athleteId}/assessments`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return normalizeSingleResponse<SkillAssessmentItem>(res);
+  },
+
+  getAthleteAssessments: async (
+    athleteId: string
+  ): Promise<SkillAssessmentItem[]> => {
+    const res = await apiClient(`/athletes/${athleteId}/assessments`);
+    return normalizeListResponse<SkillAssessmentItem>(res).items;
+  },
+
+  getAthleteSelfAssessments: async (): Promise<SkillAssessmentItem[]> => {
+    const res = await apiClient('/athletes/me/assessments');
+    return normalizeListResponse<SkillAssessmentItem>(res).items;
+  },
+
+  createCoachFeedback: async (
+    payload: CreateCoachFeedbackInput
+  ): Promise<CoachFeedbackItem | null> => {
+    const res = await apiClient('/feedback', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return normalizeSingleResponse<CoachFeedbackItem>(res);
+  },
+
+  getAthleteFeedback: async (
+    athleteId: string
+  ): Promise<CoachFeedbackItem[]> => {
+    const res = await apiClient(`/athletes/${athleteId}/feedback`);
+    return normalizeListResponse<CoachFeedbackItem>(res).items;
+  },
+
+  getAthleteSelfFeedback: async (): Promise<CoachFeedbackItem[]> => {
+    const res = await apiClient('/feedback/me');
+    return normalizeListResponse<CoachFeedbackItem>(res).items;
+  },
+
+  acknowledgeFeedback: async (
+    feedbackId: string
+  ): Promise<CoachFeedbackItem | null> => {
+    const res = await apiClient(`/feedback/${feedbackId}/acknowledge`, {
+      method: 'PATCH',
+    });
+    return normalizeSingleResponse<CoachFeedbackItem>(res);
+  },
+
+  deleteCoachFeedback: async (
+    feedbackId: string
+  ): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/feedback/${feedbackId}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
+  },
+
+  createAthleteGoal: async (
+    athleteId: string,
+    payload: CreateAthleteGoalInput
+  ): Promise<AthleteGoalItem | null> => {
+    const res = await apiClient(`/athletes/${athleteId}/goals`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return normalizeSingleResponse<AthleteGoalItem>(res);
+  },
+
+  getAthleteGoals: async (
+    athleteId: string
+  ): Promise<AthleteGoalItem[]> => {
+    const res = await apiClient(`/athletes/${athleteId}/goals`);
+    return normalizeListResponse<AthleteGoalItem>(res).items;
+  },
+
+  getAthleteSelfGoals: async (): Promise<AthleteGoalItem[]> => {
+    const res = await apiClient('/goals/me');
+    return normalizeListResponse<AthleteGoalItem>(res).items;
+  },
+
+  updateAthleteGoal: async (
+    goalId: string,
+    payload: UpdateAthleteGoalInput
+  ): Promise<AthleteGoalItem | null> => {
+    const res = await apiClient(`/goals/${goalId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return normalizeSingleResponse<AthleteGoalItem>(res);
+  },
+
+  getAthleteDevelopment: async (
+    athleteId: string
+  ): Promise<AthleteDevelopmentView | null> => {
+    const res = await apiClient(`/athletes/${athleteId}/development`);
+    return normalizeSingleResponse<AthleteDevelopmentView>(res);
+  },
+
+  getAthleteSelfDevelopment: async (): Promise<AthleteDevelopmentView | null> => {
+    const res = await apiClient('/athletes/me/development');
+    return normalizeSingleResponse<AthleteDevelopmentView>(res);
+  },
 };
 
 // Announcement & Document Interfaces
@@ -1003,6 +1113,113 @@ export interface DocumentQuery extends PaginationQuery {
   visibility?: string;
   team?: string;
   search?: string;
+}
+
+// Development Interfaces
+export interface SkillCategories {
+  technical: number;
+  physical: number;
+  tactical: number;
+  mental: number;
+}
+
+export interface SkillAssessmentItem {
+  id: string;
+  athlete: string;
+  assessedBy: { id: string; name: string };
+  date: string;
+  pace: number;
+  shooting: number;
+  passing: number;
+  dribbling: number;
+  defending: number;
+  stamina: number;
+  agility: number;
+  decisionMaking: number;
+  leadership: number;
+  workRate: number;
+  categories: SkillCategories;
+  overall: number;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSkillAssessmentInput {
+  pace: number;
+  shooting: number;
+  passing: number;
+  dribbling: number;
+  defending: number;
+  stamina: number;
+  agility: number;
+  decisionMaking: number;
+  leadership: number;
+  workRate: number;
+  note?: string;
+  date?: string;
+}
+
+export interface CoachFeedbackItem {
+  id: string;
+  athlete: string;
+  coach: { id: string; name: string };
+  text: string;
+  type: 'Praise' | 'Improvement' | 'General';
+  acknowledgedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCoachFeedbackInput {
+  athlete: string;
+  text: string;
+  type: 'Praise' | 'Improvement' | 'General';
+}
+
+export interface AthleteGoalItem {
+  id: string;
+  athlete: string;
+  title: string;
+  description?: string;
+  targetDate: string;
+  status: 'Active' | 'Achieved' | 'Dropped';
+  progress: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAthleteGoalInput {
+  title: string;
+  description?: string;
+  targetDate: string;
+  status?: 'Active' | 'Achieved' | 'Dropped';
+  progress?: number;
+}
+
+export interface UpdateAthleteGoalInput {
+  title?: string;
+  description?: string;
+  targetDate?: string;
+  status?: 'Active' | 'Achieved' | 'Dropped';
+  progress?: number;
+}
+
+export interface AthleteDevelopmentView {
+  athlete: {
+    id: string;
+    name: string;
+    jerseyNumber?: number;
+    position?: string;
+    teamName?: string;
+    sportName?: string;
+  };
+  latestAssessment: SkillAssessmentItem | null;
+  skillCategoryAverages: (SkillCategories & { overall: number }) | null;
+  attendanceRate: number | null;
+  assessmentHistory: SkillAssessmentItem[];
+  feedback: CoachFeedbackItem[];
+  goals: AthleteGoalItem[];
 }
 
 

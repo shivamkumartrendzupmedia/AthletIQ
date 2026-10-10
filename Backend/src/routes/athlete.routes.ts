@@ -1,6 +1,7 @@
 import { Router, type Request } from 'express';
 import { athleteController } from '../controllers/athlete.controller.js';
 import { trainingController } from '../controllers/training.controller.js';
+import { developmentController } from '../controllers/development.controller.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { validate } from '../middlewares/validate.js';
@@ -42,6 +43,18 @@ router.patch(
   requireRole('Athlete'),
   validate(updateAthleteSelfSchema),
   athleteController.updateAthleteSelf
+);
+
+router.get(
+  '/me/assessments',
+  requireRole('Athlete'),
+  developmentController.getAthleteSelfAssessments
+);
+
+router.get(
+  '/me/development',
+  requireRole('Athlete'),
+  developmentController.getAthleteSelfDevelopment
 );
 
 // 2. List athletes (Admin, Coach) — Organizer explicitly gets 403
@@ -92,6 +105,48 @@ router.get(
   validateObjectId('id'),
   validate(athleteAttendanceQuerySchema, 'query'),
   trainingController.getAthleteAttendance
+);
+
+router.post(
+  '/:id/assessments',
+  requireRole('Admin', 'Coach'),
+  validateObjectId('id'),
+  developmentController.createAssessment
+);
+
+router.get(
+  '/:id/assessments',
+  requireRole('Admin', 'Coach', 'Athlete'),
+  validateObjectId('id'),
+  developmentController.getAthleteAssessments
+);
+
+router.get(
+  '/:id/feedback',
+  requireRole('Admin', 'Coach', 'Athlete'),
+  validateObjectId('id'),
+  developmentController.getAthleteFeedback
+);
+
+router.post(
+  '/:id/goals',
+  requireRole('Admin', 'Coach'),
+  validateObjectId('id'),
+  developmentController.createGoal
+);
+
+router.get(
+  '/:id/goals',
+  requireRole('Admin', 'Coach', 'Athlete'),
+  validateObjectId('id'),
+  developmentController.getAthleteGoals
+);
+
+router.get(
+  '/:id/development',
+  requireRole('Admin', 'Coach', 'Athlete'),
+  validateObjectId('id'),
+  developmentController.getAthleteDevelopment
 );
 
 router.get(

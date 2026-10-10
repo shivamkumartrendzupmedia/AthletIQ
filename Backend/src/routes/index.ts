@@ -10,6 +10,8 @@ import { athleteRoutes } from './athlete.routes.js';
 import { trainingSessionRoutes } from './training-session.routes.js';
 import { announcementRoutes } from './announcement.routes.js';
 import { documentRoutes } from './document.routes.js';
+import { feedbackRoutes } from './feedback.routes.js';
+import { goalRoutes } from './goal.routes.js';
 
 const router = Router();
 
@@ -33,5 +35,7 @@ router.use('/athletes', athleteRoutes);
 router.use('/training-sessions', trainingSessionRoutes);
 router.use('/announcements', announcementRoutes);
 router.use('/documents', documentRoutes);
+router.use('/feedback', feedbackRoutes);
+router.use('/goals', goalRoutes);
 
 export const apiRouter = router;

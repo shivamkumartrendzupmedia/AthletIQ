@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { calculateAttendanceRate } from '../utils/attendance.util.js';
 import { TrainingSession, type ITrainingSession } from '../models/TrainingSession.js';
 import { Attendance, type IAttendance } from '../models/Attendance.js';
 import { Team } from '../models/Team.js';
@@ -262,8 +263,7 @@ export class TrainingService {
       }
 
       for (const sum of summaryMap.values()) {
-        const denom = sum.present + sum.late + sum.absent;
-        sum.attendanceRate = denom > 0 ? Math.round(((sum.present + sum.late) / denom) * 1000) / 10 : null;
+        sum.attendanceRate = calculateAttendanceRate(sum.present, sum.late, sum.absent);
       }
     } else if (user.role === 'Athlete' && (scope as { athleteId?: Types.ObjectId }).athleteId) {
       const athleteRecords = await Attendance.find({
@@ -354,8 +354,7 @@ export class TrainingService {
         else if (r._id === 'Absent') summary.absent += r.count;
         summary.total += r.count;
       }
-      const denom = summary.present + summary.late + summary.absent;
-      summary.attendanceRate = denom > 0 ? Math.round(((summary.present + summary.late) / denom) * 1000) / 10 : null;
+      summary.attendanceRate = calculateAttendanceRate(summary.present, summary.late, summary.absent);
     } else if (user.role === 'Athlete' && (scope as { athleteId?: Types.ObjectId }).athleteId) {
       const ar = await Attendance.findOne({
         session: session._id,
@@ -743,9 +742,7 @@ export class TrainingService {
       else if (item.status === 'Excused') summary.excused++;
       else if (item.status === 'Absent') summary.absent++;
     }
-    const denom = summary.present + summary.late + summary.absent;
-    summary.attendanceRate =
-      denom > 0 ? Math.round(((summary.present + summary.late) / denom) * 1000) / 10 : null;
+    summary.attendanceRate = calculateAttendanceRate(summary.present, summary.late, summary.absent);
 
     return {
       session: {
@@ -942,9 +939,7 @@ export class TrainingService {
 
     // FORMULA: attendanceRate = (present + late) / (present + late + absent) * 100
     // Excused is not counted in denominator or numerator.
-    const denominator = summary.present + summary.late + summary.absent;
-    summary.attendanceRate =
-      denominator > 0 ? Math.round(((summary.present + summary.late) / denominator) * 1000) / 10 : null;
+    summary.attendanceRate = calculateAttendanceRate(summary.present, summary.late, summary.absent);
 
     const items = records.map((r) => {
       const sess = r.session as unknown as ITrainingSession | null;

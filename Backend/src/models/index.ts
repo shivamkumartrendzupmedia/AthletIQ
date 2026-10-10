@@ -23,5 +23,18 @@ export {
   type IAnnouncement,
   type IAnnouncementAudience,
 } from './Announcement.js';
+export {
+  SkillAssessment,
+  type ISkillAssessment,
+  type ISkillCategories,
+} from './SkillAssessment.js';
+export {
+  CoachFeedback,
+  type ICoachFeedback,
+} from './CoachFeedback.js';
+export {
+  AthleteGoal,
+  type IAthleteGoal,
+} from './AthleteGoal.js';
 export { AuditLog, type IAuditLog } from './AuditLog.js';
 

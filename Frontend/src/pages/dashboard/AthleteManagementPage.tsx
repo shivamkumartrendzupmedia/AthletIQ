@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
 import {
   Plus,
@@ -10,6 +11,8 @@ import {
   CheckCircle2,
   X,
   FileText,
+  TrendingUp,
+  ExternalLink,
 } from 'lucide-react';
 import { SafeImage } from '../../components/SafeImage';
 import { useAuth } from '../../context/AuthContext';
@@ -485,6 +488,14 @@ export const AthleteManagementPage: React.FC = () => {
                             <Eye size={16} />
                           </button>
 
+                          <Link
+                            to={`/athlete/${ath.id}`}
+                            className="p-1.5 text-[#171044]/70 hover:text-[#FF5A00] hover:bg-[#FF5A00]/10 rounded-lg transition-colors"
+                            title="View development profile"
+                          >
+                            <TrendingUp size={16} />
+                          </Link>
+
                           {(isAdmin || isCoach) && (
                             <button
                               onClick={() => openEditModal(ath)}
@@ -619,7 +630,14 @@ export const AthleteManagementPage: React.FC = () => {
               </div>
             )}
 
-            <div className="pt-4 border-t border-[#171044]/10 flex justify-end">
+            <div className="pt-4 border-t border-[#171044]/10 flex justify-between items-center">
+              <Link
+                to={`/athlete/${viewingAthlete.id}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FF5A00] text-white rounded-lg text-xs font-bold hover:bg-[#E04F00] transition-colors"
+              >
+                <span>Development Profile</span>
+                <ExternalLink size={14} />
+              </Link>
               <Button variant="ghost" onClick={() => setViewingAthlete(null)}>
                 Close
               </Button>
