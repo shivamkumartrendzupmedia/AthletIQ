@@ -1,79 +1,95 @@
 import { Schema, model, type Document as MongooseDocument, type Types } from 'mongoose';
 import {
-  DOCUMENT_TYPES,
-  DOCUMENT_STATUSES,
-  type DocumentType,
-  type DocumentStatus,
+  DOCUMENT_CATEGORIES,
+  DOCUMENT_VISIBILITIES,
+  type DocumentCategory,
+  type DocumentVisibility,
 } from './constants.js';
 
+export interface IDocumentFile {
+  originalName: string;
+  storedName: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
 export interface IAcademyDocument extends MongooseDocument {
-  owner: Types.ObjectId;
-  athlete?: Types.ObjectId;
-  type: DocumentType;
   title: string;
-  fileUrl: string;
-  status: DocumentStatus;
-  expiresAt?: Date;
-  reviewedBy?: Types.ObjectId;
-  reviewedAt?: Date;
-  rejectionReason?: string;
+  category: DocumentCategory;
+  file: IDocumentFile;
+  visibility: DocumentVisibility;
+  team?: Types.ObjectId | null;
+  uploadedBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
+const documentFileSchema = new Schema<IDocumentFile>(
+  {
+    originalName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    storedName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    mimeType: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    sizeBytes: {
+      type: Number,
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
 const academyDocumentSchema = new Schema<IAcademyDocument>(
   {
-    owner: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Document owner user reference is required'],
-    },
-    athlete: {
-      type: Schema.Types.ObjectId,
-      ref: 'Athlete',
-      index: true,
-    },
-    type: {
-      type: String,
-      enum: {
-        values: DOCUMENT_TYPES,
-        message: '{VALUE} is not a valid document type',
-      },
-      required: [true, 'Document type is required'],
-    },
     title: {
       type: String,
       required: [true, 'Document title is required'],
       trim: true,
       maxlength: [150, 'Document title cannot exceed 150 characters'],
     },
-    fileUrl: {
-      type: String,
-      required: [true, 'File URL reference is required'],
-      trim: true,
-    },
-    status: {
+    category: {
       type: String,
       enum: {
-        values: DOCUMENT_STATUSES,
-        message: '{VALUE} is not a valid document status',
+        values: DOCUMENT_CATEGORIES,
+        message: '{VALUE} is not a valid document category',
       },
-      default: 'Pending',
-      required: true,
+      required: [true, 'Document category is required'],
+      index: true,
     },
-    expiresAt: {
-      type: Date,
+    file: {
+      type: documentFileSchema,
+      required: [true, 'File metadata is required'],
     },
-    reviewedBy: {
+    visibility: {
+      type: String,
+      enum: {
+        values: DOCUMENT_VISIBILITIES,
+        message: '{VALUE} is not a valid visibility scope',
+      },
+      required: [true, 'Visibility scope is required'],
+      index: true,
+    },
+    team: {
+      type: Schema.Types.ObjectId,
+      ref: 'Team',
+      default: null,
+      index: true,
+    },
+    uploadedBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-    },
-    reviewedAt: {
-      type: Date,
-    },
-    rejectionReason: {
-      type: String,
-      trim: true,
+      required: [true, 'UploadedBy user reference is required'],
+      index: true,
     },
   },
   {
@@ -90,9 +106,7 @@ const academyDocumentSchema = new Schema<IAcademyDocument>(
   }
 );
 
-// Indexes for compliance and user document retrieval
-academyDocumentSchema.index({ owner: 1, type: 1 });
-academyDocumentSchema.index({ status: 1 });
+academyDocumentSchema.index({ createdAt: -1 });
 
 export const AcademyDocument = model<IAcademyDocument>(
   'AcademyDocument',

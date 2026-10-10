@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/apiClient';
+import { apiClient, apiDownload } from '../lib/apiClient';
 import {
   normalizeListResponse,
   normalizeSingleResponse,
@@ -812,5 +812,197 @@ export const academyApi = {
     );
     return normalizeSingleResponse<AthleteAttendanceResponse>(res);
   },
+
+  // ==================== ANNOUNCEMENTS (STEP 6B) ====================
+  getAnnouncements: async (
+    query: AnnouncementQuery = {}
+  ): Promise<PaginatedResult<AnnouncementItem>> => {
+    const res = await apiClient(
+      `/announcements${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<AnnouncementItem>(res);
+  },
+
+  getAnnouncementById: async (id: string): Promise<AnnouncementItem | null> => {
+    const res = await apiClient(`/announcements/${id}`);
+    return normalizeSingleResponse<AnnouncementItem>(res);
+  },
+
+  createAnnouncement: async (
+    payload: CreateAnnouncementInput
+  ): Promise<AnnouncementItem | null> => {
+    const res = await apiClient('/announcements', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return normalizeSingleResponse<AnnouncementItem>(res);
+  },
+
+  updateAnnouncement: async (
+    id: string,
+    payload: UpdateAnnouncementInput
+  ): Promise<AnnouncementItem | null> => {
+    const res = await apiClient(`/announcements/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return normalizeSingleResponse<AnnouncementItem>(res);
+  },
+
+  deleteAnnouncement: async (
+    id: string
+  ): Promise<{ success: boolean; message: string } | null> => {
+    const res = await apiClient(`/announcements/${id}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ success: boolean; message: string }>(res);
+  },
+
+  // ==================== DOCUMENTS (STEP 6B) ====================
+  getDocuments: async (
+    query: DocumentQuery = {}
+  ): Promise<PaginatedResult<DocumentItem>> => {
+    const res = await apiClient(
+      `/documents${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<DocumentItem>(res);
+  },
+
+  getDocumentById: async (id: string): Promise<DocumentItem | null> => {
+    const res = await apiClient(`/documents/${id}`);
+    return normalizeSingleResponse<DocumentItem>(res);
+  },
+
+  uploadDocument: async (
+    input: CreateDocumentInput
+  ): Promise<DocumentItem | null> => {
+    const formData = new FormData();
+    formData.append('title', input.title);
+    formData.append('category', input.category);
+    formData.append('visibility', input.visibility);
+    if (input.team) formData.append('team', input.team);
+    formData.append('file', input.file);
+
+    const res = await apiClient('/documents', {
+      method: 'POST',
+      body: formData,
+    });
+    return normalizeSingleResponse<DocumentItem>(res);
+  },
+
+  downloadDocument: async (id: string, fileName: string): Promise<void> => {
+    const blob = await apiDownload(`/documents/${id}/download`);
+    const objectUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(objectUrl);
+  },
+
+  deleteDocument: async (
+    id: string
+  ): Promise<{ success: boolean; message: string } | null> => {
+    const res = await apiClient(`/documents/${id}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ success: boolean; message: string }>(res);
+  },
 };
+
+// Announcement & Document Interfaces
+export type AnnouncementAudience =
+  | 'Public'
+  | 'All'
+  | 'Athletes'
+  | 'Coaches'
+  | 'Organizers'
+  | 'Team';
+
+export interface AnnouncementItem {
+  id: string;
+  title: string;
+  body: string;
+  audience: AnnouncementAudience;
+  team: { id: string; name: string } | null;
+  pinned: boolean;
+  publishedAt: string;
+  createdBy: { id: string; name: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAnnouncementInput {
+  title: string;
+  body: string;
+  audience: AnnouncementAudience;
+  team?: string;
+  pinned?: boolean;
+  publishedAt?: string;
+}
+
+export interface UpdateAnnouncementInput {
+  title?: string;
+  body?: string;
+  audience?: AnnouncementAudience;
+  team?: string;
+  pinned?: boolean;
+  publishedAt?: string;
+}
+
+export interface AnnouncementQuery extends PaginationQuery {
+  audience?: string;
+  team?: string;
+  search?: string;
+  pinned?: boolean;
+}
+
+export type DocumentCategory =
+  | 'Policy'
+  | 'Form'
+  | 'Schedule'
+  | 'Report'
+  | 'Other';
+
+export type DocumentVisibility =
+  | 'Public'
+  | 'All'
+  | 'Athletes'
+  | 'Coaches'
+  | 'Organizers'
+  | 'Team';
+
+export interface DocumentItem {
+  id: string;
+  title: string;
+  category: DocumentCategory;
+  file: {
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+  };
+  visibility: DocumentVisibility;
+  team: { id: string; name: string } | null;
+  uploadedBy: { id: string; name: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDocumentInput {
+  title: string;
+  category: DocumentCategory;
+  visibility: DocumentVisibility;
+  team?: string;
+  file: File;
+}
+
+export interface DocumentQuery extends PaginationQuery {
+  category?: string;
+  visibility?: string;
+  team?: string;
+  search?: string;
+}
+
 

@@ -8,6 +8,8 @@ import { teamRoutes } from './team.routes.js';
 import { coachRoutes } from './coach.routes.js';
 import { athleteRoutes } from './athlete.routes.js';
 import { trainingSessionRoutes } from './training-session.routes.js';
+import { announcementRoutes } from './announcement.routes.js';
+import { documentRoutes } from './document.routes.js';
 
 const router = Router();
 
@@ -29,5 +31,7 @@ router.use('/teams', teamRoutes);
 router.use('/coaches', coachRoutes);
 router.use('/athletes', athleteRoutes);
 router.use('/training-sessions', trainingSessionRoutes);
+router.use('/announcements', announcementRoutes);
+router.use('/documents', documentRoutes);
 
 export const apiRouter = router;

@@ -70,6 +70,35 @@ export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 export const ANNOUNCEMENT_PRIORITIES = ['Low', 'Normal', 'High'] as const;
 export type AnnouncementPriority = (typeof ANNOUNCEMENT_PRIORITIES)[number];
 
+export const ANNOUNCEMENT_AUDIENCES = [
+  'Public',
+  'All',
+  'Athletes',
+  'Coaches',
+  'Organizers',
+  'Team',
+] as const;
+export type AnnouncementAudience = (typeof ANNOUNCEMENT_AUDIENCES)[number];
+
+export const DOCUMENT_CATEGORIES = [
+  'Policy',
+  'Form',
+  'Schedule',
+  'Report',
+  'Other',
+] as const;
+export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
+
+export const DOCUMENT_VISIBILITIES = [
+  'Public',
+  'All',
+  'Athletes',
+  'Coaches',
+  'Organizers',
+  'Team',
+] as const;
+export type DocumentVisibility = (typeof DOCUMENT_VISIBILITIES)[number];
+
 export const AUDIT_ACTIONS = [
   'USER_CREATED',
   'USER_UPDATED',
@@ -98,6 +127,11 @@ export const AUDIT_ACTIONS = [
   'SESSION_CANCELLED',
   'SESSION_DELETED',
   'ATTENDANCE_MARKED',
+  'ANNOUNCEMENT_CREATED',
+  'ANNOUNCEMENT_UPDATED',
+  'ANNOUNCEMENT_DELETED',
+  'DOCUMENT_UPLOADED',
+  'DOCUMENT_DELETED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

@@ -1,46 +1,22 @@
 import { Schema, model, type Document, type Types } from 'mongoose';
 import {
-  ROLES,
-  ANNOUNCEMENT_PRIORITIES,
-  type Role,
-  type AnnouncementPriority,
+  ANNOUNCEMENT_AUDIENCES,
+  type AnnouncementAudience,
 } from './constants.js';
 
-export interface IAnnouncementAudience {
-  roles: Role[];
-  teams: Types.ObjectId[];
-}
+export type { AnnouncementAudience, AnnouncementAudience as IAnnouncementAudience } from './constants.js';
 
 export interface IAnnouncement extends Document {
   title: string;
   body: string;
-  audience: IAnnouncementAudience;
-  priority: AnnouncementPriority;
+  audience: AnnouncementAudience;
+  team?: Types.ObjectId | null;
   pinned: boolean;
-  publishAt: Date;
-  expiresAt?: Date;
+  publishedAt: Date;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
-
-const audienceSchema = new Schema<IAnnouncementAudience>(
-  {
-    roles: [
-      {
-        type: String,
-        enum: ROLES,
-      },
-    ],
-    teams: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Team',
-      },
-    ],
-  },
-  { _id: false }
-);
 
 const announcementSchema = new Schema<IAnnouncement>(
   {
@@ -56,34 +32,34 @@ const announcementSchema = new Schema<IAnnouncement>(
       trim: true,
     },
     audience: {
-      type: audienceSchema,
-      default: () => ({ roles: [], teams: [] }),
-    },
-    priority: {
       type: String,
       enum: {
-        values: ANNOUNCEMENT_PRIORITIES,
-        message: '{VALUE} is not a valid priority level',
+        values: ANNOUNCEMENT_AUDIENCES,
+        message: '{VALUE} is not a valid audience',
       },
-      default: 'Normal',
-      required: true,
+      required: [true, 'Audience is required'],
+      index: true,
+    },
+    team: {
+      type: Schema.Types.ObjectId,
+      ref: 'Team',
+      default: null,
+      index: true,
     },
     pinned: {
       type: Boolean,
       default: false,
     },
-    publishAt: {
+    publishedAt: {
       type: Date,
       default: Date.now,
       index: true,
-    },
-    expiresAt: {
-      type: Date,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'CreatedBy user reference is required'],
+      index: true,
     },
   },
   {
@@ -99,6 +75,8 @@ const announcementSchema = new Schema<IAnnouncement>(
     },
   }
 );
+
+announcementSchema.index({ publishedAt: -1, pinned: -1 });
 
 export const Announcement = model<IAnnouncement>(
   'Announcement',

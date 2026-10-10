@@ -26,6 +26,8 @@ const envSchema = z
     JWT_REFRESH_EXPIRES: z.string().default('7d'),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),
+    DOCUMENT_UPLOAD_DIR: z.string().default('./uploads/documents'),
+    MAX_DOCUMENT_SIZE_BYTES: z.coerce.number().int().positive().default(5242880),
   })
   .refine(
     (data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET,

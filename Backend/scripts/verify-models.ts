@@ -126,11 +126,15 @@ assert(validAttendance.validateSync() === undefined, 'Attendance passes validate
 // Document
 const validDoc = new AcademyDocument({
   title: 'Season Waiver 2025',
-  type: 'Waiver',
-  fileUrl: 'https://cdn.athletiq.test/docs/waiver-001.pdf',
-  owner: dummyUserId,
-  athlete: dummyAthleteId,
-  status: 'Verified',
+  category: 'Policy',
+  file: {
+    originalName: 'waiver-001.pdf',
+    storedName: 'waiver-001-uuid.pdf',
+    mimeType: 'application/pdf',
+    sizeBytes: 1024,
+  },
+  visibility: 'Public',
+  uploadedBy: dummyUserId,
 });
 assert(validDoc.validateSync() === undefined, 'Document passes validateSync()');
 
@@ -139,8 +143,7 @@ const validAnnouncement = new Announcement({
   title: 'Mid-Season Trials Announcement',
   body: 'Trials for U18 will be held next Saturday at Pitch B.',
   createdBy: dummyUserId,
-  priority: 'High',
-  audience: { roles: ['Athlete'], teams: [dummyTeamId] },
+  audience: 'Public',
 });
 assert(validAnnouncement.validateSync() === undefined, 'Announcement passes validateSync()');
 

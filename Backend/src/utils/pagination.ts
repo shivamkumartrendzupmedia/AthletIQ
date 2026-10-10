@@ -15,6 +15,8 @@ export interface PaginatedResult<T> {
   };
 }
 
+export type PaginatedResponse<T> = PaginatedResult<T>;
+
 /**
  * Parses and bounds pagination parameters from request query.
  * - page >= 1 (defaults to 1)

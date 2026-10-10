@@ -1,5 +1,6 @@
 import { Router, type Request } from 'express';
 import { publicController } from '../controllers/public.controller.js';
+import { commsController } from '../controllers/comms.controller.js';
 import { sanitizeInput } from '../middlewares/sanitizeInput.js';
 
 const router = Router();
@@ -23,6 +24,11 @@ router.get('/teams/:slug', (req, res, next) =>
 router.get('/coaches', (req, res, next) => publicController.listCoaches(req, res, next));
 router.get('/coaches/:id', (req, res, next) =>
   publicController.getCoach(req as unknown as Request<{ id: string }>, res, next)
+);
+
+// Public announcements feed
+router.get('/announcements', (req, res, next) =>
+  commsController.listPublicAnnouncements(req, res, next)
 );
 
 export const publicRoutes = router;

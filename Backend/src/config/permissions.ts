@@ -86,16 +86,15 @@ export const PERMISSION_MATRIX: Record<
     delete: { roles: ['Admin'], status: 'enforced_now' },
   },
   documents: {
-    create: { roles: ['Admin', 'Athlete'], status: 'enforced_later' },
-    read: { roles: ['Admin', 'Athlete', 'Coach'], status: 'enforced_later' },
-    update: { roles: ['Admin'], status: 'enforced_later' },
-    delete: { roles: ['Admin'], status: 'enforced_later' },
+    create: { roles: ['Admin', 'Coach'], status: 'enforced_now' },
+    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now' },
+    delete: { roles: ['Admin', 'Coach'], status: 'enforced_now' },
   },
   announcements: {
-    create: { roles: ['Admin', 'Organizer'], status: 'enforced_later' },
-    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_later' },
-    update: { roles: ['Admin', 'Organizer'], status: 'enforced_later' },
-    delete: { roles: ['Admin'], status: 'enforced_later' },
+    create: { roles: ['Admin', 'Coach'], status: 'enforced_now' },
+    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now' },
+    update: { roles: ['Admin', 'Coach'], status: 'enforced_now' },
+    delete: { roles: ['Admin', 'Coach'], status: 'enforced_now' },
   },
   tournaments: {
     create: { roles: ['Admin', 'Organizer'], status: 'enforced_later' },

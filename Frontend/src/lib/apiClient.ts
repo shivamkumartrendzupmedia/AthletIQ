@@ -177,3 +177,55 @@ export const apiClient = async <T = unknown>(
 
   return response.json() as Promise<ApiResponse<T>>;
 };
+
+/**
+ * Authenticated file download helper.
+ * Fetches binary blob with in-memory access token and automatic 401 refresh.
+ */
+export const apiDownload = async (endpoint: string): Promise<Blob> => {
+  const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`;
+  const headers = new Headers();
+  if (inMemoryAccessToken) {
+    headers.set('Authorization', `Bearer ${inMemoryAccessToken}`);
+  }
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  });
+
+  if (response.status === 401) {
+    if (!refreshPromise) {
+      refreshPromise = executeRefreshToken();
+    }
+    const newAccessToken = await refreshPromise;
+    if (newAccessToken) {
+      const retryHeaders = new Headers();
+      retryHeaders.set('Authorization', `Bearer ${newAccessToken}`);
+      const retryResponse = await fetch(url, {
+        method: 'GET',
+        headers: retryHeaders,
+        credentials: 'include',
+      });
+      if (!retryResponse.ok) {
+        throw new ApiClientError(retryResponse.status, 'Failed to download document');
+      }
+      return retryResponse.blob();
+    }
+  }
+
+  if (!response.ok) {
+    const errorData = (await response.json().catch(() => ({}))) as {
+      message?: string;
+      errors?: ApiFieldError[];
+    };
+    throw new ApiClientError(
+      response.status,
+      errorData.message || `Download failed with status ${response.status}`,
+      errorData.errors
+    );
+  }
+
+  return response.blob();
+};

@@ -52,6 +52,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
           { name: 'Assigned Teams', path: '/dashboard/teams', icon: Shield },
           { name: 'Roster & Athletes', path: '/dashboard/athletes', icon: Users },
           { name: 'Training Sessions', path: '/dashboard/training', icon: Calendar },
+          { name: 'Documents', path: '/dashboard/documents', icon: FileText },
+          { name: 'Announcements', path: '/dashboard/announcements', icon: Bell },
         ];
       case 'Athlete':
         return [
@@ -60,12 +62,14 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
           { name: 'Tournaments', path: '/tournaments', icon: Trophy },
           { name: 'My Training Schedule', path: '/dashboard/training', icon: Calendar },
           { name: 'My Documents', path: '/dashboard/documents', icon: FileText },
+          { name: 'Announcements', path: '/dashboard/announcements', icon: Bell },
         ];
       case 'Organizer':
         return [
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
           { name: 'Teams & Brackets', path: '/dashboard/teams', icon: Shield },
           { name: 'Match Calendar', path: '/dashboard/training', icon: Calendar },
+          { name: 'Documents', path: '/dashboard/documents', icon: FileText },
           { name: 'Announcements', path: '/dashboard/announcements', icon: Bell },
         ];
       default:

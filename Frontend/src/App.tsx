@@ -159,7 +159,7 @@ function App() {
           <Route
             path="/dashboard/documents"
             element={
-              <ProtectedRoute allowedRoles={['Admin', 'Athlete']}>
+              <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer']}>
                 <DashboardLayout>
                   <ErrorBoundary>
                     <DocumentsPage />
@@ -171,7 +171,7 @@ function App() {
           <Route
             path="/dashboard/announcements"
             element={
-              <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
+              <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer']}>
                 <DashboardLayout>
                   <ErrorBoundary>
                     <AnnouncementsPage />
