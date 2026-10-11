@@ -156,6 +156,7 @@ export const AUDIT_ACTIONS = [
   'MATCH_UPDATED',
   'MATCH_RESULT_ENTERED',
   'MATCH_DELETED',
+  'CONTACT_MESSAGE_STATUS_CHANGED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

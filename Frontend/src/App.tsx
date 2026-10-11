@@ -29,6 +29,8 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { AdminDashboard } from './pages/dashboard/AdminDashboard';
 import { CoachDashboard } from './pages/dashboard/CoachDashboard';
 import { AthleteDashboard } from './pages/dashboard/AthleteDashboard';
+import { OrganizerDashboard } from './pages/dashboard/OrganizerDashboard';
+import { ContactMessagesPage } from './pages/dashboard/ContactMessagesPage';
 import { AthleteManagementPage } from './pages/dashboard/AthleteManagementPage';
 import { CoachManagementPage } from './pages/dashboard/CoachManagementPage';
 import { TeamManagementPage } from './pages/dashboard/TeamManagementPage';
@@ -82,6 +84,30 @@ function App() {
                 <DashboardLayout>
                   <ErrorBoundary>
                     <AthleteDashboard />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/organizer"
+            element={
+              <ProtectedRoute allowedRoles={['Organizer', 'Admin']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <OrganizerDashboard />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/messages"
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <ContactMessagesPage />
                   </ErrorBoundary>
                 </DashboardLayout>
               </ProtectedRoute>

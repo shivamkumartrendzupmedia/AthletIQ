@@ -1,494 +1,373 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-  athleteDevelopmentService,
-  type FullAthleteProfileData,
-  type SkillAssessment,
-} from '../../services/athleteDevelopmentService';
-import { AthletiqRadarChart } from '../../design-system/AthletiqCharts';
-import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
+  academyApi,
+  type CoachDashboardOverview,
+  type AthleteItem,
+} from '../../services/academyApi';
+import { CrossAccent, AthleticBadge } from '../../design-system';
+import { SafeImage, getInitials, isValidImageUrl } from '../../components/SafeImage';
 import {
   Users,
   Calendar,
-  CheckCircle2,
   Plus,
   Shield,
-  Award,
-  MessageSquare,
-  Send,
-  FileText,
-  Activity,
-  Zap,
-  Target,
-  Search,
-  UserCheck,
-  LayoutGrid,
-  ClipboardList,
+  ArrowRight,
+  Clock,
+  MapPin,
+  RefreshCw,
 } from 'lucide-react';
 
 export const CoachDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<
-    'teams' | 'athletes' | 'training' | 'attendance' | 'assessments' | 'performance' | 'development' | 'squad-selection'
-  >('teams');
+  const [overview, setOverview] = useState<CoachDashboardOverview | null>(null);
+  const [athletes, setAthletes] = useState<AthleteItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'teams' | 'athletes' | 'sessions'>('teams');
 
-  const [athletes, setAthletes] = useState<FullAthleteProfileData[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [attendanceMap, setAttendanceMap] = useState<{ [id: string]: boolean }>({
-    'ath-1': true,
-    'ath-2': true,
-  });
-
-  // Assessment submission state
-  const [selectedAthleteId, setSelectedAthleteId] = useState<string>('ath-1');
-  const [techScore, setTechScore] = useState<number>(88);
-  const [tacScore, setTacScore] = useState<number>(86);
-  const [physScore, setPhysScore] = useState<number>(90);
-  const [mentScore, setMentScore] = useState<number>(85);
-  const [coachNotesInput, setCoachNotesInput] = useState<string>('');
-  const [assessmentSuccessMsg, setAssessmentSuccessMsg] = useState<string>('');
-
-  // Squad selection tactical pitch state
-  const [pitchFormation, setPitchFormation] = useState<'4-3-3' | '4-4-2' | '3-5-2'>('4-3-3');
-  const [startingXI, setStartingXI] = useState<{ [pos: string]: string }>({
-    GK: 'Noah Miller (#1)',
-    LB: 'Ethan Wright (#3)',
-    CB1: 'Marcus Johnson (#4)',
-    CB2: 'Lucas Scott (#5)',
-    RB: 'Jordan Croft (#2)',
-    LCM: 'Liam Anderson (#10)',
-    CM: 'Mateo Rossi (#8)',
-    RCM: 'Mason Thorne (#6)',
-    LW: 'Chloe Vance (#11)',
-    ST: 'Alex Morgan (#9)',
-    RW: 'Kevin Vance (#7)',
-  });
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [overviewData, athletesData] = await Promise.all([
+        academyApi.getDashboardOverview(),
+        academyApi.listAthletes({ limit: 12 }),
+      ]);
+      if (overviewData && overviewData.role === 'Coach') {
+        setOverview(overviewData);
+      }
+      if (athletesData) {
+        setAthletes(athletesData.items);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load coach dashboard.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      const data = await athleteDevelopmentService.getAllAthletes();
-      setAthletes(data);
-    };
     loadData();
-    const unsub = athleteDevelopmentService.subscribe(loadData);
-    return () => unsub();
   }, []);
 
-  const toggleAttendance = (id: string) => {
-    setAttendanceMap((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const handleAssessmentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await athleteDevelopmentService.addSkillAssessment({
-      athleteId: selectedAthleteId,
-      evaluatorName: 'Coach David Vance',
-      evaluatorRole: 'Head Coach • UEFA Pro',
-      categories: {
-        technical: Number(techScore),
-        tactical: Number(tacScore),
-        physical: Number(physScore),
-        mental: Number(mentScore),
-      },
-      subSkills: {
-        pace: physScore,
-        shooting: techScore,
-        passing: techScore,
-        dribbling: techScore,
-        defending: tacScore,
-        stamina: physScore,
-        agility: physScore,
-        decisionMaking: tacScore,
-        leadership: mentScore,
-        workRate: mentScore,
-      },
-      notes: coachNotesInput || 'Skill evaluation recorded during weekly tactical review.',
-      keyStrengths: ['Technical execution', 'High work rate'],
-      growthAreas: ['Continuous decision speed'],
-    });
-
-    setAssessmentSuccessMsg('Skill assessment recorded successfully!');
-    setTimeout(() => setAssessmentSuccessMsg(''), 3000);
-  };
-
-  const filteredAthletes = athletes.filter(
-    (a) =>
-      a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.teamName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const totalAthletes = overview?.teams
+    ? overview.teams.reduce((acc, t) => acc + t.athleteCount, 0)
+    : athletes.length;
 
   return (
     <div className="space-y-8 bg-[#F7F1E8] p-4 md:p-8 rounded-[2.5rem]">
-      {/* Top Coach Command Header */}
-      <div className="bg-[#171044] text-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-white/10 relative overflow-hidden">
-        <div className="relative z-10">
+      {/* Top Banner */}
+      <div className="bg-[#171044] text-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-white/10">
+        <div>
           <div className="flex items-center gap-2 mb-2">
-            <AthleticBadge variant="lime">HEAD COACH COMMAND CENTER</AthleticBadge>
-            <span className="text-xs text-[#D8F500] font-bold">UEFA Pro Licensed</span>
+            <AthleticBadge variant="lime">HEAD COACH HUB</AthleticBadge>
+            <span className="text-xs text-white/70">Season 2026</span>
           </div>
           <h1 className="text-3xl md:text-5xl font-black font-display text-white uppercase tracking-tight">
-            Coach Dashboard <CrossAccent color="lime" size="lg" />
+            Team Control Center <CrossAccent color="orange" size="lg" />
           </h1>
           <p className="text-sm text-white/80 mt-1 max-w-xl">
-            Assigned Team: <span className="text-[#D8F500] font-bold">U16 Strikers</span> • Active Squad Count: 18 Athletes
+            Manage your squad assignments, coordinate scheduled training drills, log attendance, and review player development.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 relative z-10">
+        <div className="flex flex-wrap gap-3">
           <button
-            onClick={() => setActiveTab('squad-selection')}
-            className="px-6 py-3 bg-[#D8F500] text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full hover:bg-[#c4e000] transition-all shadow-lg flex items-center gap-2"
+            onClick={loadData}
+            disabled={isLoading}
+            className="px-4 py-2.5 bg-white/10 text-white font-display font-black text-xs uppercase tracking-wider rounded-full hover:bg-white/20 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            <LayoutGrid size={16} /> Tactical Pitch Builder
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Refresh
           </button>
+          <Link to="/dashboard/training">
+            <button className="px-5 py-2.5 bg-[#D8F500] text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full hover:bg-[#c4e000] transition-colors flex items-center gap-1.5 cursor-pointer">
+              <Plus size={16} /> Schedule Session
+            </button>
+          </Link>
+          <Link to="/dashboard/tournaments">
+            <button className="px-5 py-2.5 bg-[#FF5A00] text-white font-display font-black text-xs uppercase tracking-wider rounded-full hover:bg-[#e04f00] transition-colors flex items-center gap-1.5 shadow-md cursor-pointer">
+              <Shield size={16} /> Register Team
+            </button>
+          </Link>
         </div>
       </div>
 
-      {/* 8 DASHBOARD TABS */}
-      <div className="flex items-center justify-start overflow-x-auto pb-2 gap-2 border-b border-[#171044]/10 scrollbar-none">
-        {[
-          { id: 'teams', label: 'Teams', icon: <Shield size={16} /> },
-          { id: 'athletes', label: 'Athletes', icon: <Users size={16} /> },
-          { id: 'training', label: 'Training', icon: <Calendar size={16} /> },
-          { id: 'attendance', label: 'Attendance Check-in', icon: <CheckCircle2 size={16} /> },
-          { id: 'assessments', label: 'Assessments', icon: <ClipboardList size={16} /> },
-          { id: 'performance', label: 'Performance', icon: <Activity size={16} /> },
-          { id: 'development', label: 'Development', icon: <Target size={16} /> },
-          { id: 'squad-selection', label: 'Squad Selection', icon: <LayoutGrid size={16} /> },
-        ].map((tab) => (
+      {/* Error state if fetch fails */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-700 rounded-2xl flex items-center justify-between text-xs font-bold">
+          <span>{error}</span>
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2.5 rounded-2xl font-display font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'bg-[#171044] text-[#D8F500] shadow-md'
-                : 'bg-white text-[#171044] hover:bg-[#171044]/10'
-            }`}
+            onClick={loadData}
+            className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
           >
-            {tab.icon}
-            <span>{tab.label}</span>
+            <RefreshCw size={12} /> Retry
           </button>
-        ))}
+        </div>
+      )}
+
+      {/* Statistics Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+          <div className="text-xs font-bold uppercase text-[#171044]/60">Assigned Teams</div>
+          <div className="text-4xl font-black font-display text-[#171044]">
+            {overview?.teams?.length ?? 0}
+          </div>
+          <div className="text-xs font-bold text-emerald-600">Active squads</div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+          <div className="text-xs font-bold uppercase text-[#171044]/60">Rostered Athletes</div>
+          <div className="text-4xl font-black font-display text-[#FF5A00]">{totalAthletes}</div>
+          <div className="text-xs font-bold text-[#171044]/60">Across assigned teams</div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+          <div className="text-xs font-bold uppercase text-[#171044]/60">Upcoming Drills</div>
+          <div className="text-4xl font-black font-display text-[#4B2A9B]">
+            {overview?.nextSessions?.length ?? 0}
+          </div>
+          <div className="text-xs font-bold text-emerald-600">Next 5 sessions</div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+          <div className="text-xs font-bold uppercase text-[#171044]/60">Attendance Rate</div>
+          <div className="text-4xl font-black font-display text-[#171044]">
+            {overview?.attendanceRate !== null && overview?.attendanceRate !== undefined
+              ? `${overview.attendanceRate}%`
+              : '—'}
+          </div>
+          <div className="text-xs font-bold text-[#171044]/60">Last 30 days</div>
+        </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        {/* 1. TEAMS TAB */}
-        {activeTab === 'teams' && (
-          <motion.div key="teams" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-7 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-4">
-                <div className="flex justify-between items-center">
-                  <AthleticBadge variant="orange">PRIMARY SQUAD</AthleticBadge>
-                  <span className="text-xs font-bold text-emerald-600">88% Win Rate</span>
-                </div>
-                <h3 className="text-3xl font-black font-display text-[#171044]">U16 Strikers</h3>
-                <p className="text-xs text-[#171044]/70">Division 1 Youth Academy League • 18 Registered Athletes</p>
-                <div className="pt-2 flex gap-3">
-                  <button onClick={() => setActiveTab('athletes')} className="px-4 py-2 bg-[#171044] text-white rounded-xl text-xs font-bold">
-                    Manage Squad Roster
-                  </button>
-                </div>
-              </div>
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-[#171044]/10 pb-3">
+        <button
+          onClick={() => setActiveTab('teams')}
+          className={`px-4 py-2 rounded-xl font-display font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+            activeTab === 'teams'
+              ? 'bg-[#171044] text-[#D8F500] shadow-md'
+              : 'text-[#171044]/70 hover:bg-white/60'
+          }`}
+        >
+          My Teams
+        </button>
+        <button
+          onClick={() => setActiveTab('athletes')}
+          className={`px-4 py-2 rounded-xl font-display font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+            activeTab === 'athletes'
+              ? 'bg-[#171044] text-[#D8F500] shadow-md'
+              : 'text-[#171044]/70 hover:bg-white/60'
+          }`}
+        >
+          Squad Athletes
+        </button>
+        <button
+          onClick={() => setActiveTab('sessions')}
+          className={`px-4 py-2 rounded-xl font-display font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+            activeTab === 'sessions'
+              ? 'bg-[#171044] text-[#D8F500] shadow-md'
+              : 'text-[#171044]/70 hover:bg-white/60'
+          }`}
+        >
+          Upcoming Sessions
+        </button>
+      </div>
 
-              <div className="bg-white p-7 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-4">
-                <div className="flex justify-between items-center">
-                  <AthleticBadge variant="dark">DEVELOPMENT SQUAD</AthleticBadge>
-                  <span className="text-xs font-bold text-[#4B2A9B]">Youth Prospect Tier</span>
-                </div>
-                <h3 className="text-3xl font-black font-display text-[#171044]">U14 Academy Juniors</h3>
-                <p className="text-xs text-[#171044]/70">Regional Junior Circuit • 22 Registered Athletes</p>
-              </div>
+      {/* Tab Panels */}
+      {activeTab === 'teams' && (
+        <div className="bg-white p-7 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
+              Coached Teams <CrossAccent color="orange" size="sm" />
+            </h2>
+            <Link
+              to="/dashboard/teams"
+              className="text-xs font-bold text-[#FF5A00] hover:underline flex items-center gap-1"
+            >
+              All Teams <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {(!overview?.teams || overview.teams.length === 0) ? (
+            <div className="py-12 text-center space-y-3 bg-[#F7F1E8]/50 rounded-2xl border border-dashed border-[#171044]/15">
+              <Shield size={36} className="mx-auto text-[#171044]/30" />
+              <h3 className="font-display font-bold text-base text-[#171044]">
+                No Teams Assigned
+              </h3>
+              <p className="text-xs text-[#171044]/60 max-w-sm mx-auto">
+                Once an administrator assigns you as head coach or assistant coach to an academy team, it will appear here.
+              </p>
             </div>
-          </motion.div>
-        )}
-
-        {/* 2. ATHLETES TAB */}
-        {activeTab === 'athletes' && (
-          <motion.div key="athletes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-3xl border border-[#171044]/10 shadow-md">
-              <div className="relative w-full sm:w-80">
-                <Search size={18} className="absolute left-3.5 top-3.5 text-[#171044]/40" />
-                <input
-                  type="text"
-                  placeholder="Search athlete by name, position..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044] focus:outline-none"
-                />
-              </div>
-              <span className="text-xs font-bold text-[#171044]/60">Showing {filteredAthletes.length} Athletes</span>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {overview.teams.map((t) => (
+                <div
+                  key={t.id}
+                  className="p-5 bg-[#F7F1E8] rounded-2xl border border-[#171044]/5 hover:border-[#FF5A00] transition-colors space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <AthleticBadge variant="purple">TEAM</AthleticBadge>
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+                      Active
+                    </span>
+                  </div>
+                  <h3 className="font-display font-black text-xl text-[#171044]">{t.name}</h3>
+                  <div className="flex items-center justify-between text-xs text-[#171044]/70 pt-2 border-t border-[#171044]/10">
+                    <span className="flex items-center gap-1 font-bold">
+                      <Users size={14} /> {t.athleteCount} Athletes
+                    </span>
+                    <Link
+                      to="/dashboard/training"
+                      className="font-bold text-[#FF5A00] hover:underline"
+                    >
+                      Schedule Drill →
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
+          )}
+        </div>
+      )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredAthletes.map((ath) => (
-                <div key={ath.id} className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-xl space-y-4">
-                  <div className="flex items-center gap-4">
-                    <img src={ath.avatar} alt={ath.name} className="w-16 h-16 rounded-2xl object-cover border-2 border-[#171044]" />
-                    <div>
-                      <h4 className="font-black font-display text-lg text-[#171044]">{ath.name}</h4>
-                      <div className="text-xs font-bold text-[#FF5A00]">#{ath.jerseyNumber} • {ath.position}</div>
-                      <div className="text-[10px] text-[#171044]/60">{ath.teamName}</div>
+      {activeTab === 'athletes' && (
+        <div className="bg-white p-7 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
+              Squad Athletes <CrossAccent color="orange" size="sm" />
+            </h2>
+            <Link
+              to="/dashboard/athletes"
+              className="text-xs font-bold text-[#FF5A00] hover:underline flex items-center gap-1"
+            >
+              Full Roster <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {athletes.length === 0 ? (
+            <div className="py-12 text-center space-y-3 bg-[#F7F1E8]/50 rounded-2xl border border-dashed border-[#171044]/15">
+              <Users size={36} className="mx-auto text-[#171044]/30" />
+              <h3 className="font-display font-bold text-base text-[#171044]">
+                No Athletes Found
+              </h3>
+              <p className="text-xs text-[#171044]/60 max-w-sm mx-auto">
+                Athletes rostered in your teams will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {athletes.map((ath) => {
+                const athleteName = ath.user?.name || 'Athlete';
+                return (
+                  <div
+                    key={ath.id}
+                    className="p-4 bg-[#F7F1E8] rounded-2xl border border-[#171044]/5 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-[#171044] flex items-center justify-center text-white font-bold text-xs shrink-0 border-2 border-[#171044]">
+                        {ath.user?.avatar && isValidImageUrl(ath.user.avatar) ? (
+                          <SafeImage
+                            src={ath.user.avatar}
+                            alt={athleteName}
+                            fallbackKind="person"
+                            name={athleteName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span>{getInitials(athleteName, 'A')}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-bold font-display text-sm text-[#171044]">
+                          {athleteName}
+                        </div>
+                        <div className="text-[11px] text-[#171044]/60">
+                          {ath.team?.name || 'Assigned Team'}
+                          {ath.jerseyNumber ? ` • #${ath.jerseyNumber}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <Link
+                      to={`/athlete/${ath.id}`}
+                      className="p-2 rounded-xl bg-white text-[#171044] hover:bg-[#FF5A00] hover:text-white transition-colors"
+                      title="View Profile"
+                    >
+                      <ArrowRight size={14} />
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'sessions' && (
+        <div className="bg-white p-7 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
+              Upcoming Training Sessions <CrossAccent color="orange" size="sm" />
+            </h2>
+            <Link
+              to="/dashboard/training"
+              className="text-xs font-bold text-[#FF5A00] hover:underline flex items-center gap-1"
+            >
+              Calendar Schedule <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {(!overview?.nextSessions || overview.nextSessions.length === 0) ? (
+            <div className="py-12 text-center space-y-3 bg-[#F7F1E8]/50 rounded-2xl border border-dashed border-[#171044]/15">
+              <Calendar size={36} className="mx-auto text-[#171044]/30" />
+              <h3 className="font-display font-bold text-base text-[#171044]">
+                No Sessions Scheduled
+              </h3>
+              <p className="text-xs text-[#171044]/60 max-w-sm mx-auto">
+                Schedule your next tactical drill or conditioning workout on the training calendar.
+              </p>
+              <Link to="/dashboard/training">
+                <button className="px-4 py-2 bg-[#D8F500] text-[#171044] font-display font-bold text-xs uppercase tracking-wider rounded-full hover:bg-[#c4e000] transition-colors inline-flex items-center gap-1.5 mt-2 cursor-pointer">
+                  <Plus size={14} /> Add Session
+                </button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {overview.nextSessions.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-[#F7F1E8] rounded-2xl border border-[#171044]/5 gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <AthleticBadge variant="lime" size="sm">
+                        {s.teamName}
+                      </AthleticBadge>
+                      <span className="text-xs font-bold text-[#171044]">{s.type}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-[#171044]/70">
+                      <span className="flex items-center gap-1">
+                        <MapPin size={12} /> {s.venue}
+                      </span>
+                      <span className="flex items-center gap-1 font-mono">
+                        <Clock size={12} /> {new Date(s.scheduledAt).toLocaleString()}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center p-3 bg-[#F7F1E8] rounded-xl text-xs font-bold">
-                    <span>OVR Index Score</span>
-                    <span className="text-base font-black text-[#171044]">{ath.ovr} OVR</span>
-                  </div>
-
-                  <Link to={`/athlete/${ath.id}`} className="block">
-                    <button className="w-full py-2 bg-[#171044] text-[#D8F500] rounded-xl text-xs font-black font-display uppercase tracking-wider hover:bg-[#4B2A9B] transition-colors">
-                      View Full Profile
-                    </button>
+                  <Link
+                    to="/dashboard/training"
+                    className="px-3.5 py-1.5 bg-white text-[#171044] font-bold text-xs rounded-xl hover:bg-[#FF5A00] hover:text-white transition-colors self-end sm:self-center"
+                  >
+                    Manage Roster
                   </Link>
                 </div>
               ))}
             </div>
-          </motion.div>
-        )}
-
-        {/* 3. TRAINING TAB */}
-        {activeTab === 'training' && (
-          <motion.div key="training" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-4">
-              <h3 className="text-2xl font-black font-display text-[#171044]">Training Schedule & Objectives</h3>
-              <div className="space-y-3">
-                <div className="p-4 bg-[#F7F1E8] rounded-2xl flex justify-between items-center">
-                  <div>
-                    <div className="font-bold text-sm text-[#171044]">High-Tempo Counter-Attack Drills</div>
-                    <div className="text-xs text-[#171044]/60">Pitch A (Turf) • Today 04:30 PM</div>
-                  </div>
-                  <span className="text-xs font-black bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full">Upcoming</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 4. ATTENDANCE CHECK-IN TAB */}
-        {activeTab === 'attendance' && (
-          <motion.div key="attendance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-2xl font-black font-display text-[#171044]">Squad Attendance Matrix</h3>
-                <span className="text-xs font-bold text-[#FF5A00]">
-                  {Object.values(attendanceMap).filter(Boolean).length} / {athletes.length} Present Today
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {athletes.map((ath) => {
-                  const isPresent = attendanceMap[ath.id] ?? false;
-                  return (
-                    <div key={ath.id} className="flex items-center justify-between p-4 bg-[#F7F1E8] rounded-2xl">
-                      <div className="flex items-center gap-3">
-                        <img src={ath.avatar} alt={ath.name} className="w-10 h-10 rounded-full object-cover border" />
-                        <div>
-                          <div className="font-bold text-sm text-[#171044]">{ath.name} (#{ath.jerseyNumber})</div>
-                          <div className="text-[11px] text-[#171044]/60">{ath.position}</div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => toggleAttendance(ath.id)}
-                        className={`px-5 py-2 rounded-full font-display font-black text-xs uppercase transition-all ${
-                          isPresent ? 'bg-emerald-500 text-white' : 'bg-[#171044]/10 text-[#171044] hover:bg-[#FF5A00] hover:text-white'
-                        }`}
-                      >
-                        {isPresent ? '✓ PRESENT' : 'MARK PRESENT'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 5. ASSESSMENTS TAB */}
-        {activeTab === 'assessments' && (
-          <motion.div key="assessments" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6 max-w-2xl mx-auto">
-              <h3 className="text-2xl font-black font-display text-[#171044]">Record Skill Assessment</h3>
-
-              {assessmentSuccessMsg && (
-                <div className="p-4 bg-emerald-100 text-emerald-800 rounded-2xl text-xs font-bold">
-                  {assessmentSuccessMsg}
-                </div>
-              )}
-
-              <form onSubmit={handleAssessmentSubmit} className="space-y-4">
-                <div>
-                  <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Select Athlete</label>
-                  <select
-                    value={selectedAthleteId}
-                    onChange={(e) => setSelectedAthleteId(e.target.value)}
-                    className="w-full p-3.5 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]"
-                  >
-                    {athletes.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} (#{a.jerseyNumber} • {a.position})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Technical ({techScore})</label>
-                    <input type="range" min="50" max="99" value={techScore} onChange={(e) => setTechScore(Number(e.target.value))} className="w-full accent-[#FF5A00]" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Tactical ({tacScore})</label>
-                    <input type="range" min="50" max="99" value={tacScore} onChange={(e) => setTacScore(Number(e.target.value))} className="w-full accent-[#FF5A00]" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Physical ({physScore})</label>
-                    <input type="range" min="50" max="99" value={physScore} onChange={(e) => setPhysScore(Number(e.target.value))} className="w-full accent-[#FF5A00]" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Mental ({mentScore})</label>
-                    <input type="range" min="50" max="99" value={mentScore} onChange={(e) => setMentScore(Number(e.target.value))} className="w-full accent-[#FF5A00]" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-black uppercase text-[#171044]/60 block mb-1">Coach Notes</label>
-                  <textarea
-                    rows={3}
-                    value={coachNotesInput}
-                    onChange={(e) => setCoachNotesInput(e.target.value)}
-                    placeholder="Enter technical summary notes..."
-                    className="w-full p-3 bg-[#F7F1E8] rounded-2xl text-xs font-bold text-[#171044]"
-                  />
-                </div>
-
-                <Button variant="primary" size="sm" type="submit" className="w-full">
-                  Submit Assessment Log
-                </Button>
-              </form>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 6. PERFORMANCE TAB */}
-        {activeTab === 'performance' && (
-          <motion.div key="performance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="bg-[#171044] text-white p-8 rounded-[2.5rem] shadow-xl flex flex-col items-center justify-center space-y-6">
-              <h3 className="text-2xl font-black font-display text-white uppercase">Squad Average Radar</h3>
-              <AthletiqRadarChart
-                metrics={[
-                  { label: 'Technical', value: 87 },
-                  { label: 'Tactical', value: 84 },
-                  { label: 'Physical', value: 89 },
-                  { label: 'Mental', value: 86 },
-                  { label: 'Pace', value: 90 },
-                  { label: 'Shooting', value: 85 },
-                ]}
-                size={290}
-                colorScheme="lime"
-              />
-            </div>
-          </motion.div>
-        )}
-
-        {/* 7. DEVELOPMENT TAB */}
-        {activeTab === 'development' && (
-          <motion.div key="development" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-4">
-              <h3 className="text-2xl font-black font-display text-[#171044]">Player Development Plans</h3>
-              <p className="text-xs text-[#171044]/70">Tracking active goals for all U16 Strikers players.</p>
-            </div>
-          </motion.div>
-        )}
-
-        {/* 8. SQUAD SELECTION TAB (TACTICAL PITCH VISUALIZER) */}
-        {activeTab === 'squad-selection' && (
-          <motion.div key="squad-selection" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-[#171044]/10 shadow-xl space-y-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h3 className="text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
-                    Tactical Lineup Builder <CrossAccent color="orange" size="sm" />
-                  </h3>
-                  <p className="text-xs text-[#171044]/60">Matchday squad selection & formation setup.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {(['4-3-3', '4-4-2', '3-5-2'] as const).map((fmt) => (
-                    <button
-                      key={fmt}
-                      onClick={() => setPitchFormation(fmt)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black font-display transition-all ${
-                        pitchFormation === fmt ? 'bg-[#171044] text-[#D8F500]' : 'bg-[#F7F1E8] text-[#171044]'
-                      }`}
-                    >
-                      {fmt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Pitch Diagram */}
-              <div className="relative w-full h-[450px] bg-emerald-800 rounded-3xl border-4 border-white shadow-2xl overflow-hidden p-6 flex flex-col justify-between items-center text-white">
-                {/* Pitch Lines */}
-                <div className="absolute inset-0 border-2 border-white/30 m-4 rounded-2xl pointer-events-none" />
-                <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-white/30 pointer-events-none" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full border-2 border-white/30 pointer-events-none" />
-
-                {/* Forwards Row */}
-                <div className="w-full flex justify-around items-center relative z-10 pt-4">
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-[#D8F500]">
-                    LW: {startingXI.LW}
-                  </div>
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-[#FF5A00]">
-                    ST: {startingXI.ST}
-                  </div>
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-[#D8F500]">
-                    RW: {startingXI.RW}
-                  </div>
-                </div>
-
-                {/* Midfielders Row */}
-                <div className="w-full flex justify-around items-center relative z-10">
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-white">
-                    LCM: {startingXI.LCM}
-                  </div>
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-white">
-                    CM: {startingXI.CM}
-                  </div>
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-white">
-                    RCM: {startingXI.RCM}
-                  </div>
-                </div>
-
-                {/* Defenders Row */}
-                <div className="w-full flex justify-around items-center relative z-10">
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-white">
-                    LB: {startingXI.LB}
-                  </div>
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-white">
-                    CB: {startingXI.CB1}
-                  </div>
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-white">
-                    CB: {startingXI.CB2}
-                  </div>
-                  <div className="bg-[#171044] px-3.5 py-1.5 rounded-full text-xs font-black border-2 border-white">
-                    RB: {startingXI.RB}
-                  </div>
-                </div>
-
-                {/* Goalkeeper */}
-                <div className="relative z-10 pb-2">
-                  <div className="bg-[#FF5A00] text-white px-4 py-1.5 rounded-full text-xs font-black border-2 border-white">
-                    GK: {startingXI.GK}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -35,12 +35,22 @@ import heroAthleteImg from '../assets/hero_athlete.jpg';
 import trophySpotlightImg from '../assets/trophy_spotlight.jpg';
 import u16TeamImg from '../assets/u16_strikers_team.jpg';
 import alexMorganPortraitImg from '../assets/alex_morgan_portrait.jpg';
+import { academyApi, type PublicOverviewResult } from '../services/academyApi';
 
 export const HomePage: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<number>(21);
   const [selectedGalleryCategory, setSelectedGalleryCategory] = useState<string>('All');
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [coachIndex, setCoachIndex] = useState(0);
+  const [publicOverview, setPublicOverview] = useState<PublicOverviewResult | null>(null);
+
+  React.useEffect(() => {
+    academyApi.getPublicOverview()
+      .then((data) => {
+        if (data) setPublicOverview(data);
+      })
+      .catch((err) => console.error('Failed to load public overview:', err));
+  }, []);
 
   const days = [
     { day: 'Mon', date: 20 },
@@ -225,6 +235,60 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* ==================================================
+          LIVE STATS & ANNOUNCEMENT BANNER (REAL DATA)
+         ================================================== */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {publicOverview?.latestAnnouncements && publicOverview.latestAnnouncements.length > 0 && (
+          <div className="mb-8 p-4 bg-[#171044] text-white rounded-2xl border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+            <div className="flex items-center gap-3">
+              <AthleticBadge variant="lime">ANNOUNCEMENT</AthleticBadge>
+              <span className="font-display font-black text-sm uppercase tracking-wide">
+                {publicOverview.latestAnnouncements[0].title}
+              </span>
+            </div>
+            <span className="text-xs text-white/60">
+              {new Date(publicOverview.latestAnnouncements[0].publishedAt).toLocaleDateString()}
+            </span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-6 md:p-8 rounded-[2rem] border border-[#171044]/10 shadow-lg text-center">
+          <div className="space-y-1">
+            <div className="text-3xl md:text-4xl font-black font-display text-[#171044]">
+              {publicOverview ? publicOverview.activeAthletes : '500+'}
+            </div>
+            <div className="text-xs font-extrabold uppercase text-[#171044]/60 tracking-wider">
+              Enrolled Athletes
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-3xl md:text-4xl font-black font-display text-[#FF5A00]">
+              {publicOverview ? publicOverview.activeCoaches : '25+'}
+            </div>
+            <div className="text-xs font-extrabold uppercase text-[#171044]/60 tracking-wider">
+              Licensed Coaches
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-3xl md:text-4xl font-black font-display text-[#171044]">
+              {publicOverview ? publicOverview.activeTeams : '12+'}
+            </div>
+            <div className="text-xs font-extrabold uppercase text-[#171044]/60 tracking-wider">
+              Active Squads
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-3xl md:text-4xl font-black font-display text-[#4B2A9B]">
+              {publicOverview ? publicOverview.sportsCount : '6'}
+            </div>
+            <div className="text-xs font-extrabold uppercase text-[#171044]/60 tracking-wider">
+              Sports Programs
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ==================================================
           2. OUR + PROGRAMS SECTION (WITH ANIMATIONS)
          ================================================== */}
       <motion.section
@@ -262,7 +326,7 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
             <div className="pt-6">
-              <Link to="/programs/football">
+              <Link to="/programs">
                 <button className="px-6 py-2.5 bg-[#D8F500] text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-[#c4e000] transition-all group/btn">
                   <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                 </button>
@@ -283,7 +347,7 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
             <div className="pt-6">
-              <Link to="/programs/basketball">
+              <Link to="/programs">
                 <button className="px-6 py-2.5 bg-white text-[#FF5A00] font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-white/90 transition-all group/btn">
                   <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                 </button>
@@ -304,7 +368,7 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
             <div className="pt-6">
-              <Link to="/programs/tennis">
+              <Link to="/programs">
                 <button className="px-6 py-2.5 bg-[#171044] text-white font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-[#281c66] transition-all group/btn">
                   <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                 </button>
@@ -325,7 +389,7 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
             <div className="pt-6">
-              <Link to="/programs/swimming">
+              <Link to="/programs">
                 <button className="px-6 py-2.5 bg-[#D8F500] text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-[#c4e000] transition-all group/btn">
                   <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                 </button>
@@ -346,7 +410,7 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
             <div className="pt-6">
-              <Link to="/programs/athletics">
+              <Link to="/programs">
                 <button className="px-6 py-2.5 bg-white text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-white/90 transition-all group/btn">
                   <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                 </button>
@@ -367,7 +431,7 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
             <div className="pt-6">
-              <Link to="/programs/volleyball">
+              <Link to="/programs">
                 <button className="px-6 py-2.5 bg-[#FF5A00] text-white font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-[#e04f00] transition-all group/btn">
                   <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                 </button>
@@ -508,7 +572,7 @@ export const HomePage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: idx * 0.1 }}
             >
-              <Link to={`/coaches/${coach.id}`} className="group block h-full">
+              <Link to="/coaches" className="group block h-full">
                 <div className="bg-white rounded-[2rem] p-5 shadow-xl border border-[#171044]/10 space-y-5 h-full flex flex-col justify-between group-hover:-translate-y-2 group-hover:shadow-2xl transition-all duration-300">
                   {/* Large Prominent Coach Portrait Photo */}
                   <div className="w-full h-80 rounded-[1.5rem] overflow-hidden border-2 border-[#171044]/10 group-hover:border-[#FF5A00] transition-colors relative">
@@ -588,7 +652,7 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
 
-            <Link to="/teams/u16-strikers" className="block text-center">
+            <Link to="/teams" className="block text-center">
               <button className="w-full py-3 bg-white text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full hover:bg-[#D8F500] transition-colors">
                 View Team Roster
               </button>
@@ -694,35 +758,49 @@ export const HomePage: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <AthleticBadge variant="orange">GRAND FINALS</AthleticBadge>
-              <h3 className="text-3xl font-black font-display text-[#171044] uppercase">Active NB Cup 2024</h3>
+              <AthleticBadge variant="orange">
+                {publicOverview?.nextTournaments?.[0] ? 'UPCOMING TOURNAMENT' : 'TOURNAMENT SPOTLIGHT'}
+              </AthleticBadge>
+              <h3 className="text-3xl font-black font-display text-[#171044] uppercase">
+                {publicOverview?.nextTournaments?.[0]?.name || 'Active NB Cup 2026'}
+              </h3>
               <p className="text-xs text-[#171044]/70 font-medium leading-relaxed">
-                64 teams competing across 8 regional venues for the ultimate championship trophy.
+                {publicOverview?.nextTournaments?.[0]
+                  ? `${publicOverview.nextTournaments[0].category} • ${publicOverview.nextTournaments[0].ageGroup} • Running from ${new Date(publicOverview.nextTournaments[0].startDate).toLocaleDateString()} to ${new Date(publicOverview.nextTournaments[0].endDate).toLocaleDateString()}`
+                  : 'Teams competing across regional venues for the ultimate championship trophy.'}
               </p>
             </div>
 
             <div className="grid grid-cols-4 gap-2 bg-[#F7F1E8] p-4 rounded-2xl text-center">
               <div>
-                <div className="text-xl font-black font-display text-[#171044]">24</div>
+                <div className="text-xl font-black font-display text-[#171044]">
+                  {publicOverview ? publicOverview.activeTeams : '24'}
+                </div>
                 <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Teams</div>
               </div>
               <div>
-                <div className="text-xl font-black font-display text-[#171044]">48</div>
-                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Matches</div>
+                <div className="text-xl font-black font-display text-[#171044]">
+                  {publicOverview?.nextTournaments ? publicOverview.nextTournaments.length : '1'}
+                </div>
+                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Events</div>
               </div>
               <div>
-                <div className="text-xl font-black font-display text-[#171044]">6</div>
-                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Groups</div>
+                <div className="text-xl font-black font-display text-[#171044]">
+                  {publicOverview ? publicOverview.sportsCount : '6'}
+                </div>
+                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Sports</div>
               </div>
               <div>
-                <div className="text-xl font-black font-display text-[#171044]">8</div>
-                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Venues</div>
+                <div className="text-xl font-black font-display text-[#171044]">
+                  {publicOverview ? publicOverview.activeCoaches : '8'}
+                </div>
+                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Staff</div>
               </div>
             </div>
 
-            <Link to="/tournaments/active-nb-cup">
+            <Link to="/tournaments">
               <button className="w-full py-3.5 bg-[#FF5A00] text-white font-display font-black text-xs uppercase tracking-wider rounded-full shadow-lg hover:bg-[#e04f00] transition-colors">
-                View Tournament Bracket
+                Browse Tournaments Hub
               </button>
             </Link>
           </div>

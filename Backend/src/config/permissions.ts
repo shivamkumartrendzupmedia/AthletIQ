@@ -18,7 +18,9 @@ export type Resource =
   | 'venues'
   | 'officials'
   | 'matches'
-  | 'reports';
+  | 'reports'
+  | 'contactMessages'
+  | 'dashboard';
 
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'resetPassword' | 'unlock' | 'manage';
 
@@ -134,6 +136,13 @@ export const PERMISSION_MATRIX: Record<
     read: { roles: ['Admin', 'Coach', 'Organizer'], status: 'enforced_later' },
     update: { roles: ['Admin'], status: 'enforced_later' },
     delete: { roles: ['Admin'], status: 'enforced_later' },
+  },
+  contactMessages: {
+    read: { roles: ['Admin'], status: 'enforced_now', description: 'Admin lists and views contact messages' },
+    update: { roles: ['Admin'], status: 'enforced_now', description: 'Admin updates contact message status' },
+  },
+  dashboard: {
+    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now', description: 'Authenticated role reads overview' },
   },
 };
 

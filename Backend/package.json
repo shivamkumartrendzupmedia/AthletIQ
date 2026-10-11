@@ -18,6 +18,7 @@
     "verify:comms": "tsx scripts/verify-comms.ts",
     "verify:development": "tsx scripts/verify-development.ts",
     "verify:tournaments": "tsx scripts/verify-tournaments.ts",
+    "verify:dashboard": "tsx scripts/verify-dashboard.ts",
     "cleanup:orphans": "tsx scripts/cleanup-test-orphans.ts",
     "create:user": "tsx scripts/create-user.ts"
   },

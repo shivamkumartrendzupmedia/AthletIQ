@@ -31,6 +31,14 @@ import {
   type UpdateMatchInput,
   type EnterMatchResultInput,
 } from '../lib/tournamentPayloads';
+import {
+  buildCreateContactPayload,
+  buildUpdateContactStatusPayload,
+  type CreateContactInput,
+  type UpdateContactStatusInput,
+} from '../lib/contactPayloads';
+
+export type { CreateContactInput, UpdateContactStatusInput };
 
 export type { PaginationMeta, PaginatedResult };
 
@@ -1306,6 +1314,48 @@ export const academyApi = {
     const res = await apiClient(`/public/tournaments/${id}/matches`);
     return normalizeListResponse<PublicMatchItem>(res).items;
   },
+
+  // ==================== DASHBOARD & OVERVIEW (PHASE B) ====================
+  getDashboardOverview: async (): Promise<DashboardOverviewResult | null> => {
+    const res = await apiClient('/dashboard/overview');
+    return normalizeSingleResponse<DashboardOverviewResult>(res);
+  },
+
+  getPublicOverview: async (): Promise<PublicOverviewResult | null> => {
+    const res = await apiClient('/public/overview');
+    return normalizeSingleResponse<PublicOverviewResult>(res);
+  },
+
+  // ==================== CONTACT MESSAGES (PHASE B) ====================
+  submitContactMessage: async (
+    payload: CreateContactInput
+  ): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient<{ success: boolean; message: string }>('/public/contact', {
+      method: 'POST',
+      body: JSON.stringify(buildCreateContactPayload(payload)),
+    });
+    return res.data || { success: true, message: res.message || 'Message sent successfully.' };
+  },
+
+  listContactMessages: async (
+    query: ContactQuery = {}
+  ): Promise<PaginatedResult<ContactMessageItem>> => {
+    const res = await apiClient(
+      `/contact-messages${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<ContactMessageItem>(res);
+  },
+
+  updateContactMessageStatus: async (
+    id: string,
+    payload: UpdateContactStatusInput
+  ): Promise<ContactMessageItem | null> => {
+    const res = await apiClient(`/contact-messages/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(buildUpdateContactStatusPayload(payload)),
+    });
+    return normalizeSingleResponse<ContactMessageItem>(res);
+  },
 };
 
 // Announcement & Document Interfaces
@@ -1637,5 +1687,140 @@ export interface PublicMatchItem {
   status: 'Scheduled' | 'Completed' | 'Cancelled';
   result?: { homeScore: number; awayScore: number } | null;
 }
+
+// ==================== DASHBOARD & OVERVIEWS (PHASE B) ====================
+export interface AdminDashboardOverview {
+  role: 'Admin';
+  userCounts: {
+    total: number;
+    admin: number;
+    coach: number;
+    athlete: number;
+    organizer: number;
+  };
+  activeAthletes: number;
+  teams: number;
+  coaches: number;
+  upcomingSessions: number;
+  tournaments: {
+    Draft: number;
+    'Registration Open': number;
+    'In Progress': number;
+    Completed: number;
+    Cancelled: number;
+  };
+  pendingRegistrations: number;
+  unreadContactMessages: number;
+}
+
+export interface CoachDashboardOverview {
+  role: 'Coach';
+  teams: Array<{
+    id: string;
+    name: string;
+    athleteCount: number;
+  }>;
+  nextSessions: Array<{
+    id: string;
+    teamName: string;
+    venue: string;
+    scheduledAt: string;
+    endsAt: string;
+    type: string;
+  }>;
+  attendanceRate: number | null;
+}
+
+export interface AthleteDashboardOverview {
+  role: 'Athlete';
+  displayName: string;
+  teamName: string | null;
+  attendanceRate: number | null;
+  nextSessions: Array<{
+    id: string;
+    venue: string;
+    scheduledAt: string;
+    endsAt: string;
+    type: string;
+  }>;
+  latestAssessmentOverallScore: number | null;
+  activeGoalsCount: number;
+  unacknowledgedFeedbackCount: number;
+  nextMatches: Array<{
+    id: string;
+    tournamentName: string;
+    round: string;
+    scheduledAt: string;
+    venueName: string;
+    homeTeamName: string;
+    awayTeamName: string;
+  }>;
+}
+
+export interface OrganizerDashboardOverview {
+  role: 'Organizer';
+  tournaments: {
+    Draft: number;
+    'Registration Open': number;
+    'In Progress': number;
+    Completed: number;
+    Cancelled: number;
+  };
+  pendingRegistrations: number;
+  nextMatches: Array<{
+    id: string;
+    tournamentName: string;
+    round: string;
+    scheduledAt: string;
+    venueName: string;
+    homeTeamName: string;
+    awayTeamName: string;
+  }>;
+}
+
+export type DashboardOverviewResult =
+  | AdminDashboardOverview
+  | CoachDashboardOverview
+  | AthleteDashboardOverview
+  | OrganizerDashboardOverview;
+
+export interface PublicOverviewResult {
+  activeAthletes: number;
+  activeCoaches: number;
+  activeTeams: number;
+  sportsCount: number;
+  nextTournaments: Array<{
+    id: string;
+    name: string;
+    sport: { id: string; name: string; slug: string };
+    category: string;
+    ageGroup: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  }>;
+  latestAnnouncements: Array<{
+    id: string;
+    title: string;
+    publishedAt: string;
+  }>;
+}
+
+export interface ContactMessageItem {
+  id: string;
+  name: string;
+  email: string;
+  subject?: string;
+  message: string;
+  status: 'New' | 'Read' | 'Archived';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ContactQuery extends PaginationQuery {
+  status?: 'New' | 'Read' | 'Archived';
+  search?: string;
+}
+
 
 

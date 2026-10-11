@@ -34,7 +34,7 @@ export const Navbar: React.FC = () => {
       case 'Athlete':
         return '/dashboard/athlete';
       case 'Organizer':
-        return '/dashboard/tournaments';
+        return '/dashboard/organizer';
       default:
         return '/dashboard/athlete';
     }

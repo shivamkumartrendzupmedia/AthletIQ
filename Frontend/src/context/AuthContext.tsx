@@ -47,8 +47,6 @@ const demoUsers: Record<UserRole, User> = {
     name: 'Director Marcus Vance',
     email: 'admin@athletiq.com',
     role: 'Admin',
-    avatar:
-      'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&auto=format&fit=crop',
   },
   Coach: {
     id: 'user-coach',
@@ -57,8 +55,6 @@ const demoUsers: Record<UserRole, User> = {
     role: 'Coach',
     sport: 'Football',
     assignedTeamId: 'u16-strikers',
-    avatar:
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop',
   },
   Athlete: {
     id: 'user-athlete',
@@ -67,16 +63,12 @@ const demoUsers: Record<UserRole, User> = {
     role: 'Athlete',
     sport: 'Football',
     assignedTeamId: 'u16-strikers',
-    avatar:
-      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=400&auto=format&fit=crop',
   },
   Organizer: {
     id: 'user-organizer',
     name: 'Sarah Jenkins',
     email: 'organizer@athletiq.com',
     role: 'Organizer',
-    avatar:
-      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400&auto=format&fit=crop',
   },
 };
 

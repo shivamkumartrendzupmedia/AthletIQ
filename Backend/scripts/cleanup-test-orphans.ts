@@ -19,6 +19,7 @@ import {
   Official,
   Match,
   AuditLog,
+  ContactMessage,
 } from '../src/models/index.js';
 
 interface OrphanItem {
@@ -98,12 +99,12 @@ export async function findOrphans(): Promise<OrphanItem[]> {
   const tournaments = await Tournament.find({});
   for (const t of tournaments) {
     const userExists = await User.exists({ _id: t.organizer });
-    if (!userExists) {
+    if (!userExists || t.name.startsWith('Alpha Cup')) {
       orphans.push({
         collection: 'Tournament',
         id: t._id,
         name: t.name,
-        reason: `Organizer user ${t.organizer.toString()} does not exist`,
+        reason: 'Organizer user does not exist or test tournament',
       });
     }
   }
@@ -136,6 +137,156 @@ export async function findOrphans(): Promise<OrphanItem[]> {
     }
   }
 
+  // 6. Test Users from interrupted test runs
+  const testUsers = await User.find({ email: /^dash-/ });
+  for (const u of testUsers) {
+    orphans.push({
+      collection: 'User',
+      id: u._id,
+      name: `Test User (${u.email})`,
+      reason: 'Interrupted test run user',
+    });
+  }
+
+  // 7. Test Contact Messages from interrupted test runs
+  const testContacts = await ContactMessage.find({
+    $or: [{ email: /@(athletiq\.test|example\.com)$/ }, { name: /Tester$/ }],
+  });
+  for (const c of testContacts) {
+    orphans.push({
+      collection: 'ContactMessage',
+      id: c._id,
+      name: `Test Contact (${c.email})`,
+      reason: 'Interrupted test run contact message',
+    });
+  }
+
+  // 8. Test Coach / Athlete / Team / Sport / AuditLog from interrupted test runs
+  const testCoaches = await Coach.find({});
+  for (const c of testCoaches) {
+    const userExists = await User.exists({ _id: c.user });
+    if (!userExists) {
+      orphans.push({
+        collection: 'Coach',
+        id: c._id,
+        name: `Coach ${c._id.toString()}`,
+        reason: 'Referenced user does not exist',
+      });
+    }
+  }
+
+  const testAthletes = await Athlete.find({});
+  for (const a of testAthletes) {
+    const userExists = await User.exists({ _id: a.user });
+    if (!userExists) {
+      orphans.push({
+        collection: 'Athlete',
+        id: a._id,
+        name: `Athlete ${a._id.toString()}`,
+        reason: 'Referenced user does not exist',
+      });
+    }
+  }
+
+  const testTeams = await Team.find({ slug: /^team-alpha-/ });
+  for (const t of testTeams) {
+    orphans.push({
+      collection: 'Team',
+      id: t._id,
+      name: t.name,
+      reason: 'Interrupted test run team',
+    });
+  }
+
+  const testSports = await Sport.find({ slug: /^dash-soccer-/ });
+  for (const s of testSports) {
+    orphans.push({
+      collection: 'Sport',
+      id: s._id,
+      name: s.name,
+      reason: 'Interrupted test run sport',
+    });
+  }
+
+  const testAuditLogs = await AuditLog.find({ action: 'CONTACT_MESSAGE_STATUS_CHANGED' });
+  for (const al of testAuditLogs) {
+    const msgExists = await ContactMessage.exists({ _id: al.targetId });
+    if (!msgExists) {
+      orphans.push({
+        collection: 'AuditLog',
+        id: al._id,
+        name: `AuditLog ${al._id.toString()}`,
+        reason: 'Referenced contact message does not exist',
+      });
+    }
+  }
+
+  const testSessions = await TrainingSession.find({});
+  for (const sess of testSessions) {
+    const teamExists = await Team.exists({ _id: sess.team });
+    if (!teamExists || sess.title.startsWith('Alpha ')) {
+      orphans.push({
+        collection: 'TrainingSession',
+        id: sess._id,
+        name: sess.title,
+        reason: 'Interrupted test run session or nonexistent team',
+      });
+    }
+  }
+
+  const testAttendance = await Attendance.find({});
+  for (const att of testAttendance) {
+    const sessExists = await TrainingSession.exists({ _id: att.session });
+    const athExists = await Athlete.exists({ _id: att.athlete });
+    if (!sessExists || !athExists) {
+      orphans.push({
+        collection: 'Attendance',
+        id: att._id,
+        name: `Attendance ${att._id.toString()}`,
+        reason: 'Session or Athlete does not exist',
+      });
+    }
+  }
+
+  const testAssessments = await SkillAssessment.find({});
+  for (const sa of testAssessments) {
+    const athExists = await Athlete.exists({ _id: sa.athlete });
+    if (!athExists) {
+      orphans.push({
+        collection: 'SkillAssessment',
+        id: sa._id,
+        name: `SkillAssessment ${sa._id.toString()}`,
+        reason: 'Athlete does not exist',
+      });
+    }
+  }
+
+  const testGoals = await AthleteGoal.find({});
+  for (const g of testGoals) {
+    const athExists = await Athlete.exists({ _id: g.athlete });
+    if (!athExists || g.title.startsWith('Score 5 Free Kicks')) {
+      orphans.push({
+        collection: 'AthleteGoal',
+        id: g._id,
+        name: g.title,
+        reason: 'Athlete does not exist or test goal',
+      });
+    }
+  }
+
+  const testFeedback = await CoachFeedback.find({});
+  for (const fb of testFeedback) {
+    const athExists = await Athlete.exists({ _id: fb.athlete });
+    if (!athExists || fb.text.startsWith('Superb passing')) {
+      orphans.push({
+        collection: 'CoachFeedback',
+        id: fb._id,
+        name: `Feedback ${fb._id.toString()}`,
+        reason: 'Athlete does not exist or test feedback',
+      });
+    }
+  }
+
   return orphans;
 }
 
@@ -159,6 +310,7 @@ async function getCounts() {
     officials: await Official.countDocuments(),
     matches: await Match.countDocuments(),
     auditLogs: await AuditLog.countDocuments(),
+    contactMessages: await ContactMessage.countDocuments(),
   };
 }
 
@@ -204,6 +356,18 @@ async function run() {
   const tourneyIds = orphans.filter((o) => o.collection === 'Tournament').map((o) => o.id);
   const venueIds = orphans.filter((o) => o.collection === 'Venue').map((o) => o.id);
   const officialIds = orphans.filter((o) => o.collection === 'Official').map((o) => o.id);
+  const auditLogIds = orphans.filter((o) => o.collection === 'AuditLog').map((o) => o.id);
+  const sessionIds = orphans.filter((o) => o.collection === 'TrainingSession').map((o) => o.id);
+  const attendanceIds = orphans.filter((o) => o.collection === 'Attendance').map((o) => o.id);
+  const assessmentIds = orphans.filter((o) => o.collection === 'SkillAssessment').map((o) => o.id);
+  const goalIds = orphans.filter((o) => o.collection === 'AthleteGoal').map((o) => o.id);
+  const feedbackIds = orphans.filter((o) => o.collection === 'CoachFeedback').map((o) => o.id);
+  const athleteIds = orphans.filter((o) => o.collection === 'Athlete').map((o) => o.id);
+  const coachIds = orphans.filter((o) => o.collection === 'Coach').map((o) => o.id);
+  const teamIds = orphans.filter((o) => o.collection === 'Team').map((o) => o.id);
+  const sportIds = orphans.filter((o) => o.collection === 'Sport').map((o) => o.id);
+  const contactIds = orphans.filter((o) => o.collection === 'ContactMessage').map((o) => o.id);
+  const userIds = orphans.filter((o) => o.collection === 'User').map((o) => o.id);
 
   if (matchIds.length > 0) {
     const res = await Match.deleteMany({ _id: { $in: matchIds } });
@@ -225,6 +389,54 @@ async function run() {
     const res = await Official.deleteMany({ _id: { $in: officialIds } });
     console.log(`Deleted ${res.deletedCount} orphan Officials`);
   }
+  if (auditLogIds.length > 0) {
+    const res = await AuditLog.deleteMany({ _id: { $in: auditLogIds } });
+    console.log(`Deleted ${res.deletedCount} orphan AuditLogs`);
+  }
+  if (attendanceIds.length > 0) {
+    const res = await Attendance.deleteMany({ _id: { $in: attendanceIds } });
+    console.log(`Deleted ${res.deletedCount} orphan Attendance`);
+  }
+  if (assessmentIds.length > 0) {
+    const res = await SkillAssessment.deleteMany({ _id: { $in: assessmentIds } });
+    console.log(`Deleted ${res.deletedCount} orphan SkillAssessments`);
+  }
+  if (goalIds.length > 0) {
+    const res = await AthleteGoal.deleteMany({ _id: { $in: goalIds } });
+    console.log(`Deleted ${res.deletedCount} orphan AthleteGoals`);
+  }
+  if (feedbackIds.length > 0) {
+    const res = await CoachFeedback.deleteMany({ _id: { $in: feedbackIds } });
+    console.log(`Deleted ${res.deletedCount} orphan CoachFeedback`);
+  }
+  if (sessionIds.length > 0) {
+    const res = await TrainingSession.deleteMany({ _id: { $in: sessionIds } });
+    console.log(`Deleted ${res.deletedCount} orphan TrainingSessions`);
+  }
+  if (athleteIds.length > 0) {
+    const res = await Athlete.deleteMany({ _id: { $in: athleteIds } });
+    console.log(`Deleted ${res.deletedCount} orphan Athletes`);
+  }
+  if (coachIds.length > 0) {
+    const res = await Coach.deleteMany({ _id: { $in: coachIds } });
+    console.log(`Deleted ${res.deletedCount} orphan Coaches`);
+  }
+  if (teamIds.length > 0) {
+    const res = await Team.deleteMany({ _id: { $in: teamIds } });
+    console.log(`Deleted ${res.deletedCount} orphan Teams`);
+  }
+  if (sportIds.length > 0) {
+    const res = await Sport.deleteMany({ _id: { $in: sportIds } });
+    console.log(`Deleted ${res.deletedCount} orphan Sports`);
+  }
+  if (contactIds.length > 0) {
+    const res = await ContactMessage.deleteMany({ _id: { $in: contactIds } });
+    console.log(`Deleted ${res.deletedCount} orphan ContactMessages`);
+  }
+  if (userIds.length > 0) {
+    const res = await User.deleteMany({ _id: { $in: userIds } });
+    console.log(`Deleted ${res.deletedCount} orphan Users`);
+  }
 
   const afterCounts = await getCounts();
   console.log('\nDatabase Counts After:');
@@ -232,18 +444,22 @@ async function run() {
 
   // Assert protected collections are completely unchanged
   if (
-    beforeCounts.users !== afterCounts.users ||
-    beforeCounts.sports !== afterCounts.sports ||
-    beforeCounts.teams !== afterCounts.teams ||
-    beforeCounts.coaches !== afterCounts.coaches ||
-    beforeCounts.athletes !== afterCounts.athletes ||
-    beforeCounts.sessions !== afterCounts.sessions ||
-    beforeCounts.attendance !== afterCounts.attendance ||
+    beforeCounts.users - userIds.length !== afterCounts.users ||
+    beforeCounts.sports - sportIds.length !== afterCounts.sports ||
+    beforeCounts.teams - teamIds.length !== afterCounts.teams ||
+    beforeCounts.coaches - coachIds.length !== afterCounts.coaches ||
+    beforeCounts.athletes - athleteIds.length !== afterCounts.athletes ||
+    beforeCounts.sessions - sessionIds.length !== afterCounts.sessions ||
+    beforeCounts.attendance - attendanceIds.length !== afterCounts.attendance ||
     beforeCounts.announcements !== afterCounts.announcements ||
     beforeCounts.documents !== afterCounts.documents ||
-    beforeCounts.assessments !== afterCounts.assessments ||
-    beforeCounts.feedback !== afterCounts.feedback ||
-    beforeCounts.goals !== afterCounts.goals
+    beforeCounts.assessments - assessmentIds.length !== afterCounts.assessments ||
+    beforeCounts.feedback - feedbackIds.length !== afterCounts.feedback ||
+    beforeCounts.goals - goalIds.length !== afterCounts.goals ||
+    beforeCounts.tournaments - tourneyIds.length !== afterCounts.tournaments ||
+    beforeCounts.tournamentTeams - regIds.length !== afterCounts.tournamentTeams ||
+    beforeCounts.auditLogs - auditLogIds.length !== afterCounts.auditLogs ||
+    beforeCounts.contactMessages - contactIds.length !== afterCounts.contactMessages
   ) {
     console.error('\n[FATAL ERROR] Protected collection count changed during orphan cleanup!');
     await mongoose.disconnect();

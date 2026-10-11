@@ -17,7 +17,9 @@ import {
   Award,
   User,
   MapPin,
+  MessageSquare,
 } from 'lucide-react';
+import { SafeImage, getInitials, isValidImageUrl } from './SafeImage';
 
 const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -36,6 +38,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         return [
           { name: 'Admin Overview', path: '/dashboard/admin', icon: LayoutDashboard },
           { name: 'User Accounts', path: '/dashboard/users', icon: User },
+          { name: 'Contact Messages', path: '/dashboard/messages', icon: MessageSquare },
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
           { name: 'Venues', path: '/dashboard/venues', icon: MapPin },
           { name: 'Officials', path: '/dashboard/officials', icon: UserCheck },
@@ -69,6 +72,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         ];
       case 'Organizer':
         return [
+          { name: 'Organizer Hub', path: '/dashboard/organizer', icon: LayoutDashboard },
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
           { name: 'Venues', path: '/dashboard/venues', icon: MapPin },
           { name: 'Officials', path: '/dashboard/officials', icon: UserCheck },
@@ -85,9 +89,6 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const navItems = getNavItems();
-  const avatarUrl =
-    user.avatar ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop';
 
   const handleLogout = async () => {
     await logout();
@@ -137,7 +138,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                     if (newRole === 'Coach') navigate('/dashboard/coach');
                     else if (newRole === 'Athlete') navigate('/dashboard/athlete');
                     else if (newRole === 'Organizer')
-                      navigate('/dashboard/tournaments');
+                      navigate('/dashboard/organizer');
                     else navigate('/dashboard/admin');
                   }}
                   className="bg-[#171044] text-white text-xs font-bold px-2 py-1 rounded-lg border border-white/20 outline-none cursor-pointer"
@@ -175,11 +176,19 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         {/* User Card, Public Shortcut & Logout */}
         <div className="pt-6 border-t border-white/10 space-y-3">
           <div className="flex items-center gap-3">
-            <img
-              src={avatarUrl}
-              alt={user.name}
-              className="w-10 h-10 rounded-full object-cover border-2 border-[#D8F500]"
-            />
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-[#FF5A00] flex items-center justify-center text-white font-bold text-xs shrink-0 border-2 border-[#D8F500]">
+              {user.avatar && isValidImageUrl(user.avatar) ? (
+                <SafeImage
+                  src={user.avatar}
+                  alt={user.name}
+                  fallbackKind="person"
+                  name={user.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>{getInitials(user.name, 'U')}</span>
+              )}
+            </div>
             <div className="overflow-hidden">
               <div className="font-display font-bold text-xs text-white truncate">
                 {user.name}
@@ -237,7 +246,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                     else if (newRole === 'Athlete')
                       navigate('/dashboard/athlete');
                     else if (newRole === 'Organizer')
-                      navigate('/dashboard/tournaments');
+                      navigate('/dashboard/organizer');
                     else navigate('/dashboard/admin');
                   }}
                   className="bg-transparent text-[#D8F500] font-extrabold outline-none cursor-pointer"

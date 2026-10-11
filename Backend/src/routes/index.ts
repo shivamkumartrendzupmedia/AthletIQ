@@ -17,6 +17,8 @@ import { registrationRoutes } from './registration.routes.js';
 import { venueRoutes } from './venue.routes.js';
 import { officialRoutes } from './official.routes.js';
 import { matchRoutes } from './match.routes.js';
+import { dashboardRoutes } from './dashboard.routes.js';
+import { contactRoutes } from './contact.routes.js';
 
 const router = Router();
 
@@ -31,6 +33,12 @@ router.use('/auth', authRoutes);
 
 // Mount user management routes under /api/users
 router.use('/users', userRoutes);
+
+// Mount dashboard metrics endpoint under /api/dashboard
+router.use('/dashboard', dashboardRoutes);
+
+// Mount admin contact inquiry management under /api/contact-messages
+router.use('/contact-messages', contactRoutes);
 
 // Mount academy core routes
 router.use('/sports', sportRoutes);
