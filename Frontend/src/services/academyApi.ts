@@ -1155,11 +1155,6 @@ export const academyApi = {
     return normalizeListResponse<VenueItem>(res);
   },
 
-  getVenue: async (id: string): Promise<VenueItem | null> => {
-    const res = await apiClient(`/venues/${id}`);
-    return normalizeSingleResponse<VenueItem>(res);
-  },
-
   createVenue: async (
     payload: CreateVenueInput
   ): Promise<VenueItem | null> => {
@@ -1198,11 +1193,6 @@ export const academyApi = {
       `/officials${buildQueryString(query as Record<string, unknown>)}`
     );
     return normalizeListResponse<OfficialItem>(res);
-  },
-
-  getOfficial: async (id: string): Promise<OfficialItem | null> => {
-    const res = await apiClient(`/officials/${id}`);
-    return normalizeSingleResponse<OfficialItem>(res);
   },
 
   createOfficial: async (

@@ -28,10 +28,12 @@ import {
 } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
 import { toDatetimeLocalString, fromDatetimeLocalString, formatSessionTimeRange } from '../../lib/datetime';
+import { useAuth } from '../../context/AuthContext';
 
 type DetailTab = 'overview' | 'registrations' | 'matches';
 
 export const TournamentDetailPage: React.FC = () => {
+  const { role } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -351,7 +353,7 @@ export const TournamentDetailPage: React.FC = () => {
         </div>
 
         {/* Quick action buttons depending on active tab */}
-        {activeTab === 'matches' && (
+        {(role === 'Admin' || role === 'Organizer') && activeTab === 'matches' && (
           <Button
             onClick={openCreateMatchModal}
             variant="primary"
@@ -551,7 +553,7 @@ export const TournamentDetailPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {r.status === 'Pending' && (
+                  {(role === 'Admin' || role === 'Organizer') && r.status === 'Pending' && (
                     <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#111111]/10">
                       <Button
                         onClick={() => handleApproveRegistration(r)}
@@ -656,58 +658,60 @@ export const TournamentDetailPage: React.FC = () => {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#111111]/10">
-                      {m.status === 'Scheduled' && (
-                        <>
+                    {(role === 'Admin' || role === 'Organizer') && (
+                      <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#111111]/10">
+                        {m.status === 'Scheduled' && (
+                          <>
+                            <Button
+                              onClick={() => openResultModal(m)}
+                              variant="primary"
+                              size="sm"
+                              className="inline-flex items-center gap-1"
+                            >
+                              <Award className="w-3.5 h-3.5" />
+                              <span>Enter Score</span>
+                            </Button>
+                            <Button
+                              onClick={() => openEditMatchModal(m)}
+                              variant="outline"
+                              size="sm"
+                              className="inline-flex items-center gap-1"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                              <span>Reschedule</span>
+                            </Button>
+                            <Button
+                              onClick={() => handleCancelMatch(m)}
+                              variant="outline"
+                              size="sm"
+                              className="inline-flex items-center gap-1 text-red-600 border-red-200"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>Cancel</span>
+                            </Button>
+                          </>
+                        )}
+                        {m.status === 'Completed' && (
                           <Button
                             onClick={() => openResultModal(m)}
-                            variant="primary"
-                            size="sm"
-                            className="inline-flex items-center gap-1"
-                          >
-                            <Award className="w-3.5 h-3.5" />
-                            <span>Enter Score</span>
-                          </Button>
-                          <Button
-                            onClick={() => openEditMatchModal(m)}
                             variant="outline"
                             size="sm"
                             className="inline-flex items-center gap-1"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
-                            <span>Reschedule</span>
+                            <span>Correct Score</span>
                           </Button>
-                          <Button
-                            onClick={() => handleCancelMatch(m)}
-                            variant="outline"
-                            size="sm"
-                            className="inline-flex items-center gap-1 text-red-600 border-red-200"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            <span>Cancel</span>
-                          </Button>
-                        </>
-                      )}
-                      {m.status === 'Completed' && (
+                        )}
                         <Button
-                          onClick={() => openResultModal(m)}
+                          onClick={() => handleDeleteMatch(m)}
                           variant="outline"
                           size="sm"
-                          className="inline-flex items-center gap-1"
+                          className="inline-flex items-center gap-1 text-red-600 border-red-200"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
-                          <span>Correct Score</span>
+                          <Trash2 className="w-3.5 h-3.5" />
                         </Button>
-                      )}
-                      <Button
-                        onClick={() => handleDeleteMatch(m)}
-                        variant="outline"
-                        size="sm"
-                        className="inline-flex items-center gap-1 text-red-600 border-red-200"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
+                      </div>
+                    )}
                   </Card>
                 );
               })}

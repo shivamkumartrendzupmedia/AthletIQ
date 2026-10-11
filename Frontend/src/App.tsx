@@ -234,7 +234,7 @@ function App() {
           <Route
             path="/dashboard/tournaments/:id"
             element={
-              <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
+              <ProtectedRoute allowedRoles={['Admin', 'Organizer', 'Coach', 'Athlete']}>
                 <DashboardLayout>
                   <ErrorBoundary>
                     <DashboardTournamentDetailPage />
