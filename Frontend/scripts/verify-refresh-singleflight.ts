@@ -289,6 +289,84 @@ async function runTests(): Promise<void> {
     );
   }
 
+  // Case (g): 3 parallel API calls hitting 401 simultaneously trigger exactly 1 refresh and all retry successfully
+  {
+    storageMap.set('athletiq_has_session', '1');
+    setAccessToken(null);
+    let refreshCount = 0;
+    let sportsCalls = 0;
+    let teamsCalls = 0;
+    let meCalls = 0;
+
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/auth/refresh')) {
+        refreshCount++;
+        await new Promise((r) => setTimeout(r, 20));
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              accessToken: 'token-batch-test',
+              user: { id: 'u4', name: 'User 4', email: 'u4@test.com', role: 'Athlete' },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const authHeader = (init?.headers as Headers | undefined)?.get?.('Authorization') ??
+        (init?.headers as Record<string, string> | undefined)?.['Authorization'];
+
+      if (!authHeader || authHeader === 'Bearer null') {
+        return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
+
+      if (urlStr.includes('/sports')) sportsCalls++;
+      if (urlStr.includes('/teams')) teamsCalls++;
+      if (urlStr.includes('/auth/me')) meCalls++;
+
+      return new Response(JSON.stringify({ success: true, data: {} }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+
+    const [rSports, rTeams, rMe] = await Promise.all([
+      apiClient('/sports'),
+      apiClient('/teams'),
+      apiClient('/auth/me'),
+    ]);
+
+    assert(
+      refreshCount === 1 &&
+        rSports.success &&
+        rTeams.success &&
+        rMe.success &&
+        sportsCalls === 1 &&
+        teamsCalls === 1 &&
+        meCalls === 1 &&
+        getAccessToken() === 'token-batch-test',
+      'Case (g): 3 concurrent 401 requests trigger exactly 1 refresh call and all retry successfully'
+    );
+  }
+
+  // Case (h): Network throw during refresh returns null safely without unhandled crash
+  {
+    storageMap.set('athletiq_has_session', '1');
+    setAccessToken(null);
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/auth/refresh')) {
+        throw new Error('Network failure: DNS offline');
+      }
+      return new Response('{}', { status: 200 });
+    }) as typeof fetch;
+
+    const result = await refreshAccessToken();
+    assert(
+      result === null && getAccessToken() === null,
+      'Case (h): Network throw during refresh returns null safely without crash'
+    );
+  }
+
   console.log(`\n========================================`);
   console.log(`Summary: ${passed} passed, ${failed} failed`);
   console.log(`========================================\n`);
