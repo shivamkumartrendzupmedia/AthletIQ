@@ -432,6 +432,7 @@ async function run() {
   createdMatchIds.push(match1._id);
 
   const groupPasses: number[] = [];
+  const groupRequests: number[] = [];
 
   // =========================================================================
   // GROUP 1: ROLE x ENDPOINT PERMISSIONS MATRIX (5 ENDPOINTS x 8 ROLES)
@@ -602,6 +603,7 @@ async function run() {
   }
 
   groupPasses.push(g1Pass);
+  groupRequests.push(srv1.group.getRequestCount());
   assert(srv1.group.getRequestCount() < 90, `Group 1 request count (${srv1.group.getRequestCount()}) < 90`);
 
   // =========================================================================
@@ -828,6 +830,7 @@ async function run() {
   }
 
   groupPasses.push(g2Pass);
+  groupRequests.push(srv2.group.getRequestCount());
   assert(srv2.group.getRequestCount() < 90, `Group 2 request count (${srv2.group.getRequestCount()}) < 90`);
 
   // =========================================================================
@@ -1014,6 +1017,7 @@ async function run() {
   }
 
   groupPasses.push(g3Pass);
+  groupRequests.push(srv3.group.getRequestCount());
   assert(srv3.group.getRequestCount() < 90, `Group 3 request count (${srv3.group.getRequestCount()}) < 90`);
 
   // =========================================================================
@@ -1112,6 +1116,7 @@ async function run() {
   }
 
   groupPasses.push(g4Pass);
+  groupRequests.push(srv4.group.getRequestCount());
   assert(srv4.group.getRequestCount() < 90, `Group 4 request count (${srv4.group.getRequestCount()}) < 90`);
 
   // =========================================================================
@@ -1188,6 +1193,7 @@ async function run() {
   }
 
   groupPasses.push(g5Pass);
+  groupRequests.push(srv5.group.getRequestCount());
   assert(srv5.group.getRequestCount() < 90, `Group 5 request count (${srv5.group.getRequestCount()}) < 90`);
 
   // =========================================================================
@@ -1345,6 +1351,7 @@ async function run() {
   }
 
   groupPasses.push(g6Pass);
+  groupRequests.push(srv6.group.getRequestCount());
   assert(srv6.group.getRequestCount() < 90, `Group 6 request count (${srv6.group.getRequestCount()}) < 90`);
 
   // =========================================================================
@@ -1460,7 +1467,178 @@ async function run() {
   }
 
   groupPasses.push(g7Pass);
+  groupRequests.push(srv7.group.getRequestCount());
   assert(srv7.group.getRequestCount() < 90, `Group 7 request count (${srv7.group.getRequestCount()}) < 90`);
+
+  // =========================================================================
+  // GROUP 8: OFFICIAL ROLE COMPLETENESS, RBAC & LINKING LIFECYCLE
+  // =========================================================================
+  console.log('\n--- GROUP 8: OFFICIAL ROLE COMPLETENESS & LINKING LIFECYCLE ---');
+  let g8Pass = 0;
+  const srv8 = startServerGroup();
+
+  try {
+    const adminAuth = getAuthHeader(adminUser);
+    const newOfficialEmail = `official-api-${Date.now()}@test.athletiq.internal`;
+    const newOfficialPass = 'OfficialPass123!';
+
+    // 1. Admin creates user with role Official via real API = 201
+    const resCreateOffUser = await srv8.fetchGroup('/users', {
+      method: 'POST',
+      headers: adminAuth,
+      body: JSON.stringify({
+        name: 'API Created Official',
+        email: newOfficialEmail,
+        password: newOfficialPass,
+        role: 'Official',
+      }),
+    });
+    assert(resCreateOffUser.status === 201, 'Admin creates user with role Official via API (201)');
+    g8Pass++;
+
+    const createBody = resCreateOffUser.body as { data: { id?: string; _id?: string; role: string } };
+    const offUserId = createBody?.data?.id || createBody?.data?._id;
+    assert(!!offUserId && createBody.data.role === 'Official', 'Created user has ID and role Official');
+    g8Pass++;
+    if (offUserId) createdUserIds.push(new Types.ObjectId(offUserId));
+
+    // 2. User logs in and /api/auth/me returns role Official
+    const resOffLogin = await srv8.fetchGroup('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: newOfficialEmail,
+        password: newOfficialPass,
+      }),
+    });
+    assert(resOffLogin.status === 200, 'Created Official user logs in with 200');
+    g8Pass++;
+
+    const loginBody = resOffLogin.body as { data: { accessToken: string } };
+    const offToken = loginBody?.data?.accessToken;
+    const offAuth = {
+      Authorization: `Bearer ${offToken}`,
+      'Content-Type': 'application/json',
+    };
+
+    const resAuthMe = await srv8.fetchGroup('/auth/me', { headers: offAuth });
+    assert(resAuthMe.status === 200, 'GET /api/auth/me for Official user returns 200');
+    g8Pass++;
+    const meBody = resAuthMe.body as { data: { user?: { role: string }; role?: string } };
+    const meRole = meBody?.data?.user?.role || meBody?.data?.role;
+    assert(meRole === 'Official', 'GET /api/auth/me returns role Official');
+    g8Pass++;
+
+    // 3. Public register with role Official in body still yields Athlete
+    const sneakyEmail = `sneaky-athlete-${Date.now()}@test.athletiq.internal`;
+    const resPublicRegister = await srv8.fetchGroup('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Sneaky Athlete',
+        email: sneakyEmail,
+        password: 'Password123!',
+        role: 'Official',
+      }),
+    });
+    assert(resPublicRegister.status === 201, 'Public register returns 201');
+    g8Pass++;
+    const regBody = resPublicRegister.body as { data: { user: { id?: string; _id?: string; role: string } } };
+    const sneakyUser = regBody?.data?.user;
+    assert(sneakyUser?.role === 'Athlete', 'Public register with role Official in body strictly yields Athlete');
+    g8Pass++;
+    const sneakyUserId = sneakyUser?.id || sneakyUser?._id;
+    if (sneakyUserId) createdUserIds.push(new Types.ObjectId(sneakyUserId));
+
+    // 4. Official forbidden endpoints (403): /users, /tournaments POST, /venues POST, /officials POST, /contact-messages
+    const resOffUsers = await srv8.fetchGroup('/users', { headers: offAuth });
+    assert(resOffUsers.status === 403, 'Official GET /api/users returns 403');
+    g8Pass++;
+
+    const resOffTournPost = await srv8.fetchGroup('/tournaments', {
+      method: 'POST',
+      headers: offAuth,
+      body: JSON.stringify({ name: 'Hacked Tourney' }),
+    });
+    assert(resOffTournPost.status === 403, 'Official POST /api/tournaments returns 403');
+    g8Pass++;
+
+    const resOffVenuePost = await srv8.fetchGroup('/venues', {
+      method: 'POST',
+      headers: offAuth,
+      body: JSON.stringify({ name: 'Hacked Venue' }),
+    });
+    assert(resOffVenuePost.status === 403, 'Official POST /api/venues returns 403');
+    g8Pass++;
+
+    const resOffOfficialPost = await srv8.fetchGroup('/officials', {
+      method: 'POST',
+      headers: offAuth,
+      body: JSON.stringify({ name: 'Hacked Official' }),
+    });
+    assert(resOffOfficialPost.status === 403, 'Official POST /api/officials returns 403');
+    g8Pass++;
+
+    const resOffContactMsgs = await srv8.fetchGroup('/contact-messages', { headers: offAuth });
+    assert(resOffContactMsgs.status === 403, 'Official GET /api/contact-messages returns 403');
+    g8Pass++;
+
+    // 5. Official permitted endpoints (200): GET /dashboard/overview, GET /matches/assigned
+    const resOffDash = await srv8.fetchGroup('/dashboard/overview', { headers: offAuth });
+    assert(resOffDash.status === 200, 'Official GET /api/dashboard/overview returns 200');
+    g8Pass++;
+
+    const resOffAssigned = await srv8.fetchGroup('/matches/assigned', { headers: offAuth });
+    assert(resOffAssigned.status === 200, 'Official GET /api/matches/assigned returns 200');
+    g8Pass++;
+
+    // 6. Admin links Official record to user via PATCH /api/officials/:id { user } = 200
+    const testOffRec1 = await Official.create({
+      name: `Ref Link 1 ${Date.now()}`,
+      type: 'Referee',
+      createdBy: orgOwnerUser._id,
+      active: true,
+    });
+    const testOffRec2 = await Official.create({
+      name: `Ref Link 2 ${Date.now()}`,
+      type: 'Referee',
+      createdBy: orgOwnerUser._id,
+      active: true,
+    });
+    createdOfficialIds.push(testOffRec1._id, testOffRec2._id);
+
+    const resLinkValid = await srv8.fetchGroup(`/officials/${testOffRec1._id}`, {
+      method: 'PATCH',
+      headers: adminAuth,
+      body: JSON.stringify({ user: offUserId }),
+    });
+    assert(resLinkValid.status === 200, 'Admin links Official record to Official user returns 200');
+    g8Pass++;
+
+    // 7. Linking a non-Official user = 400
+    const resLinkNonOfficial = await srv8.fetchGroup(`/officials/${testOffRec2._id}`, {
+      method: 'PATCH',
+      headers: adminAuth,
+      body: JSON.stringify({ user: sneakyUserId }),
+    });
+    assert(resLinkNonOfficial.status === 400, 'Linking non-Official user to Official record returns 400');
+    g8Pass++;
+
+    // 8. Linking one user to two Officials = 409
+    const resLinkDuplicate = await srv8.fetchGroup(`/officials/${testOffRec2._id}`, {
+      method: 'PATCH',
+      headers: adminAuth,
+      body: JSON.stringify({ user: offUserId }),
+    });
+    assert(resLinkDuplicate.status === 409, 'Linking one user to two Officials returns 409 conflict');
+    g8Pass++;
+  } finally {
+    await srv8.group.close();
+  }
+
+  groupPasses.push(g8Pass);
+  groupRequests.push(srv8.group.getRequestCount());
+  assert(srv8.group.getRequestCount() < 90, `Group 8 request count (${srv8.group.getRequestCount()}) < 90`);
 
   // =========================================================================
   // CLEANUP & INTEGRITY VERIFICATION
@@ -1537,14 +1715,20 @@ async function run() {
   assert(finalOrphans.length === 0, `Zero test orphans remaining in database (found: ${finalOrphans.length})`);
 
   console.log('\n=== VERIFY:LIVE EXECUTION SUMMARY ===');
+  console.log(`Per-group request counts: [${groupRequests.join(', ')}]`);
+  const sumGroupReqs = groupRequests.reduce((a, b) => a + b, 0);
+  console.log(`Sum of group request counts: ${sumGroupReqs}`);
   console.log(`Total HTTP Requests: ${totalHttpRequests}`);
+  assert(sumGroupReqs === totalHttpRequests, `Per-group requests sum (${sumGroupReqs}) === total HTTP requests (${totalHttpRequests})`);
+
   console.log(`Failed /api/auth Requests: ${failedAuthHttpRequests}`);
   assert(failedAuthHttpRequests <= 8, `Failed /api/auth requests (${failedAuthHttpRequests}) <= 8`);
 
   console.log(`Per-group PASS counts: [${groupPasses.join(', ')}]`);
   const sumGroupPass = groupPasses.reduce((a, b) => a + b, 0);
   console.log(`Sum of group PASS counts: ${sumGroupPass}`);
-  console.log(`Total PASS: ${totalPassed}, Total FAIL: ${totalFailed}`);
+  const suiteAssertionsCount = totalPassed - sumGroupPass;
+  console.log(`Total PASS: ${totalPassed} (${sumGroupPass} assertions in groups + ${suiteAssertionsCount} suite-level integrity assertions), Total FAIL: ${totalFailed}`);
 
   await mongoose.disconnect();
 

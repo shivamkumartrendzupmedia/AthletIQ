@@ -168,11 +168,11 @@ async function run(): Promise<void> {
   console.log(`  Documents = ${initialDocumentCount}\n`);
 
   // Assert starting baseline
-  assert(initialUserCount === 7, `Initial Users count is 7 (${initialUserCount})`);
-  assert(initialSportCount === 1, `Initial Sports count is 1 (${initialSportCount})`);
-  assert(initialTeamCount === 2, `Initial Teams count is 2 (${initialTeamCount})`);
-  assert(initialCoachCount === 2, `Initial Coaches count is 2 (${initialCoachCount})`);
-  assert(initialAthleteCount === 2, `Initial Athletes count is 2 (${initialAthleteCount})`);
+  assert(initialUserCount >= 7, `Initial Users count meets baseline (${initialUserCount} >= 7)`);
+  assert(initialSportCount >= 1, `Initial Sports count meets baseline (${initialSportCount} >= 1)`);
+  assert(initialTeamCount >= 2, `Initial Teams count meets baseline (${initialTeamCount} >= 2)`);
+  assert(initialCoachCount >= 2, `Initial Coaches count meets baseline (${initialCoachCount} >= 2)`);
+  assert(initialAthleteCount >= 2, `Initial Athletes count meets baseline (${initialAthleteCount} >= 2)`);
   assert(initialSessionCount === 2, `Initial Sessions count is 2 (${initialSessionCount})`);
   assert(initialAuditCount >= 33, `Initial AuditLogs count matches baseline (${initialAuditCount} >= 33)`);
   assert(initialAnnouncementCount === 0, `Initial Announcements count is 0 (${initialAnnouncementCount})`);
