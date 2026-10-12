@@ -14,18 +14,35 @@ import { sanitizeInput } from './middlewares/sanitizeInput.js';
 
 export interface CreateAppOptions {
   rateLimitMax?: number;
+  trustProxy?: number;
+  corsOrigins?: string[];
 }
 
 export const createApp = (options: CreateAppOptions = {}): Application => {
   const app: Application = express();
 
+  // 0. Trust Proxy for reverse-proxies (Render, Vercel, load balancers)
+  const trustProxy = options.trustProxy ?? env.TRUST_PROXY;
+  if (trustProxy > 0) {
+    app.set('trust proxy', trustProxy);
+  }
+
   // 1. Security Headers
   app.use(helmet());
 
-  // 2. CORS configuration allowing only CLIENT_URL with credentials
+  // 2. CORS configuration: exact origins, credentials true, never wildcard
+  const allowedOrigins = options.corsOrigins ?? env.CORS_ORIGINS_LIST;
   app.use(
     cors({
-      origin: env.CLIENT_URL,
+      origin: (origin, callback) => {
+        if (!origin) {
+          return callback(null, true);
+        }
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, origin);
+        }
+        return callback(null, false);
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

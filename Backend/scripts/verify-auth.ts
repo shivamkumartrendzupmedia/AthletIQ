@@ -8,6 +8,7 @@ import { env } from '../src/config/env.js';
 import { authService } from '../src/services/auth.service.js';
 import { ApiError } from '../src/utils/ApiError.js';
 import { authLimiter } from '../src/middlewares/rateLimiter.js';
+import { getRefreshCookieOptions } from '../src/utils/jwt.js';
 
 let passed = 0;
 let failed = 0;
@@ -670,6 +671,148 @@ async function run(): Promise<void> {
       );
     } finally {
       server10.close();
+    }
+
+    // 11. Production Cookie & CORS Verification (Step 11A)
+    console.log('\n11. Production Cookie & CORS Verification:');
+
+    // 11a. Pure-function matrix
+    const devOpts = getRefreshCookieOptions({ sameSite: 'lax', secure: false });
+    assert(
+      devOpts.httpOnly === true &&
+        devOpts.secure === false &&
+        devOpts.sameSite === 'lax' &&
+        devOpts.path === '/api/auth',
+      'Cookie pure matrix: development default (httpOnly=true, secure=false, sameSite=lax, path=/api/auth)'
+    );
+
+    const prodOpts = getRefreshCookieOptions({ sameSite: 'lax', secure: true });
+    assert(
+      prodOpts.httpOnly === true &&
+        prodOpts.secure === true &&
+        prodOpts.sameSite === 'lax' &&
+        prodOpts.path === '/api/auth',
+      'Cookie pure matrix: production default (httpOnly=true, secure=true, sameSite=lax, path=/api/auth)'
+    );
+
+    const noneSecureOpts = getRefreshCookieOptions({ sameSite: 'none', secure: true });
+    assert(
+      noneSecureOpts.httpOnly === true &&
+        noneSecureOpts.secure === true &&
+        noneSecureOpts.sameSite === 'none' &&
+        noneSecureOpts.path === '/api/auth',
+      'Cookie pure matrix: none+secure (httpOnly=true, secure=true, sameSite=none, path=/api/auth)'
+    );
+
+    let noneInsecureThrew = false;
+    try {
+      getRefreshCookieOptions({ sameSite: 'none', secure: false });
+    } catch {
+      noneInsecureThrew = true;
+    }
+    assert(noneInsecureThrew, 'Cookie pure matrix: sameSite=none without secure=true throws error');
+
+    const setOpts = getRefreshCookieOptions({ sameSite: 'lax', secure: true, domain: 'athletiq.app' });
+    const clearOpts = getRefreshCookieOptions({ sameSite: 'lax', secure: true, domain: 'athletiq.app', isClear: true });
+    assert(
+      setOpts.path === clearOpts.path &&
+        setOpts.domain === clearOpts.domain &&
+        setOpts.sameSite === clearOpts.sameSite &&
+        setOpts.secure === clearOpts.secure &&
+        setOpts.httpOnly === clearOpts.httpOnly,
+      'Cookie pure matrix: clear options equal set options (path, domain, sameSite, secure, httpOnly parity)'
+    );
+
+    // 11b. HTTP Set-Cookie header contains "SameSite=Lax" by default
+    const defaultCookie = regRes.headers.get('set-cookie') || '';
+    assert(
+      defaultCookie.includes('SameSite=Lax'),
+      'Default HTTP Set-Cookie header contains "SameSite=Lax"'
+    );
+
+    // 11c. Configured Set-Cookie header contains "SameSite=None" and "Secure"
+    const origSameSite = env.COOKIE_SAMESITE;
+    const origSecure = env.COOKIE_SECURE;
+    (env as { COOKIE_SAMESITE: string; COOKIE_SECURE: boolean }).COOKIE_SAMESITE = 'none';
+    (env as { COOKIE_SAMESITE: string; COOKIE_SECURE: boolean }).COOKIE_SECURE = true;
+
+    const appProd = createApp();
+    const serverProd = appProd.listen(0);
+    const prodAddress = serverProd.address() as AddressInfo;
+    const prodUrl = `http://127.0.0.1:${prodAddress.port}/api/auth`;
+
+    try {
+      const prodLoginRes = await fetch(`${prodUrl}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user1Email,
+          password: 'NewPassword123',
+        }),
+      });
+      const prodSetCookie = prodLoginRes.headers.get('set-cookie') || '';
+      assert(
+        prodSetCookie.includes('SameSite=None') && prodSetCookie.includes('Secure'),
+        'Configured Set-Cookie header contains "SameSite=None" and "Secure"'
+      );
+
+      const prodLogoutRes = await fetch(`${prodUrl}/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: extractCookie(prodSetCookie),
+        },
+      });
+      const prodClearCookie = prodLogoutRes.headers.get('set-cookie') || '';
+      assert(
+        prodClearCookie.includes('SameSite=None') &&
+          prodClearCookie.includes('Secure') &&
+          prodClearCookie.includes('Path=/api/auth'),
+        'Logout clearCookie clears with matching SameSite=None, Secure, and Path=/api/auth attributes'
+      );
+    } finally {
+      serverProd.close();
+      (env as { COOKIE_SAMESITE: string; COOKIE_SECURE: boolean }).COOKIE_SAMESITE = origSameSite;
+      (env as { COOKIE_SAMESITE: string; COOKIE_SECURE: boolean }).COOKIE_SECURE = origSecure;
+    }
+
+    // 11d. CORS Preflight: allowed origin vs disallowed origin
+    const appCors = createApp({ corsOrigins: ['https://athletiq-frontend.vercel.app'] });
+    const serverCors = appCors.listen(0);
+    const corsAddress = serverCors.address() as AddressInfo;
+    const corsUrl = `http://127.0.0.1:${corsAddress.port}/api/auth`;
+
+    try {
+      const allowedPreflight = await fetch(`${corsUrl}/login`, {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'https://athletiq-frontend.vercel.app',
+          'Access-Control-Request-Method': 'POST',
+        },
+      });
+      assert(
+        allowedPreflight.headers.get('access-control-allow-origin') ===
+          'https://athletiq-frontend.vercel.app',
+        'CORS preflight from allowed origin returns exactly that origin'
+      );
+      assert(
+        allowedPreflight.headers.get('access-control-allow-credentials') === 'true',
+        'CORS preflight from allowed origin returns Access-Control-Allow-Credentials: true'
+      );
+
+      const disallowedPreflight = await fetch(`${corsUrl}/login`, {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'https://unauthorized-domain.com',
+          'Access-Control-Request-Method': 'POST',
+        },
+      });
+      assert(
+        disallowedPreflight.headers.get('access-control-allow-origin') === null,
+        'CORS preflight from disallowed origin returns no Access-Control-Allow-Origin header'
+      );
+    } finally {
+      serverCors.close();
     }
   } finally {
     // Guaranteed Cleanup of created test data and ephemeral server

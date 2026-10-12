@@ -56,10 +56,12 @@ export interface RefreshResult {
   };
 }
 
-const BASE_URL =
+const rawBase =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL
     ? (import.meta.env.VITE_API_BASE_URL as string)
     : undefined) || 'http://localhost:5000/api';
+
+const BASE_URL = rawBase.replace(/\/+$/, '');
 
 // Mutex promise to guarantee single-flight refresh across concurrent 401 requests and startup restore
 let refreshPromise: Promise<RefreshResult | null> | null = null;
@@ -140,7 +142,8 @@ export const apiClient = async <T = unknown>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<ApiResponse<T>> => {
-  const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`;
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${normalizedEndpoint}`;
   const isAuthEndpoint =
     endpoint.includes('/auth/login') ||
     endpoint.includes('/auth/register') ||

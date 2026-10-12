@@ -29,6 +29,14 @@ const envSchema = z
     RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),
     DOCUMENT_UPLOAD_DIR: z.string().default('./uploads/documents'),
     MAX_DOCUMENT_SIZE_BYTES: z.coerce.number().int().positive().default(5242880),
+    COOKIE_SAMESITE: z.enum(['lax', 'none', 'strict']).default('lax'),
+    COOKIE_SECURE: z
+      .preprocess((v) => (v === 'true' || v === true ? true : v === 'false' || v === false ? false : v), z.boolean())
+      .optional(),
+    COOKIE_DOMAIN: z.string().min(1).optional(),
+    TRUST_PROXY: z.coerce.number().int().nonnegative().optional(),
+    CORS_ORIGINS: z.string().optional(),
+    FRONTEND_URL: z.string().optional(),
   })
   .refine(
     (data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET,
@@ -37,15 +45,62 @@ const envSchema = z
       path: ['JWT_REFRESH_SECRET'],
     }
   )
-  .transform((data) => ({
-    ...data,
-    RATE_LIMIT_MAX:
-      data.RATE_LIMIT_MAX !== undefined
-        ? data.RATE_LIMIT_MAX
-        : data.NODE_ENV === 'development'
-          ? 5000
-          : 600,
-  }));
+  .refine(
+    (data) => {
+      const secure =
+        data.COOKIE_SECURE !== undefined
+          ? data.COOKIE_SECURE
+          : data.NODE_ENV === 'production';
+      return !(data.COOKIE_SAMESITE === 'none' && !secure);
+    },
+    {
+      message: 'COOKIE_SAMESITE=none requires COOKIE_SECURE to be true (browsers reject insecure SameSite=None cookies)',
+      path: ['COOKIE_SECURE'],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.CORS_ORIGINS) {
+        const origins = data.CORS_ORIGINS.split(',').map((s) => s.trim());
+        if (origins.includes('*')) {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: 'CORS_ORIGINS must contain exact origins and cannot be "*"',
+      path: ['CORS_ORIGINS'],
+    }
+  )
+  .transform((data) => {
+    const isProd = data.NODE_ENV === 'production';
+    const cookieSecure =
+      data.COOKIE_SECURE !== undefined ? data.COOKIE_SECURE : isProd;
+    const trustProxy =
+      data.TRUST_PROXY !== undefined ? data.TRUST_PROXY : (isProd ? 1 : 0);
+
+    const defaultOrigins: string[] = ['http://localhost:5173'];
+    if (data.CLIENT_URL) defaultOrigins.push(data.CLIENT_URL);
+    if (data.FRONTEND_URL) defaultOrigins.push(data.FRONTEND_URL);
+
+    const corsOriginsList: string[] = data.CORS_ORIGINS
+      ? data.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+      : Array.from(new Set(defaultOrigins));
+
+    return {
+      ...data,
+      COOKIE_SECURE: cookieSecure,
+      TRUST_PROXY: trustProxy,
+      CORS_ORIGINS_LIST: corsOriginsList,
+      RATE_LIMIT_MAX:
+        data.RATE_LIMIT_MAX !== undefined
+          ? data.RATE_LIMIT_MAX
+          : data.NODE_ENV === 'development'
+            ? 5000
+            : 600,
+    };
+  });
 
 const parsed = envSchema.safeParse(process.env);
 

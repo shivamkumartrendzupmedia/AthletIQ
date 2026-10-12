@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { authService } from '../services/auth.service.js';
-import { getRefreshTokenCookieOptions } from '../utils/jwt.js';
+import { getRefreshCookieOptions } from '../utils/jwt.js';
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const result = await authService.register(req.body, req.get('user-agent'));
@@ -9,7 +9,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   res.cookie(
     'refreshToken',
     result.refreshToken,
-    getRefreshTokenCookieOptions()
+    getRefreshCookieOptions()
   );
 
   res.status(201).json({
@@ -28,7 +28,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   res.cookie(
     'refreshToken',
     result.refreshToken,
-    getRefreshTokenCookieOptions()
+    getRefreshCookieOptions()
   );
 
   res.status(200).json({
@@ -48,7 +48,7 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   res.cookie(
     'refreshToken',
     result.refreshToken,
-    getRefreshTokenCookieOptions()
+    getRefreshCookieOptions()
   );
 
   res.status(200).json({
@@ -65,7 +65,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies?.refreshToken;
   await authService.logout(refreshToken);
 
-  res.clearCookie('refreshToken', { path: '/api/auth' });
+  res.clearCookie('refreshToken', getRefreshCookieOptions({ isClear: true }));
 
   res.status(200).json({
     success: true,
@@ -76,7 +76,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
   await authService.logoutAll(req.user!.id);
 
-  res.clearCookie('refreshToken', { path: '/api/auth' });
+  res.clearCookie('refreshToken', getRefreshCookieOptions({ isClear: true }));
 
   res.status(200).json({
     success: true,
@@ -97,7 +97,7 @@ export const changePassword = asyncHandler(
   async (req: Request, res: Response) => {
     await authService.changePassword(req.user!.id, req.body);
 
-    res.clearCookie('refreshToken', { path: '/api/auth' });
+    res.clearCookie('refreshToken', getRefreshCookieOptions({ isClear: true }));
 
     res.status(200).json({
       success: true,
@@ -116,7 +116,7 @@ export const forgotPassword = asyncHandler(
 export const resetPassword = asyncHandler(
   async (req: Request, res: Response) => {
     const result = await authService.resetPassword(req.body);
-    res.clearCookie('refreshToken', { path: '/api/auth' });
+    res.clearCookie('refreshToken', getRefreshCookieOptions({ isClear: true }));
     res.status(200).json(result);
   }
 );
