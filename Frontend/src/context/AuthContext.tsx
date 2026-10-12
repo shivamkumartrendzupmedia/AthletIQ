@@ -39,50 +39,11 @@ export interface AuthContextType {
   setUser: (user: User) => void;
 }
 
-const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-
-const demoUsers: Record<UserRole, User> = {
-  Admin: {
-    id: 'user-admin',
-    name: 'Director Marcus Vance',
-    email: 'admin@athletiq.com',
-    role: 'Admin',
-  },
-  Coach: {
-    id: 'user-coach',
-    name: 'David Vance',
-    email: 'david.vance@athletiq.com',
-    role: 'Coach',
-    sport: 'Football',
-    assignedTeamId: 'u16-strikers',
-  },
-  Athlete: {
-    id: 'user-athlete',
-    name: 'Alex Morgan',
-    email: 'alex.morgan@email.com',
-    role: 'Athlete',
-    sport: 'Football',
-    assignedTeamId: 'u16-strikers',
-  },
-  Organizer: {
-    id: 'user-organizer',
-    name: 'Sarah Jenkins',
-    email: 'organizer@athletiq.com',
-    role: 'Organizer',
-  },
-  Official: {
-    id: 'user-official',
-    name: 'Pierluigi Collina',
-    email: 'official@athletiq.com',
-    role: 'Official',
-  },
-};
-
 const AuthContext = createContext<AuthContextType>({
-  user: isDemoMode ? demoUsers.Admin : null,
-  role: isDemoMode ? 'Admin' : null,
-  isAuthenticated: isDemoMode,
-  isLoading: !isDemoMode,
+  user: null,
+  role: null,
+  isAuthenticated: false,
+  isLoading: true,
   error: null,
   login: async () => {
     throw new Error('Not implemented');
@@ -95,17 +56,12 @@ const AuthContext = createContext<AuthContextType>({
   setUser: () => {},
 });
 
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUserState] = useState<User | null>(
-    isDemoMode ? demoUsers.Admin : null
-  );
-  const [role, setRoleState] = useState<UserRole | null>(
-    isDemoMode ? 'Admin' : null
-  );
-  const [isLoading, setIsLoading] = useState<boolean>(!isDemoMode);
+  const [user, setUserState] = useState<User | null>(null);
+  const [role, setRoleState] = useState<UserRole | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
@@ -119,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Listen for session expiry from apiClient
   useEffect(() => {
     setSessionExpiredHandler(() => {
-      if (mountedRef.current && !isDemoMode) {
+      if (mountedRef.current) {
         setUserState(null);
         setRoleState(null);
       }
@@ -128,11 +84,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Silent session restore on app startup
   useEffect(() => {
-    if (isDemoMode) {
-      setIsLoading(false);
-      return;
-    }
-
     // Rate limiter protection: Only attempt silent refresh if previous session flag exists in localStorage
     const hasSession = localStorage.getItem('athletiq_has_session') === '1';
     if (!hasSession) {
@@ -230,23 +181,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setAccessToken(null);
       localStorage.removeItem('athletiq_has_session');
-      setUserState(isDemoMode ? demoUsers.Admin : null);
-      setRoleState(isDemoMode ? 'Admin' : null);
+      setUserState(null);
+      setRoleState(null);
     }
   }, []);
 
   const setRole = useCallback((newRole: UserRole) => {
-    if (isDemoMode) {
-      setRoleState(newRole);
-      setUserState(demoUsers[newRole]);
-    }
+    setRoleState(newRole);
   }, []);
 
   const setUser = useCallback((newUser: User) => {
-    if (isDemoMode) {
-      setUserState(newUser);
-      setRoleState(newUser.role);
-    }
+    setUserState(newUser);
+    setRoleState(newUser.role);
   }, []);
 
   const isAuthenticated = Boolean(user);

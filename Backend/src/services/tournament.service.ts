@@ -737,7 +737,7 @@ export class TournamentService {
     if (!user || user.role !== 'Admin') {
       filter.active = true;
     }
-    return Official.find(filter).sort({ name: 1 });
+    return Official.find(filter).populate('user', 'name').sort({ name: 1 });
   }
 
   async updateOfficial(
@@ -802,7 +802,7 @@ export class TournamentService {
     if (Object.keys(updateDoc).length > 0) updateQuery.$set = updateDoc;
     if (Object.keys(unsetDoc).length > 0) updateQuery.$unset = unsetDoc;
 
-    const updated = await Official.findByIdAndUpdate(id, updateQuery, { new: true });
+    const updated = await Official.findByIdAndUpdate(id, updateQuery, { new: true }).populate('user', 'name');
     if (!updated) {
       throw new ApiError(404, 'Official not found');
     }
@@ -1036,7 +1036,7 @@ export class TournamentService {
       .sort({ scheduledAt: 1 });
   }
 
-  async getMatchById(id: string, user?: AuthUser): Promise<IMatch> {
+  async getMatchById(id: string, user?: AuthUser): Promise<Record<string, unknown>> {
     if (!Types.ObjectId.isValid(id)) {
       throw new ApiError(400, 'Invalid match ID');
     }
@@ -1068,11 +1068,73 @@ export class TournamentService {
       throw new ApiError(404, 'Match not found');
     }
 
-    if (tournament.status === 'Draft' && (!user || (user.role !== 'Admin' && tournament.organizer.toString() !== user.id))) {
+    if (
+      tournament.status === 'Draft' &&
+      (!user || (user.role !== 'Admin' && tournament.organizer.toString() !== user.id))
+    ) {
       throw new ApiError(404, 'Match not found');
     }
 
-    return match;
+    let isAssignedOfficial = false;
+    if (user?.role === 'Official') {
+      if (!match.referee) {
+        throw new ApiError(404, 'Match not found');
+      }
+      const refereeId = (match.referee as { _id?: Types.ObjectId })._id ?? match.referee;
+      const official = await Official.findOne({ user: new Types.ObjectId(user.id) });
+      if (!official || refereeId.toString() !== official._id.toString()) {
+        throw new ApiError(404, 'Match not found');
+      }
+      isAssignedOfficial = true;
+    }
+
+    const matchObj: Record<string, unknown> = match.toJSON();
+
+    const isPrivileged =
+      user &&
+      (user.role === 'Admin' ||
+        (user.role === 'Organizer' && tournament.organizer.toString() === user.id) ||
+        (user.role === 'Official' && isAssignedOfficial));
+
+    if (isPrivileged) {
+      const homeTeamDoc = match.homeTeam as unknown as { _id?: Types.ObjectId } | null;
+      const awayTeamDoc = match.awayTeam as unknown as { _id?: Types.ObjectId } | null;
+      const homeTeamId = homeTeamDoc?._id ?? match.homeTeam;
+      const awayTeamId = awayTeamDoc?._id ?? match.awayTeam;
+
+      const [homeTt, awayTt] = await Promise.all([
+        TournamentTeam.findById(homeTeamId).populate({
+          path: 'squad',
+          select: '_id user',
+          populate: { path: 'user', select: '_id name' },
+        }),
+        TournamentTeam.findById(awayTeamId).populate({
+          path: 'squad',
+          select: '_id user',
+          populate: { path: 'user', select: '_id name' },
+        }),
+      ]);
+
+      const formatSquad = (tt: unknown): Array<{ id: string; name: string }> => {
+        if (!tt || typeof tt !== 'object' || !('squad' in tt)) return [];
+        const squadArr = (tt as { squad: unknown }).squad;
+        if (!Array.isArray(squadArr)) return [];
+        return squadArr.map((ath) => {
+          const athleteObj = ath as { _id?: Types.ObjectId; user?: { name?: string } };
+          const athId = athleteObj._id ? athleteObj._id.toString() : String(ath);
+          const name =
+            athleteObj.user && typeof athleteObj.user === 'object' && typeof athleteObj.user.name === 'string'
+              ? athleteObj.user.name
+              : 'Athlete';
+          return { id: athId, name };
+        });
+      };
+
+      matchObj.homeSquad = formatSquad(homeTt);
+      matchObj.awaySquad = formatSquad(awayTt);
+    }
+
+    return matchObj;
   }
 
   async updateMatch(

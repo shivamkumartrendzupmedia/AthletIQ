@@ -16,6 +16,8 @@ import {
   academyApi,
   type PublicTournamentItem,
   type PublicMatchItem,
+  type StandingsRow,
+  type TopScorerRow,
 } from '../services/academyApi';
 import { ApiClientError } from '../lib/apiClient';
 
@@ -24,21 +26,33 @@ export const TournamentDetailPage: React.FC = () => {
 
   const [tournament, setTournament] = useState<PublicTournamentItem | null>(null);
   const [matches, setMatches] = useState<PublicMatchItem[]>([]);
+  const [standings, setStandings] = useState<StandingsRow[]>([]);
+  const [standingsGroups, setStandingsGroups] = useState<Record<string, StandingsRow[]> | undefined>(undefined);
+  const [topScorers, setTopScorers] = useState<TopScorerRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'fixtures' | 'rules'>('fixtures');
+  const [activeTab, setActiveTab] = useState<'fixtures' | 'standings' | 'rules'>('fixtures');
 
   const loadData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setErrorBanner(null);
     try {
-      const [tRes, mRes] = await Promise.all([
+      const [tRes, mRes, sRes, scRes] = await Promise.all([
         academyApi.getPublicTournament(id),
         academyApi.getPublicTournamentMatches(id),
+        academyApi.getTournamentStandings(id).catch(() => null),
+        academyApi.getTournamentTopScorers(id).catch(() => null),
       ]);
       setTournament(tRes);
       setMatches(mRes);
+      if (sRes) {
+        setStandings(sRes.standings || []);
+        setStandingsGroups(sRes.groups);
+      }
+      if (scRes) {
+        setTopScorers(scRes.topScorers || []);
+      }
     } catch (err: unknown) {
       const msg = err instanceof ApiClientError ? err.message : 'Failed to load tournament details.';
       setErrorBanner(msg);
@@ -85,6 +99,12 @@ export const TournamentDetailPage: React.FC = () => {
           <span>Back to Tournaments Directory</span>
         </Link>
       </div>
+
+      {errorBanner && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800 font-medium">
+          {errorBanner}
+        </div>
+      )}
 
       {/* Header Card */}
       {tournament && (
@@ -149,6 +169,16 @@ export const TournamentDetailPage: React.FC = () => {
           Fixtures & Results ({matches.length})
         </button>
         <button
+          onClick={() => setActiveTab('standings')}
+          className={`px-5 py-2 rounded-xl text-sm font-bold transition-colors ${
+            activeTab === 'standings'
+              ? 'bg-[#171044] text-white shadow-sm'
+              : 'text-[#111111]/60 hover:bg-[#111111]/5'
+          }`}
+        >
+          Standings & Top Scorers
+        </button>
+        <button
           onClick={() => setActiveTab('rules')}
           className={`px-5 py-2 rounded-xl text-sm font-bold transition-colors ${
             activeTab === 'rules'
@@ -180,72 +210,210 @@ export const TournamentDetailPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {roundMatches.map((m) => (
-                    <Card
+                    <Link
                       key={m.id}
-                      className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow border-[#171044]/10 space-y-4"
+                      to={`/matches/${m.id}`}
+                      className="block group hover:no-underline"
                     >
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-[#E65100] uppercase">
-                            {m.group ? `Group: ${m.group}` : roundName}
-                          </span>
-                          <AthleticBadge
-                            variant={
-                              m.status === 'Completed'
-                                ? 'lime'
-                                : m.status === 'Scheduled'
-                                ? 'orange'
-                                : 'dark'
-                            }
-                            size="sm"
-                          >
-                            {m.status}
-                          </AthleticBadge>
-                        </div>
-
-                        {/* Teams Scoreboard */}
-                        <div className="flex items-center justify-between p-3.5 bg-[#F7F1E8] rounded-2xl">
-                          <div className="font-bold text-sm text-[#171044] w-5/12 truncate">
-                            {m.homeTeam?.name || 'Home'}
-                          </div>
-                          <div className="text-center font-extrabold text-lg text-[#171044] w-2/12 shrink-0">
-                            {m.status === 'Completed' && m.result ? (
-                              <span>
-                                {m.result.homeScore} : {m.result.awayScore}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-[#111111]/40 font-semibold">VS</span>
-                            )}
-                          </div>
-                          <div className="font-bold text-sm text-[#171044] w-5/12 truncate text-right">
-                            {m.awayTeam?.name || 'Away'}
-                          </div>
-                        </div>
-
-                        {/* Match Timing & Venue */}
-                        <div className="space-y-1 text-xs text-[#111111]/70">
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 opacity-60" />
-                            <span>
-                              {new Date(m.scheduledAt).toLocaleString([], {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })}
+                      <Card className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow border-[#171044]/10 space-y-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-[#E65100] uppercase">
+                              {m.group ? `Group: ${m.group}` : roundName}
                             </span>
+                            <AthleticBadge
+                              variant={
+                                m.status === 'Completed'
+                                  ? 'lime'
+                                  : m.status === 'Scheduled'
+                                  ? 'orange'
+                                  : 'dark'
+                              }
+                              size="sm"
+                            >
+                              {m.status}
+                            </AthleticBadge>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="w-3.5 h-3.5 opacity-60" />
-                            <span>{m.venue?.name || 'Assigned Pitch'}</span>
+
+                          {/* Teams Scoreboard */}
+                          <div className="flex items-center justify-between p-3.5 bg-[#F7F1E8] rounded-2xl group-hover:bg-[#f0e7dc] transition-colors">
+                            <div className="font-bold text-sm text-[#171044] w-5/12 truncate">
+                              {m.homeTeam?.name || 'Home'}
+                            </div>
+                            <div className="text-center font-extrabold text-lg text-[#171044] w-2/12 shrink-0">
+                              {m.status === 'Completed' && m.result ? (
+                                <span>
+                                  {m.result.homeScore} : {m.result.awayScore}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-[#111111]/40 font-semibold">VS</span>
+                              )}
+                            </div>
+                            <div className="font-bold text-sm text-[#171044] w-5/12 truncate text-right">
+                              {m.awayTeam?.name || 'Away'}
+                            </div>
+                          </div>
+
+                          {/* Match Timing & Venue */}
+                          <div className="space-y-1 text-xs text-[#111111]/70">
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 opacity-60" />
+                              <span>
+                                {new Date(m.scheduledAt).toLocaleString([], {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 opacity-60" />
+                              <span>{m.venue?.name || 'Assigned Pitch'}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Card>
+                      </Card>
+                    </Link>
                   ))}
                 </div>
               </div>
             ))}
           </div>
         </StateContainer>
+      )}
+
+      {/* Tab: Standings & Top Scorers */}
+      {activeTab === 'standings' && (
+        <div className="space-y-8">
+          {/* Standings Section */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-[#171044] uppercase tracking-wide flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-[#E65100]" />
+              Tournament Standings
+            </h2>
+
+            {standings.length === 0 ? (
+              <Card className="p-8 text-center text-sm text-[#111111]/60">
+                No standings data available yet.
+              </Card>
+            ) : standingsGroups && Object.keys(standingsGroups).length > 1 ? (
+              <div className="space-y-6">
+                {Object.entries(standingsGroups).map(([grpName, grpRows]) => (
+                  <div key={grpName} className="space-y-2">
+                    <h3 className="text-sm font-bold text-[#E65100] uppercase tracking-wider">
+                      Group {grpName}
+                    </h3>
+                    <div className="overflow-x-auto rounded-2xl border border-[#171044]/10 bg-white">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-[#171044]/5 text-[#171044] text-xs font-bold uppercase">
+                          <tr>
+                            <th className="py-3 px-4">#</th>
+                            <th className="py-3 px-4">Team</th>
+                            <th className="py-3 px-3 text-center">P</th>
+                            <th className="py-3 px-3 text-center">W</th>
+                            <th className="py-3 px-3 text-center">D</th>
+                            <th className="py-3 px-3 text-center">L</th>
+                            <th className="py-3 px-3 text-center">GF</th>
+                            <th className="py-3 px-3 text-center">GA</th>
+                            <th className="py-3 px-3 text-center">GD</th>
+                            <th className="py-3 px-4 text-center font-extrabold">Pts</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#171044]/10">
+                          {grpRows.map((row, idx) => (
+                            <tr key={row.registrationId || row.teamId || idx} className="hover:bg-neutral-50/50">
+                              <td className="py-3 px-4 font-mono font-bold text-xs">{idx + 1}</td>
+                              <td className="py-3 px-4 font-semibold text-[#171044]">{row.teamName}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.played}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.won}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.drawn}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.lost}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.goalsFor}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.goalsAgainst}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.goalDifference}</td>
+                              <td className="py-3 px-4 text-center font-bold text-[#E65100]">{row.points}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-[#171044]/10 bg-white">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#171044]/5 text-[#171044] text-xs font-bold uppercase">
+                    <tr>
+                      <th className="py-3 px-4">#</th>
+                      <th className="py-3 px-4">Team</th>
+                      <th className="py-3 px-3 text-center">P</th>
+                      <th className="py-3 px-3 text-center">W</th>
+                      <th className="py-3 px-3 text-center">D</th>
+                      <th className="py-3 px-3 text-center">L</th>
+                      <th className="py-3 px-3 text-center">GF</th>
+                      <th className="py-3 px-3 text-center">GA</th>
+                      <th className="py-3 px-3 text-center">GD</th>
+                      <th className="py-3 px-4 text-center font-extrabold">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#171044]/10">
+                    {standings.map((row, idx) => (
+                      <tr key={row.registrationId || row.teamId || idx} className="hover:bg-neutral-50/50">
+                        <td className="py-3 px-4 font-mono font-bold text-xs">{idx + 1}</td>
+                        <td className="py-3 px-4 font-semibold text-[#171044]">{row.teamName}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.played}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.won}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.drawn}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.lost}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.goalsFor}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.goalsAgainst}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.goalDifference}</td>
+                        <td className="py-3 px-4 text-center font-bold text-[#E65100]">{row.points}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Top Scorers (Top 10) */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-[#171044] uppercase tracking-wide flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-[#E65100]" />
+              Top Scorers (Top 10)
+            </h2>
+
+            {topScorers.length === 0 ? (
+              <Card className="p-8 text-center text-sm text-[#111111]/60">
+                No goals recorded in this tournament yet.
+              </Card>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-[#171044]/10 bg-white">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#171044]/5 text-[#171044] text-xs font-bold uppercase">
+                    <tr>
+                      <th className="py-3 px-4">Rank</th>
+                      <th className="py-3 px-4">Player</th>
+                      <th className="py-3 px-4 text-center font-extrabold">Goals</th>
+                      <th className="py-3 px-4 text-center">Assists</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#171044]/10">
+                    {topScorers.map((s, idx) => (
+                      <tr key={s.athleteId || idx} className="hover:bg-neutral-50/50">
+                        <td className="py-3 px-4 font-mono font-bold text-xs">{s.rank ?? idx + 1}</td>
+                        <td className="py-3 px-4 font-semibold text-[#171044]">{s.playerName}</td>
+                        <td className="py-3 px-4 text-center font-bold text-[#E65100]">{s.goals}</td>
+                        <td className="py-3 px-4 text-center text-xs text-[#111111]/70">{s.assists ?? 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Tab: Rules & Information */}

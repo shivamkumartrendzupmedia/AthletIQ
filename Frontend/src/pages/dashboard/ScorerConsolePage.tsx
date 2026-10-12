@@ -513,34 +513,63 @@ export const ScorerConsolePage: React.FC = () => {
 
               <div>
                 <label htmlFor={eventPlayerInputId} className="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">
-                  Player (Athlete ObjectId or Leave Empty)
+                  Player (Select Athlete)
                 </label>
-                <input
-                  id={eventPlayerInputId}
-                  type="text"
-                  placeholder="24-char ObjectId (optional for OwnGoal/cards)"
-                  value={playerInput}
-                  onChange={(e) => setPlayerInput(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-neutral-950 px-3.5 py-2 text-xs font-mono text-white placeholder-neutral-600 focus:border-emerald-500 focus:outline-none"
-                />
-                <span className="text-[11px] text-neutral-500 mt-1 block">
-                  *Backend private match endpoint populates team names without full squad array.
-                </span>
+                {(eventSide === 'home' ? match?.homeSquad : match?.awaySquad)?.length ? (
+                  <select
+                    id={eventPlayerInputId}
+                    value={playerInput}
+                    onChange={(e) => setPlayerInput(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-neutral-950 px-3.5 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                  >
+                    <option value="">Select player (optional)</option>
+                    {(eventSide === 'home' ? match?.homeSquad : match?.awaySquad)?.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id={eventPlayerInputId}
+                    type="text"
+                    placeholder="24-char ObjectId (optional for OwnGoal/cards)"
+                    value={playerInput}
+                    onChange={(e) => setPlayerInput(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-neutral-950 px-3.5 py-2 text-xs font-mono text-white placeholder-neutral-600 focus:border-emerald-500 focus:outline-none"
+                  />
+                )}
               </div>
 
               {eventType === 'Substitution' && (
                 <div>
                   <label htmlFor={eventRelatedPlayerInputId} className="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">
-                    Substituted Player (Athlete ObjectId)
+                    Substituted Player (Select Athlete)
                   </label>
-                  <input
-                    id={eventRelatedPlayerInputId}
-                    type="text"
-                    placeholder="24-char ObjectId"
-                    value={relatedPlayerInput}
-                    onChange={(e) => setRelatedPlayerInput(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-neutral-950 px-3.5 py-2 text-xs font-mono text-white placeholder-neutral-600 focus:border-emerald-500 focus:outline-none"
-                  />
+                  {(eventSide === 'home' ? match?.homeSquad : match?.awaySquad)?.length ? (
+                    <select
+                      id={eventRelatedPlayerInputId}
+                      value={relatedPlayerInput}
+                      onChange={(e) => setRelatedPlayerInput(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-neutral-950 px-3.5 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                    >
+                      <option value="">Select replaced player (optional)</option>
+                      {(eventSide === 'home' ? match?.homeSquad : match?.awaySquad)?.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      id={eventRelatedPlayerInputId}
+                      type="text"
+                      placeholder="24-char ObjectId"
+                      value={relatedPlayerInput}
+                      onChange={(e) => setRelatedPlayerInput(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-neutral-950 px-3.5 py-2 text-xs font-mono text-white placeholder-neutral-600 focus:border-emerald-500 focus:outline-none"
+                    />
+                  )}
                 </div>
               )}
 

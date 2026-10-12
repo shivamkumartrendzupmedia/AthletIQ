@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ArrowRight, User, LogOut, LayoutDashboard } from 'lucide-react';
-import { CrossAccent, Button } from '../design-system';
+import { Menu, X, ArrowRight, LogOut, LayoutDashboard } from 'lucide-react';
+import { Button } from '../design-system';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 

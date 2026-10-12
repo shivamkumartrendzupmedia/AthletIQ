@@ -1,7 +1,7 @@
 import React from 'react';
 import { achievementsData } from '../data/achievementsData';
-import { Card, SectionHeader, CrossAccent, AthleticBadge } from '../design-system';
-import { Trophy, Award, Shield, Star } from 'lucide-react';
+import { Card, CrossAccent, AthleticBadge } from '../design-system';
+import { Trophy } from 'lucide-react';
 
 export const AchievementsPage: React.FC = () => {
   return (

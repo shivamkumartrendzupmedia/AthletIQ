@@ -15,6 +15,7 @@ import {
   UserCheck,
   X,
   Award,
+  Radio,
 } from 'lucide-react';
 import { StateContainer } from '../../components/StateContainer';
 import {
@@ -24,13 +25,14 @@ import {
   type MatchItem,
   type VenueItem,
   type OfficialItem,
+  type StandingsRow,
   mapFieldErrors,
 } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
 import { toDatetimeLocalString, fromDatetimeLocalString, formatSessionTimeRange } from '../../lib/datetime';
 import { useAuth } from '../../context/AuthContext';
 
-type DetailTab = 'overview' | 'registrations' | 'matches';
+type DetailTab = 'overview' | 'registrations' | 'matches' | 'standings';
 
 export const TournamentDetailPage: React.FC = () => {
   const { role } = useAuth();
@@ -43,6 +45,9 @@ export const TournamentDetailPage: React.FC = () => {
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [venues, setVenues] = useState<VenueItem[]>([]);
   const [officials, setOfficials] = useState<OfficialItem[]>([]);
+  const [standings, setStandings] = useState<StandingsRow[]>([]);
+  const [standingsGroups, setStandingsGroups] = useState<Record<string, StandingsRow[]> | undefined>(undefined);
+  const [standingsLoading, setStandingsLoading] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
@@ -427,6 +432,30 @@ export const TournamentDetailPage: React.FC = () => {
             {matches.length}
           </span>
         </button>
+        <button
+          onClick={async () => {
+            setActiveTab('standings');
+            if (id && standings.length === 0) {
+              setStandingsLoading(true);
+              try {
+                const sRes = await academyApi.getTournamentStandings(id);
+                setStandings(sRes.standings || []);
+                setStandingsGroups(sRes.groups);
+              } catch {
+                // Ignore error on standings load
+              } finally {
+                setStandingsLoading(false);
+              }
+            }
+          }}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 ${
+            activeTab === 'standings'
+              ? 'bg-[#171044] text-white shadow-sm'
+              : 'text-[#111111]/70 hover:bg-[#111111]/5'
+          }`}
+        >
+          <span>Standings</span>
+        </button>
       </div>
 
       {/* TAB 1: OVERVIEW */}
@@ -663,6 +692,15 @@ export const TournamentDetailPage: React.FC = () => {
                         {m.status === 'Scheduled' && (
                           <>
                             <Button
+                              onClick={() => navigate(`/dashboard/live/${m.id}`)}
+                              variant="outline"
+                              size="sm"
+                              className="inline-flex items-center gap-1 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                            >
+                              <Radio className="w-3.5 h-3.5" />
+                              <span>Live console</span>
+                            </Button>
+                            <Button
                               onClick={() => openResultModal(m)}
                               variant="primary"
                               size="sm"
@@ -716,6 +754,109 @@ export const TournamentDetailPage: React.FC = () => {
                 );
               })}
             </div>
+          </StateContainer>
+        </div>
+      )}
+
+      {/* TAB 4: STANDINGS */}
+      {activeTab === 'standings' && (
+        <div className="space-y-4">
+          <StateContainer
+            loading={standingsLoading}
+            empty={standings.length === 0}
+            emptyMessage="No standings recorded for this tournament yet."
+            onRetry={async () => {
+              if (!id) return;
+              setStandingsLoading(true);
+              try {
+                const sRes = await academyApi.getTournamentStandings(id);
+                setStandings(sRes.standings || []);
+                setStandingsGroups(sRes.groups);
+              } finally {
+                setStandingsLoading(false);
+              }
+            }}
+          >
+            {standingsGroups && Object.keys(standingsGroups).length > 1 ? (
+              <div className="space-y-6">
+                {Object.entries(standingsGroups).map(([grpName, grpRows]) => (
+                  <div key={grpName} className="space-y-2">
+                    <h3 className="text-sm font-bold text-[#E65100] uppercase tracking-wider">
+                      Group {grpName}
+                    </h3>
+                    <div className="overflow-x-auto rounded-2xl border border-[#171044]/10 bg-white">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-[#171044]/5 text-[#171044] text-xs font-bold uppercase">
+                          <tr>
+                            <th className="py-3 px-4">#</th>
+                            <th className="py-3 px-4">Team</th>
+                            <th className="py-3 px-3 text-center">P</th>
+                            <th className="py-3 px-3 text-center">W</th>
+                            <th className="py-3 px-3 text-center">D</th>
+                            <th className="py-3 px-3 text-center">L</th>
+                            <th className="py-3 px-3 text-center">GF</th>
+                            <th className="py-3 px-3 text-center">GA</th>
+                            <th className="py-3 px-3 text-center">GD</th>
+                            <th className="py-3 px-4 text-center font-extrabold">Pts</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#171044]/10">
+                          {grpRows.map((row, idx) => (
+                            <tr key={row.registrationId || row.teamId || idx} className="hover:bg-neutral-50/50">
+                              <td className="py-3 px-4 font-mono font-bold text-xs">{idx + 1}</td>
+                              <td className="py-3 px-4 font-semibold text-[#171044]">{row.teamName}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.played}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.won}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.drawn}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.lost}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.goalsFor}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.goalsAgainst}</td>
+                              <td className="py-3 px-3 text-center text-xs">{row.goalDifference}</td>
+                              <td className="py-3 px-4 text-center font-bold text-[#E65100]">{row.points}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-[#171044]/10 bg-white">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#171044]/5 text-[#171044] text-xs font-bold uppercase">
+                    <tr>
+                      <th className="py-3 px-4">#</th>
+                      <th className="py-3 px-4">Team</th>
+                      <th className="py-3 px-3 text-center">P</th>
+                      <th className="py-3 px-3 text-center">W</th>
+                      <th className="py-3 px-3 text-center">D</th>
+                      <th className="py-3 px-3 text-center">L</th>
+                      <th className="py-3 px-3 text-center">GF</th>
+                      <th className="py-3 px-3 text-center">GA</th>
+                      <th className="py-3 px-3 text-center">GD</th>
+                      <th className="py-3 px-4 text-center font-extrabold">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#171044]/10">
+                    {standings.map((row, idx) => (
+                      <tr key={row.registrationId || row.teamId || idx} className="hover:bg-neutral-50/50">
+                        <td className="py-3 px-4 font-mono font-bold text-xs">{idx + 1}</td>
+                        <td className="py-3 px-4 font-semibold text-[#171044]">{row.teamName}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.played}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.won}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.drawn}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.lost}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.goalsFor}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.goalsAgainst}</td>
+                        <td className="py-3 px-3 text-center text-xs">{row.goalDifference}</td>
+                        <td className="py-3 px-4 text-center font-bold text-[#E65100]">{row.points}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </StateContainer>
         </div>
       )}

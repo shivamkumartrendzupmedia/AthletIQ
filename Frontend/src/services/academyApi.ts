@@ -1725,6 +1725,7 @@ export interface OfficialItem {
   name: string;
   type: 'Referee' | 'Assistant Referee' | 'Scorer';
   createdBy: { id: string; name: string };
+  user?: { id: string; name: string } | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1754,6 +1755,8 @@ export interface MatchItem {
   secondHalfAt?: string;
   completedAt?: string;
   result?: { homeScore: number; awayScore: number; enteredAt?: string } | null;
+  homeSquad?: Array<{ id: string; name: string }>;
+  awaySquad?: Array<{ id: string; name: string }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -2039,7 +2042,8 @@ export interface MatchReportData {
 }
 
 export interface StandingsRow {
-  registrationId: string;
+  registrationId?: string;
+  teamId?: string;
   teamName: string;
   group?: string;
   played: number;
@@ -2054,13 +2058,16 @@ export interface StandingsRow {
 
 export interface TournamentStandingsResponse {
   standings: StandingsRow[];
+  groups?: Record<string, StandingsRow[]>;
 }
 
 export interface TopScorerRow {
-  athleteId: string;
+  rank?: number;
+  athleteId?: string;
   playerName: string;
-  teamName: string;
+  teamName?: string;
   goals: number;
+  assists?: number;
 }
 
 export interface TournamentTopScorersResponse {
@@ -2079,6 +2086,7 @@ export interface AthletePerformanceResponse {
     tournamentName: string;
     matchesPlayed: number;
     goals: number;
+    assists: number;
     yellowCards: number;
     redCards: number;
   }>;

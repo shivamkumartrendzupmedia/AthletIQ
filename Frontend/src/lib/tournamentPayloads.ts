@@ -220,14 +220,21 @@ export interface UpdateOfficialInput {
   name?: string;
   type?: 'Referee' | 'Assistant Referee' | 'Scorer';
   active?: boolean;
+  user?: string | null;
 }
 
 export function buildUpdateOfficialPayload(input: UpdateOfficialInput) {
-  const payload: { name?: string; type?: 'Referee' | 'Assistant Referee' | 'Scorer'; active?: boolean } = {};
+  const payload: {
+    name?: string;
+    type?: 'Referee' | 'Assistant Referee' | 'Scorer';
+    active?: boolean;
+    user?: string | null;
+  } = {};
 
   if (input.name !== undefined) payload.name = input.name.trim();
   if (input.type !== undefined) payload.type = input.type;
   if (input.active !== undefined) payload.active = Boolean(input.active);
+  if (input.user !== undefined) payload.user = input.user;
 
   return payload;
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { newsData } from '../data/newsData';
-import { Button, Card, SectionHeader, CrossAccent, AthleticBadge } from '../design-system';
-import { ArrowRight, Clock, Calendar, User } from 'lucide-react';
+import { Button, Card, CrossAccent, AthleticBadge } from '../design-system';
+import { ArrowRight, Clock, Calendar } from 'lucide-react';
 
 export const NewsPage: React.FC = () => {
   return (

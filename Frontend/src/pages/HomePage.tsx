@@ -2,33 +2,21 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Button,
-  Card,
   SectionHeader,
   CrossAccent,
   AthleticBadge,
   RadialScoreMeter,
 } from '../design-system';
 import {
-  Play,
   ArrowRight,
-  Trophy,
-  Calendar,
   MapPin,
-  CheckCircle2,
   ChevronRight,
   ChevronLeft,
   Send,
-  Activity,
-  Shield,
-  Users,
   Clock,
-  Flame,
-  Award,
 } from 'lucide-react';
 import { coachesData } from '../data/coachesData';
-import { teamsData } from '../data/teamsData';
-import { newsData } from '../data/newsData';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 // High-resolution local image assets
 import heroAthleteImg from '../assets/hero_athlete.jpg';
@@ -39,7 +27,6 @@ import { academyApi, type PublicOverviewResult } from '../services/academyApi';
 
 export const HomePage: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<number>(21);
-  const [selectedGalleryCategory, setSelectedGalleryCategory] = useState<string>('All');
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [coachIndex, setCoachIndex] = useState(0);
   const [publicOverview, setPublicOverview] = useState<PublicOverviewResult | null>(null);

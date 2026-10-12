@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { galleryData } from '../data/galleryData';
-import { Card, SectionHeader, CrossAccent, AthleticBadge } from '../design-system';
+import { CrossAccent, AthleticBadge } from '../design-system';
 
 export const GalleryPage: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<string>('All');

@@ -29,9 +29,7 @@ export const PublicMatchDetailPage: React.FC = () => {
 
   const [match, setMatch] = useState<PublicMatchDetail | null>(null);
   const [report, setReport] = useState<MatchReportData | null>(null);
-  const [standings, setStandings] = useState<StandingsRow[]>([]);
-  const [topScorers, setTopScorers] = useState<TopScorerRow[]>([]);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'report' | 'standings' | 'scorers'>('timeline');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'report' | 'standings'>('timeline');
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isNotFound, setIsNotFound] = useState<boolean>(false);
@@ -79,11 +77,9 @@ export const PublicMatchDetailPage: React.FC = () => {
     void fetchMatchDetails();
   }, [fetchMatchDetails]);
 
-  // Load standings or top scorers on tab switch if not loaded
-  const loadTabContent = async (tab: 'standings' | 'scorers') => {
+  // Load standings on tab switch
+  const loadTabContent = (tab: 'standings') => {
     setActiveTab(tab);
-    // Find tournament ID if we have it or fetch
-    // If not direct, standings can be requested if match has tournamentId or tournament catalog
   };
 
   const matchStatus = (match?.status as MatchLiveStatus) || 'Scheduled';

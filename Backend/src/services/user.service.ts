@@ -2,7 +2,6 @@ import { Types } from 'mongoose';
 import { User, type IUser } from '../models/User.js';
 import { Coach } from '../models/Coach.js';
 import { Athlete } from '../models/Athlete.js';
-import { Official } from '../models/Official.js';
 import { AuditLog, type IAuditLog } from '../models/AuditLog.js';
 import { ApiError } from '../utils/ApiError.js';
 import { hashPassword } from '../utils/password.js';
@@ -186,14 +185,6 @@ export class UserService {
           throw new ApiError(
             409,
             'Cannot change user role: a linked Athlete profile exists. Remove or reassign the athlete profile first.'
-          );
-        }
-      } else if (previousRole === 'Official') {
-        const officialExists = await Official.exists({ user: targetUser._id });
-        if (officialExists) {
-          throw new ApiError(
-            409,
-            'Cannot change user role: a linked Official record exists. Unlink the official record first.'
           );
         }
       }

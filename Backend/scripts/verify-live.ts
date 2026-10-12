@@ -1632,6 +1632,69 @@ async function run() {
     });
     assert(resLinkDuplicate.status === 409, 'Linking one user to two Officials returns 409 conflict');
     g8Pass++;
+
+    // 9. Assigned Official sees both squads with exactly keys id and name
+    const assignedOffAuth = getAuthHeader(officialAssignedUser);
+    const resAssignedMatch = await srv8.fetchGroup(`/matches/${match1._id}`, { headers: assignedOffAuth });
+    assert(resAssignedMatch.status === 200, 'Assigned Official GET /matches/:id returns 200');
+    g8Pass++;
+
+    const matchBody = resAssignedMatch.body as {
+      data?: {
+        homeSquad?: Array<Record<string, unknown>>;
+        awaySquad?: Array<Record<string, unknown>>;
+      };
+    };
+    const homeSquad = matchBody.data?.homeSquad;
+    const awaySquad = matchBody.data?.awaySquad;
+    assert(Array.isArray(homeSquad) && homeSquad.length >= 1, 'Assigned Official response contains homeSquad array');
+    g8Pass++;
+    assert(Array.isArray(awaySquad) && awaySquad.length >= 1, 'Assigned Official response contains awaySquad array');
+    g8Pass++;
+
+    const allHomeKeysMatch = (homeSquad || []).every((ath) => {
+      const keys = Object.keys(ath).sort().join(',');
+      return keys === 'id,name';
+    });
+    const allAwayKeysMatch = (awaySquad || []).every((ath) => {
+      const keys = Object.keys(ath).sort().join(',');
+      return keys === 'id,name';
+    });
+    assert(allHomeKeysMatch && allAwayKeysMatch, 'All squad items contain exactly the keys id and name');
+    g8Pass++;
+
+    // 10. Unassigned Official gets 404
+    const unassignedOffAuth = getAuthHeader(officialOtherUser);
+    const resUnassignedMatch = await srv8.fetchGroup(`/matches/${match1._id}`, { headers: unassignedOffAuth });
+    assert(resUnassignedMatch.status === 404, 'Unassigned Official GET /matches/:id returns 404');
+    g8Pass++;
+
+    // 11. Coach / Athlete responses contain no squad arrays
+    const resCoachMatch = await srv8.fetchGroup(`/matches/${match1._id}`, { headers: getAuthHeader(coachUser) });
+    assert(resCoachMatch.status === 200, 'Coach GET /matches/:id returns 200');
+    g8Pass++;
+    const coachMatchBody = resCoachMatch.body as { data?: Record<string, unknown> };
+    assert(
+      !('homeSquad' in (coachMatchBody.data || {})) && !('awaySquad' in (coachMatchBody.data || {})),
+      'Coach response contains no squad arrays'
+    );
+    g8Pass++;
+
+    const resAthleteMatch = await srv8.fetchGroup(`/matches/${match1._id}`, { headers: getAuthHeader(athleteUser) });
+    assert(resAthleteMatch.status === 200, 'Athlete GET /matches/:id returns 200');
+    g8Pass++;
+    const athleteMatchBody = resAthleteMatch.body as { data?: Record<string, unknown> };
+    assert(
+      !('homeSquad' in (athleteMatchBody.data || {})) && !('awaySquad' in (athleteMatchBody.data || {})),
+      'Athlete response contains no squad arrays'
+    );
+    g8Pass++;
+
+    // 12. Deep scan finds no email/phone/medicalNotes/guardian
+    const squadJson = JSON.stringify({ homeSquad, awaySquad });
+    const hasSensitiveSquadData = /email|phone|medicalNotes|guardian|passwordHash/i.test(squadJson);
+    assert(!hasSensitiveSquadData, 'Deep scan finds no email/phone/medicalNotes/guardian in squads');
+    g8Pass++;
   } finally {
     await srv8.group.close();
   }

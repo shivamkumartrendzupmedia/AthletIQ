@@ -8,13 +8,11 @@ import {
 import { CrossAccent, AthleticBadge } from '../../design-system';
 import {
   Trophy,
-  Users,
   MapPin,
   UserCheck,
   Calendar,
   Plus,
   ArrowRight,
-  ShieldAlert,
   Clock,
   RefreshCw,
 } from 'lucide-react';
@@ -53,6 +51,14 @@ export const OrganizerDashboard: React.FC = () => {
   const totalTournaments = overview?.tournaments
     ? Object.values(overview.tournaments).reduce((acc, curr) => acc + curr, 0)
     : 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-16">
+        <RefreshCw className="w-8 h-8 animate-spin text-[#E65100]" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 bg-[#F7F1E8] p-4 md:p-8 rounded-[2.5rem]">

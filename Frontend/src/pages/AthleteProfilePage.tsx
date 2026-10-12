@@ -17,11 +17,13 @@ import {
   Calendar,
   Clock,
   User as UserIcon,
+  Trophy,
 } from 'lucide-react';
 import {
   academyApi,
   type AthleteDevelopmentView,
   type AthleteGoalItem,
+  type AthletePerformanceResponse,
 } from '../services/academyApi';
 import { useAuth } from '../context/AuthContext';
 import { AssessmentModal } from '../components/development/AssessmentModal';
@@ -35,12 +37,13 @@ export const AthleteProfilePage: React.FC = () => {
   const athleteId = id || 'me';
 
   const [devData, setDevData] = useState<AthleteDevelopmentView | null>(null);
+  const [tournamentPerf, setTournamentPerf] = useState<AthletePerformanceResponse['performance']>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [notFound, setNotFound] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Active Tab State
-  const [activeTab, setActiveTab] = useState<'development' | 'assessments' | 'feedback' | 'goals'>('development');
+  const [activeTab, setActiveTab] = useState<'development' | 'assessments' | 'feedback' | 'goals' | 'tournaments'>('development');
 
   // Modals
   const [showAssessmentModal, setShowAssessmentModal] = useState<boolean>(false);
@@ -64,17 +67,22 @@ export const AthleteProfilePage: React.FC = () => {
     setNotFound(false);
 
     try {
-      let data: AthleteDevelopmentView | null = null;
-      if (athleteId === 'me') {
-        data = await academyApi.getAthleteSelfDevelopment();
-      } else {
-        data = await academyApi.getAthleteDevelopment(athleteId);
-      }
+      const [data, perfRes] = await Promise.all([
+        athleteId === 'me'
+          ? academyApi.getAthleteSelfDevelopment()
+          : academyApi.getAthleteDevelopment(athleteId),
+        athleteId === 'me'
+          ? academyApi.getAthleteSelfTournamentPerformance().catch(() => null)
+          : academyApi.getAthleteTournamentPerformance(athleteId).catch(() => null),
+      ]);
 
       if (!data) {
         setNotFound(true);
       } else {
         setDevData(data);
+      }
+      if (perfRes?.performance) {
+        setTournamentPerf(perfRes.performance);
       }
     } catch (err: unknown) {
       if (err instanceof ApiClientError && err.statusCode === 404) {
@@ -299,6 +307,17 @@ export const AthleteProfilePage: React.FC = () => {
           >
             <Target size={14} />
             <span>Milestones & Goals ({goals.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('tournaments')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'tournaments'
+                ? 'bg-[#171044] text-white shadow-sm'
+                : 'text-[#171044]/70 hover:text-[#171044]'
+            }`}
+          >
+            <Trophy size={14} />
+            <span>Tournament Performance ({tournamentPerf.length})</span>
           </button>
         </div>
       </div>
@@ -735,6 +754,59 @@ export const AthleteProfilePage: React.FC = () => {
                 </div>
               )}
             </div>
+          </Card>
+        )}
+
+        {/* TAB 5: TOURNAMENT PERFORMANCE */}
+        {activeTab === 'tournaments' && (
+          <Card variant="standard" className="p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-[#171044]/10 pb-4">
+              <div>
+                <h3 className="text-lg font-bold font-display text-[#171044] flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-[#FF5A00]" />
+                  Tournament Performance
+                </h3>
+                <p className="text-xs text-[#171044]/60">
+                  Competition statistics, goals, assists, and disciplinary record across tournaments
+                </p>
+              </div>
+            </div>
+
+            {tournamentPerf.length === 0 ? (
+              <div className="py-12 text-center space-y-2">
+                <Trophy className="w-8 h-8 text-[#171044]/30 mx-auto" />
+                <p className="text-sm font-semibold text-[#171044]/60">
+                  No tournament appearances recorded yet.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-[#171044]/10">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#171044]/5 text-[#171044] text-xs font-bold uppercase">
+                    <tr>
+                      <th className="py-3 px-4">Tournament</th>
+                      <th className="py-3 px-3 text-center">Matches</th>
+                      <th className="py-3 px-3 text-center">Goals</th>
+                      <th className="py-3 px-3 text-center">Assists</th>
+                      <th className="py-3 px-3 text-center">Yellow Cards</th>
+                      <th className="py-3 px-3 text-center">Red Cards</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#171044]/10">
+                    {tournamentPerf.map((t) => (
+                      <tr key={t.tournamentId} className="hover:bg-neutral-50/50">
+                        <td className="py-3 px-4 font-semibold text-[#171044]">{t.tournamentName}</td>
+                        <td className="py-3 px-3 text-center text-xs font-bold">{t.matchesPlayed}</td>
+                        <td className="py-3 px-3 text-center text-xs font-bold text-[#FF5A00]">{t.goals}</td>
+                        <td className="py-3 px-3 text-center text-xs">{t.assists}</td>
+                        <td className="py-3 px-3 text-center text-xs text-amber-600 font-bold">{t.yellowCards}</td>
+                        <td className="py-3 px-3 text-center text-xs text-rose-600 font-bold">{t.redCards}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         )}
       </div>

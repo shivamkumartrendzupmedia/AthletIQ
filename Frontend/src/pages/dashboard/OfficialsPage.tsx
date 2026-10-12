@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { Card, CrossAccent, AthleticBadge, Button } from '../../design-system';
-import { Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, X, UserCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, X, UserCheck, Link as LinkIcon, Unlink } from 'lucide-react';
 import { StateContainer } from '../../components/StateContainer';
 import { academyApi, type OfficialItem, mapFieldErrors } from '../../services/academyApi';
 import { ApiClientError } from '../../lib/apiClient';
+import { useAuth } from '../../context/AuthContext';
 
 const OFFICIAL_TYPES: Array<'Referee' | 'Assistant Referee' | 'Scorer'> = [
   'Referee',
@@ -12,6 +13,7 @@ const OFFICIAL_TYPES: Array<'Referee' | 'Assistant Referee' | 'Scorer'> = [
 ];
 
 export const OfficialsPage: React.FC = () => {
+  const { role } = useAuth();
   const [officials, setOfficials] = useState<OfficialItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
@@ -19,6 +21,9 @@ export const OfficialsPage: React.FC = () => {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingOfficial, setEditingOfficial] = useState<OfficialItem | null>(null);
+  const [linkModalOfficial, setLinkModalOfficial] = useState<OfficialItem | null>(null);
+  const [officialUsers, setOfficialUsers] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   const [createFieldErrors, setCreateFieldErrors] = useState<Record<string, string>>({});
@@ -145,6 +150,47 @@ export const OfficialsPage: React.FC = () => {
     }
   };
 
+  const openLinkModal = async (o: OfficialItem) => {
+    setLinkModalOfficial(o);
+    setSelectedUserId(o.user?.id || '');
+    setErrorBanner(null);
+    try {
+      const res = await academyApi.listUsers({ role: 'Official', limit: 100 });
+      setOfficialUsers(res.items.map((u) => ({ id: u.id, name: u.name })));
+    } catch (err: unknown) {
+      setErrorBanner(err instanceof Error ? err.message : 'Failed to fetch official users');
+    }
+  };
+
+  const handleLinkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linkModalOfficial || !selectedUserId) return;
+    setSubmitting(true);
+    setErrorBanner(null);
+    try {
+      await academyApi.updateOfficial(linkModalOfficial.id, { user: selectedUserId });
+      setSuccessBanner(`Linked login account successfully.`);
+      setLinkModalOfficial(null);
+      fetchOfficials();
+    } catch (err: unknown) {
+      setErrorBanner(err instanceof ApiClientError ? err.message : 'Failed to link official user account');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUnlink = async (o: OfficialItem) => {
+    if (!window.confirm(`Unlink login account for "${o.name}"?`)) return;
+    setErrorBanner(null);
+    try {
+      await academyApi.updateOfficial(o.id, { user: null });
+      setSuccessBanner(`Login account unlinked.`);
+      fetchOfficials();
+    } catch (err: unknown) {
+      setErrorBanner(err instanceof ApiClientError ? err.message : 'Failed to unlink account');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -206,12 +252,45 @@ export const OfficialsPage: React.FC = () => {
                 <div className="inline-block px-2.5 py-1 bg-[#171044]/5 text-[#171044] rounded-lg text-xs font-semibold">
                   {official.type}
                 </div>
+                {official.user?.name ? (
+                  <div className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Linked: {official.user.name}</span>
+                  </div>
+                ) : (
+                  <div className="text-xs text-[#111111]/40">No login account linked</div>
+                )}
                 {official.createdBy?.name && (
-                  <div className="text-xs text-[#111111]/40">Registered by: {official.createdBy.name}</div>
+                  <div className="text-[11px] text-[#111111]/40">Registered by: {official.createdBy.name}</div>
                 )}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-[#111111]/10 flex items-center justify-end gap-2">
+              <div className="mt-4 pt-4 border-t border-[#111111]/10 flex flex-wrap items-center justify-end gap-2">
+                {role === 'Admin' && (
+                  <>
+                    {official.user ? (
+                      <Button
+                        onClick={() => handleUnlink(official)}
+                        variant="outline"
+                        size="sm"
+                        className="inline-flex items-center gap-1.5 text-amber-700 hover:bg-amber-50 border-amber-200 text-xs"
+                      >
+                        <Unlink className="w-3.5 h-3.5" />
+                        <span>Unlink</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => openLinkModal(official)}
+                        variant="outline"
+                        size="sm"
+                        className="inline-flex items-center gap-1.5 text-emerald-700 hover:bg-emerald-50 border-emerald-200 text-xs"
+                      >
+                        <LinkIcon className="w-3.5 h-3.5" />
+                        <span>Link login account</span>
+                      </Button>
+                    )}
+                  </>
+                )}
                 <Button
                   onClick={() => openEditModal(official)}
                   variant="outline"
@@ -400,6 +479,58 @@ export const OfficialsPage: React.FC = () => {
                 </Button>
                 <Button type="submit" variant="primary" disabled={submitting}>
                   {submitting ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Link Account Modal */}
+      {linkModalOfficial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#171044]/10 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#111111]/10">
+              <h2 className="text-xl font-bold text-[#171044]">Link Login Account</h2>
+              <button
+                onClick={() => setLinkModalOfficial(null)}
+                className="text-[#111111]/40 hover:text-[#111111]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#111111]/70">
+              Select an existing user account with the <span className="font-bold text-[#171044]">Official</span> role to link to{' '}
+              <span className="font-bold text-[#171044]">{linkModalOfficial.name}</span>.
+            </p>
+
+            <form onSubmit={handleLinkSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                  Official User Account *
+                </label>
+                <select
+                  required
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                >
+                  <option value="">Select official account...</option>
+                  {officialUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#111111]/10">
+                <Button type="button" variant="outline" onClick={() => setLinkModalOfficial(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" disabled={submitting || !selectedUserId}>
+                  {submitting ? 'Linking...' : 'Link Account'}
                 </Button>
               </div>
             </form>

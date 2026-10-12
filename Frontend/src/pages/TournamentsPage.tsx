@@ -88,7 +88,12 @@ export const TournamentsPage: React.FC = () => {
       </section>
 
       {/* Filter Toolbar */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+        {errorBanner && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800 font-medium">
+            {errorBanner}
+          </div>
+        )}
         <div className="bg-white p-4 rounded-2xl border border-[#171044]/10 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="relative w-full md:w-72">
             <Search className="w-4 h-4 text-[#111111]/40 absolute left-3 top-1/2 -translate-y-1/2" />

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, SectionHeader, CrossAccent, AthleticBadge } from '../design-system';
-import { Shield, Trophy, Users, Target, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Shield, Trophy, Target, ArrowRight } from 'lucide-react';
 
 export const AboutPage: React.FC = () => {
   return (

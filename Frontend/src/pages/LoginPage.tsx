@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Card, CrossAccent } from '../design-system';
-import { Lock, Mail, ArrowRight, Shield, Trophy, UserCheck, Activity, AlertCircle, Flag } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth, type UserRole } from '../context/AuthContext';
 import { ApiClientError } from '../lib/apiClient';
 
@@ -11,12 +11,10 @@ interface LocationState {
   };
 }
 
-const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, setRole: setAuthRole } = useAuth();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -60,19 +58,6 @@ export const LoginPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
-  const handleDemoLogin = (demoRole: UserRole) => {
-    setAuthRole(demoRole);
-    navigate(getRoleDashboard(demoRole), { replace: true });
-  };
-
-  const demoAccounts: { role: UserRole; name: string; email: string; icon: React.ReactNode }[] = [
-    { role: 'Admin', name: 'Director Marcus', email: 'admin@athletiq.com', icon: <Shield size={16} /> },
-    { role: 'Organizer', name: 'Tournament Director', email: 'organizer@athletiq.com', icon: <Trophy size={16} /> },
-    { role: 'Coach', name: 'Coach David', email: 'david.vance@athletiq.com', icon: <UserCheck size={16} /> },
-    { role: 'Athlete', name: 'Alex Morgan', email: 'athlete@athletiq.com', icon: <Activity size={16} /> },
-    { role: 'Official', name: 'Referee Collina', email: 'official@athletiq.com', icon: <Flag size={16} /> },
-  ];
 
   return (
     <div className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 max-w-md mx-auto">
@@ -142,34 +127,6 @@ export const LoginPage: React.FC = () => {
             {isSubmitting ? 'Logging In...' : 'Login to Portal'}
           </Button>
         </form>
-
-        {/* Demo Access Buttons (Rendered only when VITE_DEMO_MODE === 'true') */}
-        {isDemoMode && (
-          <div className="pt-4 border-t border-white/10 space-y-2.5">
-            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-white/60">
-              <span>Demo Accounts (Local Mock Only)</span>
-              <span className="text-[#D8F500]">1-Click Login</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {demoAccounts.map((demo) => (
-                <button
-                  key={demo.role}
-                  type="button"
-                  onClick={() => handleDemoLogin(demo.role)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition-all text-left group hover:scale-[1.02]"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-[#D8F500] text-[#171044] flex items-center justify-center font-black text-xs shrink-0 group-hover:bg-[#FF5A00] group-hover:text-white transition-colors">
-                    {demo.icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-black text-white truncate">{demo.role}</div>
-                    <div className="text-[10px] text-white/60 truncate">{demo.name}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="text-center text-xs text-white/70 pt-2 border-t border-white/10">
           Don't have an account yet?{' '}
