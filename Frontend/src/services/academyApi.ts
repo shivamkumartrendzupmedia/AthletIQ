@@ -1449,6 +1449,62 @@ export const academyApi = {
     });
     return normalizeSingleResponse<ContactMessageItem>(res);
   },
+
+  // ==================== NOTIFICATIONS (STEP 10) ====================
+  getNotifications: async (
+    query: NotificationQuery = {}
+  ): Promise<PaginatedResult<NotificationItem>> => {
+    const res = await apiClient(
+      `/notifications${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<NotificationItem>(res);
+  },
+
+  getUnreadNotificationCount: async (): Promise<{ unreadCount: number }> => {
+    const res = await apiClient<{ unreadCount: number }>('/notifications/unread-count');
+    return res.data || { unreadCount: 0 };
+  },
+
+  markNotificationRead: async (id: string): Promise<NotificationItem | null> => {
+    const res = await apiClient(`/notifications/${id}/read`, {
+      method: 'PATCH',
+    });
+    return normalizeSingleResponse<NotificationItem>(res);
+  },
+
+  markAllNotificationsRead: async (): Promise<{ modifiedCount: number }> => {
+    const res = await apiClient<{ modifiedCount: number }>('/notifications/read-all', {
+      method: 'POST',
+    });
+    return res.data || { modifiedCount: 0 };
+  },
+
+  // ==================== PASSWORD RECOVERY (STEP 10) ====================
+  forgotPassword: async (email: string): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient<{ success: boolean; message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    });
+    return res.data || { success: true, message: res.message || 'If that email exists, instructions have been sent.' };
+  },
+
+  resetPassword: async (payload: {
+    token: string;
+    password: string;
+    confirmPassword: string;
+  }): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient<{ success: boolean; message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.data || { success: true, message: res.message || 'Password reset successful.' };
+  },
+
+  // ==================== ANALYTICS (STEP 10) ====================
+  getAnalyticsOverview: async (): Promise<AnalyticsOverviewData | null> => {
+    const res = await apiClient('/analytics/overview');
+    return normalizeSingleResponse<AnalyticsOverviewData>(res);
+  },
 };
 
 // Announcement & Document Interfaces
@@ -2091,6 +2147,67 @@ export interface AthletePerformanceResponse {
     redCards: number;
   }>;
 }
+
+// ==================== STEP 10 NOTIFICATIONS & ANALYTICS TYPES ====================
+export interface NotificationItem {
+  _id: string;
+  id?: string;
+  user: string;
+  type: 'Announcement' | 'Assessment' | 'Feedback' | 'Match' | 'Goal' | 'System';
+  title: string;
+  body: string;
+  link: string;
+  readAt: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface NotificationQuery extends PaginationQuery {
+  unreadOnly?: boolean;
+}
+
+export interface AdminAnalyticsData {
+  role: 'Admin';
+  weeklyRegistrations: { weekStart: string; label: string; count: number }[];
+  weeklySessions: { weekStart: string; label: string; count: number }[];
+  attendanceRate: number;
+  tournamentSummary: {
+    totalTournaments: number;
+    totalMatches: number;
+    completedMatches: number;
+  };
+}
+
+export interface CoachAnalyticsData {
+  role: 'Coach';
+  teamCount: number;
+  athleteCount: number;
+  weeklyAttendance: { weekStart: string; label: string; rate: number }[];
+  skillAssessmentsTrend: { weekStart: string; label: string; averageScore: number }[];
+}
+
+export interface AthleteAnalyticsData {
+  role: 'Athlete';
+  weeklyAttendance: { weekStart: string; label: string; attended: number; total: number }[];
+  skillProgression: {
+    date: string;
+    overall: number;
+    technical: number;
+    physical: number;
+    tactical: number;
+    mental: number;
+  }[];
+  goalsSummary: {
+    active: number;
+    achieved: number;
+    total: number;
+  };
+}
+
+export type AnalyticsOverviewData =
+  | AdminAnalyticsData
+  | CoachAnalyticsData
+  | AthleteAnalyticsData;
 
 
 

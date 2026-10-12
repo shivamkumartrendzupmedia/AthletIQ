@@ -23,6 +23,7 @@ import {
   type MatchEventSide,
 } from '../models/index.js';
 import { ApiError } from '../utils/ApiError.js';
+import { notify } from './notification.service.js';
 
 interface AuthUser {
   id: string;
@@ -1748,6 +1749,32 @@ export class TournamentService {
         newStatus: targetStatus,
       },
     });
+
+    // Safe notification dispatch for match participants & official
+    (async () => {
+      try {
+        const [homeReg, awayReg, refOff] = await Promise.all([
+          TournamentTeam.findById(updated.homeTeam).select('registeredBy'),
+          TournamentTeam.findById(updated.awayTeam).select('registeredBy'),
+          updated.referee ? Official.findById(updated.referee).select('user') : null,
+        ]);
+        const recipientIds: Types.ObjectId[] = [];
+        if (homeReg?.registeredBy) recipientIds.push(homeReg.registeredBy);
+        if (awayReg?.registeredBy) recipientIds.push(awayReg.registeredBy);
+        if (refOff?.user) recipientIds.push(refOff.user);
+
+        if (recipientIds.length > 0) {
+          await notify(recipientIds, {
+            type: 'Match',
+            title: `Match ${targetStatus}`,
+            body: `Match status updated to ${targetStatus}.`,
+            link: `/matches/${updated._id}`,
+          });
+        }
+      } catch {
+        // Safe ignore
+      }
+    })();
 
     return updated;
   }

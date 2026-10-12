@@ -19,6 +19,8 @@ import { officialRoutes } from './official.routes.js';
 import { matchRoutes } from './match.routes.js';
 import { dashboardRoutes } from './dashboard.routes.js';
 import { contactRoutes } from './contact.routes.js';
+import { notificationRoutes } from './notification.routes.js';
+import { analyticsRoutes } from './analytics.routes.js';
 
 const router = Router();
 
@@ -36,6 +38,12 @@ router.use('/users', userRoutes);
 
 // Mount dashboard metrics endpoint under /api/dashboard
 router.use('/dashboard', dashboardRoutes);
+
+// Mount notifications stream endpoint under /api/notifications
+router.use('/notifications', notificationRoutes);
+
+// Mount analytics overview endpoint under /api/analytics
+router.use('/analytics', analyticsRoutes);
 
 // Mount admin contact inquiry management under /api/contact-messages
 router.use('/contact-messages', contactRoutes);

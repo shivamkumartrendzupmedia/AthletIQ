@@ -7,15 +7,19 @@ import {
   logoutAll,
   getMe,
   changePassword,
+  forgotPassword,
+  resetPassword,
 } from '../controllers/auth.controller.js';
 import { validate } from '../middlewares/validate.js';
 import {
   registerSchema,
   loginSchema,
   changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from '../validators/auth.validator.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
-import { authLimiter } from '../middlewares/rateLimiter.js';
+import { authLimiter, forgotPasswordLimiter } from '../middlewares/rateLimiter.js';
 
 const router = Router();
 
@@ -23,6 +27,19 @@ const router = Router();
 router.post('/register', authLimiter, validate(registerSchema), register);
 router.post('/login', authLimiter, validate(loginSchema), login);
 router.post('/refresh', authLimiter, refresh);
+
+// Password recovery
+router.post(
+  '/forgot-password',
+  forgotPasswordLimiter,
+  validate(forgotPasswordSchema),
+  forgotPassword
+);
+router.post(
+  '/reset-password',
+  validate(resetPasswordSchema),
+  resetPassword
+);
 
 // Session termination
 router.post('/logout', logout);

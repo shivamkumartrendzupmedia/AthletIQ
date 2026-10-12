@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useAuthenticatedUser, type UserRole } from '../context/AuthContext';
 import { CrossAccent, AthleticBadge } from '../design-system';
+import { academyApi } from '../services/academyApi';
 import {
   LayoutDashboard,
   Users,
@@ -18,6 +19,7 @@ import {
   User,
   MapPin,
   MessageSquare,
+  TrendingUp,
 } from 'lucide-react';
 import { SafeImage, getInitials, isValidImageUrl } from './SafeImage';
 
@@ -31,12 +33,48 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await academyApi.getUnreadNotificationCount();
+      if (typeof res.unreadCount === 'number') {
+        setUnreadCount(res.unreadCount);
+      }
+    } catch {
+      // safe fallback on error or offline
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUnreadCount();
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchUnreadCount();
+      }
+    }, 60000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUnreadCount();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [fetchUnreadCount, location.pathname]);
 
   const getNavItems = () => {
     switch (role) {
       case 'Admin':
         return [
           { name: 'Admin Overview', path: '/dashboard/admin', icon: LayoutDashboard },
+          { name: 'Analytics', path: '/dashboard/analytics', icon: TrendingUp },
+          { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
           { name: 'User Accounts', path: '/dashboard/users', icon: User },
           { name: 'Contact Messages', path: '/dashboard/messages', icon: MessageSquare },
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
@@ -55,6 +93,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Coach':
         return [
           { name: 'Coach Dashboard', path: '/dashboard/coach', icon: LayoutDashboard },
+          { name: 'Analytics', path: '/dashboard/analytics', icon: TrendingUp },
+          { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
           { name: 'Assigned Teams', path: '/dashboard/teams', icon: Shield },
           { name: 'Roster & Athletes', path: '/dashboard/athletes', icon: Users },
@@ -65,6 +105,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Athlete':
         return [
           { name: 'Athlete Hub', path: '/dashboard/athlete', icon: LayoutDashboard },
+          { name: 'Analytics', path: '/dashboard/analytics', icon: TrendingUp },
+          { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
           { name: 'My Profile & Development', path: '/athlete/me', icon: User },
           { name: 'Tournaments', path: '/dashboard/tournaments', icon: Trophy },
           { name: 'My Training Schedule', path: '/dashboard/training', icon: Calendar },
@@ -74,6 +116,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Organizer':
         return [
           { name: 'Organizer Hub', path: '/dashboard/organizer', icon: LayoutDashboard },
+          { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
           { name: 'Live Console', path: '/dashboard/live', icon: Activity },
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
           { name: 'Venues', path: '/dashboard/venues', icon: MapPin },
@@ -86,11 +129,13 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Official':
         return [
           { name: 'Official Dashboard', path: '/dashboard/official', icon: LayoutDashboard },
+          { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
           { name: 'Live Console', path: '/dashboard/live', icon: Activity },
         ];
       default:
         return [
           { name: 'Athlete Hub', path: '/dashboard/athlete', icon: LayoutDashboard },
+          { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
         ];
     }
   };
@@ -167,13 +212,21 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-display font-extrabold text-sm transition-all duration-200 ${
+                  className={`flex items-center justify-between px-4 py-3 rounded-2xl font-display font-extrabold text-sm transition-all duration-200 ${
                     active
                       ? 'bg-[#FF5A00] text-white shadow-lg shadow-[#FF5A00]/30'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  <span>{item.name}</span>
+                  <div className="flex items-center gap-3">
+                    <item.icon size={18} />
+                    <span>{item.name}</span>
+                  </div>
+                  {item.name === 'Notifications' && unreadCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-[#D8F500] text-[#171044] text-[10px] font-black">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -287,10 +340,18 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
               <span className="hidden sm:inline">Logout</span>
             </button>
 
-            <button className="w-10 h-10 rounded-full bg-white border border-[#171044]/10 flex items-center justify-center text-[#171044] hover:bg-[#171044] hover:text-white transition-colors relative">
+            <Link
+              to="/dashboard/notifications"
+              aria-label="View notifications"
+              className="w-10 h-10 rounded-full bg-white border border-[#171044]/10 flex items-center justify-center text-[#171044] hover:bg-[#171044] hover:text-white transition-colors relative"
+            >
               <Bell size={18} />
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#FF5A00]" />
-            </button>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF5A00] text-white text-[10px] font-black flex items-center justify-center shadow-sm">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </Link>
           </div>
         </header>
 

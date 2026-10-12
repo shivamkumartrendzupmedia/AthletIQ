@@ -21,6 +21,8 @@ import {
   MatchEvent,
   AuditLog,
   ContactMessage,
+  Notification,
+  PasswordReset,
 } from '../src/models/index.js';
 
 interface OrphanItem {
@@ -312,6 +314,34 @@ export async function findOrphans(): Promise<OrphanItem[]> {
     }
   }
 
+  // 17. Notifications
+  const notifs = await Notification.find({});
+  for (const n of notifs) {
+    const userExists = await User.exists({ _id: n.user });
+    if (!userExists) {
+      orphans.push({
+        collection: 'Notification',
+        id: n._id,
+        name: `Notification ${n.title} (${n._id.toString()})`,
+        reason: `Referenced user ${n.user.toString()} does not exist`,
+      });
+    }
+  }
+
+  // 18. PasswordResets
+  const pwResets = await PasswordReset.find({});
+  for (const pr of pwResets) {
+    const userExists = await User.exists({ _id: pr.user });
+    if (!userExists) {
+      orphans.push({
+        collection: 'PasswordReset',
+        id: pr._id,
+        name: `PasswordReset (${pr._id.toString()})`,
+        reason: `Referenced user ${pr.user.toString()} does not exist`,
+      });
+    }
+  }
+
   return orphans;
 }
 
@@ -337,6 +367,8 @@ async function getCounts() {
     matchEvents: await MatchEvent.countDocuments(),
     auditLogs: await AuditLog.countDocuments(),
     contactMessages: await ContactMessage.countDocuments(),
+    notifications: await Notification.countDocuments(),
+    passwordResets: await PasswordReset.countDocuments(),
   };
 }
 
@@ -357,8 +389,8 @@ async function run() {
     console.log(`- [${item.collection}] ID: ${item.id.toString()} | Name: "${item.name}" | Reason: ${item.reason}`);
   }
 
-  if (orphans.length > 20) {
-    console.error(`\n[SANITY LIMIT EXCEEDED] Total orphans (${orphans.length}) > 20. Stopping for safety.`);
+  if (orphans.length > 100) {
+    console.error(`\n[SANITY LIMIT EXCEEDED] Total orphans (${orphans.length}) > 100. Stopping for safety.`);
     await mongoose.disconnect();
     process.exit(1);
   }
@@ -394,8 +426,18 @@ async function run() {
   const teamIds = orphans.filter((o) => o.collection === 'Team').map((o) => o.id);
   const sportIds = orphans.filter((o) => o.collection === 'Sport').map((o) => o.id);
   const contactIds = orphans.filter((o) => o.collection === 'ContactMessage').map((o) => o.id);
+  const notificationIds = orphans.filter((o) => o.collection === 'Notification').map((o) => o.id);
+  const passwordResetIds = orphans.filter((o) => o.collection === 'PasswordReset').map((o) => o.id);
   const userIds = orphans.filter((o) => o.collection === 'User').map((o) => o.id);
 
+  if (notificationIds.length > 0) {
+    const res = await Notification.deleteMany({ _id: { $in: notificationIds } });
+    console.log(`Deleted ${res.deletedCount} orphan Notifications`);
+  }
+  if (passwordResetIds.length > 0) {
+    const res = await PasswordReset.deleteMany({ _id: { $in: passwordResetIds } });
+    console.log(`Deleted ${res.deletedCount} orphan PasswordResets`);
+  }
   if (matchEventIds.length > 0) {
     const res = await MatchEvent.deleteMany({ _id: { $in: matchEventIds } });
     console.log(`Deleted ${res.deletedCount} orphan MatchEvents`);
@@ -490,7 +532,9 @@ async function run() {
     beforeCounts.tournaments - tourneyIds.length !== afterCounts.tournaments ||
     beforeCounts.tournamentTeams - regIds.length !== afterCounts.tournamentTeams ||
     beforeCounts.auditLogs - auditLogIds.length !== afterCounts.auditLogs ||
-    beforeCounts.contactMessages - contactIds.length !== afterCounts.contactMessages
+    beforeCounts.contactMessages - contactIds.length !== afterCounts.contactMessages ||
+    beforeCounts.notifications - notificationIds.length !== afterCounts.notifications ||
+    beforeCounts.passwordResets - passwordResetIds.length !== afterCounts.passwordResets
   ) {
     console.error('\n[FATAL ERROR] Protected collection count changed during orphan cleanup!');
     await mongoose.disconnect();

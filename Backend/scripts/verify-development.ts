@@ -16,6 +16,7 @@ import {
   SkillAssessment,
   CoachFeedback,
   AthleteGoal,
+  Notification,
 } from '../src/models/index.js';
 import { hashPassword } from '../src/utils/password.js';
 import { signAccessToken } from '../src/utils/jwt.js';
@@ -1341,6 +1342,7 @@ async function run(): Promise<void> {
   await Team.deleteMany({ _id: { $in: createdTeamIds } });
   await Coach.deleteMany({ _id: { $in: createdCoachIds } });
   await AuditLog.deleteMany({ actor: { $in: createdUserIds } });
+  await Notification.deleteMany({ user: { $in: createdUserIds } });
   await User.deleteMany({ _id: { $in: createdUserIds } });
 
   const finalCounts = {

@@ -25,11 +25,14 @@ import { ContactPage } from './pages/ContactPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 import { AdminDashboard } from './pages/dashboard/AdminDashboard';
 import { CoachDashboard } from './pages/dashboard/CoachDashboard';
 import { AthleteDashboard } from './pages/dashboard/AthleteDashboard';
 import { OrganizerDashboard } from './pages/dashboard/OrganizerDashboard';
+import { NotificationsPage } from './pages/dashboard/NotificationsPage';
+import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
 import { ContactMessagesPage } from './pages/dashboard/ContactMessagesPage';
 import { AthleteManagementPage } from './pages/dashboard/AthleteManagementPage';
 import { CoachManagementPage } from './pages/dashboard/CoachManagementPage';
@@ -335,6 +338,31 @@ function App() {
             }
           />
 
+          <Route
+            path="/dashboard/notifications"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer', 'Official']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <NotificationsPage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/analytics"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <AnalyticsPage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Public Website Routes */}
           <Route
             path="*"
@@ -418,6 +446,7 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/reset-password" element={<ResetPasswordPage />} />
                   </Routes>
                 </main>
                 <Footer />

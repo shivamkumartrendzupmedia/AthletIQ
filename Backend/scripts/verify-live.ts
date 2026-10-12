@@ -23,6 +23,7 @@ import {
   Match,
   MatchEvent,
   ContactMessage,
+  Notification,
 } from '../src/models/index.js';
 import { hashPassword } from '../src/utils/password.js';
 import { signAccessToken } from '../src/utils/jwt.js';
@@ -1750,6 +1751,7 @@ async function run() {
     console.log(`Deleted ${r.deletedCount} test Sports`);
   }
   if (createdUserIds.length > 0) {
+    await Notification.deleteMany({ user: { $in: createdUserIds } });
     const r = await User.deleteMany({ _id: { $in: createdUserIds } });
     console.log(`Deleted ${r.deletedCount} test Users`);
   }

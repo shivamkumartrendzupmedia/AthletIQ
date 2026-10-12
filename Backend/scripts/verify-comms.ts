@@ -23,6 +23,7 @@ import { Attendance } from '../src/models/Attendance.js';
 import { AuditLog } from '../src/models/AuditLog.js';
 import { Announcement } from '../src/models/Announcement.js';
 import { AcademyDocument } from '../src/models/Document.js';
+import { Notification } from '../src/models/Notification.js';
 import { hashPassword } from '../src/utils/password.js';
 import { signAccessToken } from '../src/utils/jwt.js';
 
@@ -1377,6 +1378,7 @@ async function run(): Promise<void> {
     }
     if (createdUserIds.length > 0) {
       await AuditLog.deleteMany({ actor: { $in: createdUserIds } });
+      await Notification.deleteMany({ user: { $in: createdUserIds } });
       await User.deleteMany({ _id: { $in: createdUserIds } });
     }
 

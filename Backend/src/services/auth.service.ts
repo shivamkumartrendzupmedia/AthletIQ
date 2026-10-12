@@ -1,5 +1,8 @@
+import crypto from 'crypto';
 import { User, type IUser } from '../models/User.js';
+import { PasswordReset } from '../models/PasswordReset.js';
 import { AuditLog } from '../models/AuditLog.js';
+import { mailerService } from './mailer.service.js';
 import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
 import {
@@ -411,6 +414,121 @@ export class AuthService {
     user.refreshTokens = [];
 
     await user.save();
+  }
+
+  /**
+   * Request a password reset link.
+   * Constant 200 response to prevent user enumeration.
+   * Rate limited and protected by a 60-second user cooldown.
+   */
+  async forgotPassword(email: string): Promise<{ success: true; message: string }> {
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail, isActive: true });
+
+    if (user) {
+      // 60-second cooldown per user
+      const cooldownThreshold = new Date(Date.now() - 60 * 1000);
+      const recentReset = await PasswordReset.findOne({
+        user: user._id,
+        createdAt: { $gt: cooldownThreshold },
+      });
+
+      if (!recentReset) {
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+        await PasswordReset.create({
+          user: user._id,
+          tokenHash,
+          expiresAt,
+        });
+
+        await mailerService.sendPasswordResetEmail(user.email, rawToken, user.name);
+
+        await AuditLog.create({
+          actor: user._id,
+          action: 'USER_PASSWORD_RESET',
+          targetType: 'User',
+          targetId: user._id,
+          meta: { step: 'requested' },
+        });
+      }
+    }
+
+    return {
+      success: true,
+      message: 'If that email exists, password reset instructions have been sent.',
+    };
+  }
+
+  /**
+   * Reset user password using token.
+   * Atomic token consumption, hash update, session revocation, and lockout clearance.
+   */
+  async resetPassword(input: {
+    token: string;
+    password: string;
+    confirmPassword: string;
+  }): Promise<{ success: true; message: string }> {
+    if (!input.token || !input.password) {
+      throw ApiError.badRequest('Token and password are required');
+    }
+
+    if (input.password !== input.confirmPassword) {
+      throw ApiError.badRequest('Passwords do not match');
+    }
+
+    if (input.password.length < 8) {
+      throw ApiError.badRequest('Password must be at least 8 characters long');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(input.token.trim()).digest('hex');
+
+    const resetRecord = await PasswordReset.findOneAndUpdate(
+      {
+        tokenHash,
+        usedAt: null,
+        expiresAt: { $gt: new Date() },
+      },
+      {
+        $set: { usedAt: new Date() },
+      },
+      { new: true }
+    );
+
+    if (!resetRecord) {
+      throw ApiError.badRequest('Invalid or expired password reset token');
+    }
+
+    const user = await User.findById(resetRecord.user).select(
+      '+passwordHash +refreshTokens'
+    );
+
+    if (!user) {
+      throw ApiError.notFound('User account not found');
+    }
+
+    user.passwordHash = await hashPassword(input.password);
+    user.passwordChangedAt = new Date();
+    user.refreshTokens = [];
+    user.failedLoginAttempts = 0;
+    user.isLocked = false;
+    user.lockUntil = undefined;
+    await user.save();
+
+    await AuditLog.create({
+      actor: user._id,
+      action: 'USER_PASSWORD_RESET',
+      targetType: 'User',
+      targetId: user._id,
+      meta: { step: 'completed' },
+    });
+
+    return {
+      success: true,
+      message: 'Password has been reset successfully. You may now log in.',
+    };
   }
 }
 

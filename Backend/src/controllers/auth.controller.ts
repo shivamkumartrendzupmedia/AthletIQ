@@ -105,3 +105,18 @@ export const changePassword = asyncHandler(
     });
   }
 );
+
+export const forgotPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const result = await authService.forgotPassword(req.body.email);
+    res.status(200).json(result);
+  }
+);
+
+export const resetPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const result = await authService.resetPassword(req.body);
+    res.clearCookie('refreshToken', { path: '/api/auth' });
+    res.status(200).json(result);
+  }
+);

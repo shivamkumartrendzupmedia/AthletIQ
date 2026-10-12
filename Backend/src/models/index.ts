@@ -44,5 +44,7 @@ export { Official, type IOfficial } from './Official.js';
 export { Match, type IMatch, type IMatchResult, type ILiveScore } from './Match.js';
 export { MatchEvent, type IMatchEvent } from './MatchEvent.js';
 export { ContactMessage, type IContactMessage, type ContactMessageStatus } from './ContactMessage.js';
+export { Notification, type INotification } from './Notification.js';
+export { PasswordReset, type IPasswordReset } from './PasswordReset.js';
 
 

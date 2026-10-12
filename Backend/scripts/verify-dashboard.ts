@@ -22,6 +22,7 @@ import {
   Match,
   AuditLog,
   ContactMessage,
+  Notification,
 } from '../src/models/index.js';
 import { hashPassword } from '../src/utils/password.js';
 import { signAccessToken } from '../src/utils/jwt.js';
@@ -928,6 +929,7 @@ async function runVerification() {
     await AuditLog.deleteMany({ _id: { $in: createdAuditLogIds } });
   }
   if (createdUserIds.length > 0) {
+    await Notification.deleteMany({ user: { $in: createdUserIds } });
     await User.deleteMany({ _id: { $in: createdUserIds } });
   }
 

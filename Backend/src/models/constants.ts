@@ -223,5 +223,12 @@ export type MatchEventType = (typeof MATCH_EVENT_TYPES)[number];
 export const MATCH_EVENT_SIDES = ['home', 'away'] as const;
 export type MatchEventSide = (typeof MATCH_EVENT_SIDES)[number];
 
-
-
+export const NOTIFICATION_TYPES = [
+  'Announcement',
+  'Assessment',
+  'Feedback',
+  'Match',
+  'Goal',
+  'System',
+] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

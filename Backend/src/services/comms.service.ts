@@ -7,7 +7,9 @@ import { AcademyDocument } from '../models/Document.js';
 import { Coach } from '../models/Coach.js';
 import { Athlete } from '../models/Athlete.js';
 import { Team } from '../models/Team.js';
+import { User } from '../models/User.js';
 import { AuditLog } from '../models/AuditLog.js';
+import { notify } from './notification.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { formatPaginatedResponse, type PaginatedResponse } from '../utils/pagination.js';
 import { env } from '../config/env.js';
@@ -225,6 +227,48 @@ export class CommsService {
       targetId: ann._id,
       meta: { audience: ann.audience, team: teamId ? String(teamId) : null },
     });
+
+    // Safe notification dispatch for announcement
+    (async () => {
+      try {
+        let recipientIds: Types.ObjectId[] = [];
+        if (ann.audience === 'Team' && teamId) {
+          const [teamAthletes, teamDoc] = await Promise.all([
+            Athlete.find({ team: teamId }).select('user'),
+            Team.findById(teamId).select('coach'),
+          ]);
+          recipientIds = teamAthletes.map((a) => a.user).filter((u): u is Types.ObjectId => Boolean(u));
+          if (teamDoc?.coach) {
+            const coachUser = await Coach.findById(teamDoc.coach).select('user');
+            if (coachUser?.user) recipientIds.push(coachUser.user);
+          }
+        } else if (ann.audience === 'Athletes') {
+          const athleteUsers = await Athlete.find({ status: 'Active' }).select('user');
+          recipientIds = athleteUsers.map((a) => a.user).filter((u): u is Types.ObjectId => Boolean(u));
+        } else if (ann.audience === 'Coaches') {
+          const coachUsers = await Coach.find({}).select('user');
+          recipientIds = coachUsers.map((c) => c.user).filter((u): u is Types.ObjectId => Boolean(u));
+        } else if (ann.audience === 'Organizers') {
+          const orgUsers = await User.find({ role: 'Organizer', isActive: true }).select('_id');
+          recipientIds = orgUsers.map((u) => u._id);
+        } else {
+          // 'All' or 'Public'
+          const allUsers = await User.find({ isActive: true }).select('_id');
+          recipientIds = allUsers.map((u) => u._id);
+        }
+
+        if (recipientIds.length > 0) {
+          await notify(recipientIds, {
+            type: 'Announcement',
+            title: `New Announcement: ${ann.title}`,
+            body: ann.body.length > 280 ? ann.body.slice(0, 277) + '...' : ann.body,
+            link: '/dashboard',
+          });
+        }
+      } catch {
+        // Safe ignore
+      }
+    })();
 
     return this.getAnnouncementById(ann.id, user);
   }

@@ -15,6 +15,7 @@ import {
 import { ApiError } from '../utils/ApiError.js';
 import { calculateAttendanceRate } from '../utils/attendance.util.js';
 import { auditService } from './audit.service.js';
+import { notify } from './notification.service.js';
 import type {
   CreateAssessmentInput,
   CreateFeedbackInput,
@@ -309,6 +310,15 @@ export class DevelopmentService {
       },
     });
 
+    if (athlete.user) {
+      notify([athlete.user], {
+        type: 'Assessment',
+        title: 'New Skill Assessment Recorded',
+        body: `Skill assessment recorded with overall rating ${overall}/10.`,
+        link: '/dashboard',
+      });
+    }
+
     const populated = await SkillAssessment.findById(assessment._id).populate(
       'assessedBy',
       'name'
@@ -399,6 +409,15 @@ export class DevelopmentService {
         type: input.type,
       },
     });
+
+    if (athlete.user) {
+      notify([athlete.user], {
+        type: 'Feedback',
+        title: 'New Coach Feedback',
+        body: input.text.length > 280 ? input.text.slice(0, 277) + '...' : input.text,
+        link: '/dashboard',
+      });
+    }
 
     const populated = await CoachFeedback.findById(feedback._id).populate({
       path: 'coach',
@@ -605,6 +624,15 @@ export class DevelopmentService {
       },
     });
 
+    if (athlete.user) {
+      notify([athlete.user], {
+        type: 'Goal',
+        title: `New Goal: ${goal.title}`,
+        body: `A new athletic goal "${goal.title}" was created for you.`,
+        link: '/dashboard',
+      });
+    }
+
     return this.formatGoalDto(goal);
   }
 
@@ -686,6 +714,22 @@ export class DevelopmentService {
         status: goal.status,
       },
     });
+
+    (async () => {
+      try {
+        const athDoc = await Athlete.findById(goal.athlete).select('user');
+        if (athDoc?.user) {
+          await notify([athDoc.user], {
+            type: 'Goal',
+            title: `Goal Updated: ${goal.title}`,
+            body: `Goal status: ${goal.status}, progress: ${goal.progress}%.`,
+            link: '/dashboard',
+          });
+        }
+      } catch {
+        // Safe ignore
+      }
+    })();
 
     return this.formatGoalDto(goal);
   }

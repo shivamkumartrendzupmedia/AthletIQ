@@ -21,6 +21,7 @@ import {
   Venue,
   Official,
   Match,
+  Notification,
 } from '../src/models/index.js';
 import { hashPassword } from '../src/utils/password.js';
 import { signAccessToken } from '../src/utils/jwt.js';
@@ -1929,6 +1930,7 @@ async function run(): Promise<void> {
     }
     if (createdUserIds.length > 0) {
       await AuditLog.deleteMany({ actor: { $in: createdUserIds } });
+      await Notification.deleteMany({ user: { $in: createdUserIds } });
       await User.deleteMany({ _id: { $in: createdUserIds } });
     }
 

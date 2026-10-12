@@ -51,3 +51,36 @@ export const resetContactLimiter = (): void => {
     limiter.resetKey('::ffff:127.0.0.1');
   }
 };
+
+/**
+ * Forgot password rate limiter.
+ * Limits to 5 attempts per hour per IP.
+ */
+const forgotPasswordWindowMs = process.env.RATE_LIMIT_FORGOT_PASSWORD_WINDOW_MS
+  ? parseInt(process.env.RATE_LIMIT_FORGOT_PASSWORD_WINDOW_MS, 10)
+  : 60 * 60 * 1000;
+
+const forgotPasswordMax = process.env.RATE_LIMIT_FORGOT_PASSWORD_MAX
+  ? parseInt(process.env.RATE_LIMIT_FORGOT_PASSWORD_MAX, 10)
+  : 5;
+
+export const forgotPasswordLimiter = rateLimit({
+  windowMs: forgotPasswordWindowMs,
+  max: forgotPasswordMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  statusCode: 429,
+  message: {
+    success: false,
+    message: 'Too many password reset requests from this IP, please try again later',
+  },
+});
+
+export const resetForgotPasswordLimiter = (): void => {
+  const limiter = forgotPasswordLimiter as unknown as { resetKey?: (key: string) => void };
+  if (typeof limiter.resetKey === 'function') {
+    limiter.resetKey('127.0.0.1');
+    limiter.resetKey('::1');
+    limiter.resetKey('::ffff:127.0.0.1');
+  }
+};
