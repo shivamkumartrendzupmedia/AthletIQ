@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "verify:development-payload": "npx tsx scripts/verify-development-payload.ts",
+    "verify:match-payload": "npx tsx scripts/verify-match-payloads.ts",
+    "verify:polling": "npx tsx scripts/verify-polling.ts",
     "preview": "vite preview"
   },
   "dependencies": {

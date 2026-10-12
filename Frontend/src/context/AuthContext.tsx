@@ -14,7 +14,7 @@ import {
   ApiClientError,
 } from '../lib/apiClient';
 
-export type UserRole = 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+export type UserRole = 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
 
 export interface User {
   id: string;
@@ -69,6 +69,12 @@ const demoUsers: Record<UserRole, User> = {
     name: 'Sarah Jenkins',
     email: 'organizer@athletiq.com',
     role: 'Organizer',
+  },
+  Official: {
+    id: 'user-official',
+    name: 'Pierluigi Collina',
+    email: 'official@athletiq.com',
+    role: 'Official',
   },
 };
 

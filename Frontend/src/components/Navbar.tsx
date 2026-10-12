@@ -16,6 +16,7 @@ export const Navbar: React.FC = () => {
     { name: 'Coaches', path: '/coaches' },
     { name: 'Teams', path: '/teams' },
     { name: 'Tournaments', path: '/tournaments' },
+    { name: 'Live', path: '/live' },
     { name: 'Gallery', path: '/gallery' },
     { name: 'News', path: '/news' },
     { name: 'Contact', path: '/contact' },
@@ -35,6 +36,8 @@ export const Navbar: React.FC = () => {
         return '/dashboard/athlete';
       case 'Organizer':
         return '/dashboard/organizer';
+      case 'Official':
+        return '/dashboard/official';
       default:
         return '/dashboard/athlete';
     }

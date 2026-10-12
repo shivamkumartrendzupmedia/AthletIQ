@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { SafeImage } from '../../components/SafeImage';
-import { useAuthenticatedUser } from '../../context/AuthContext';
+import { useAuthenticatedUser, type UserRole } from '../../context/AuthContext';
 import {
   academyApi,
   type AdminUserItem,
@@ -57,12 +57,12 @@ export const UserAccountsPage: React.FC = () => {
     name: '',
     email: '',
     password: '',
-    role: 'Athlete' as 'Admin' | 'Coach' | 'Athlete' | 'Organizer',
+    role: 'Athlete' as UserRole,
   });
 
   const [editForm, setEditForm] = useState({
     name: '',
-    role: 'Athlete' as 'Admin' | 'Coach' | 'Athlete' | 'Organizer',
+    role: 'Athlete' as UserRole,
     isActive: true,
   });
 
@@ -347,6 +347,7 @@ export const UserAccountsPage: React.FC = () => {
             <option value="Coach">Coach</option>
             <option value="Athlete">Athlete</option>
             <option value="Organizer">Organizer</option>
+            <option value="Official">Official</option>
           </select>
 
           <select
@@ -424,6 +425,8 @@ export const UserAccountsPage: React.FC = () => {
                               ? 'lime'
                               : u.role === 'Organizer'
                               ? 'orange'
+                              : u.role === 'Official'
+                              ? 'lime'
                               : 'dark'
                           }
                           size="sm"
@@ -667,6 +670,7 @@ export const UserAccountsPage: React.FC = () => {
                   <option value="Coach">Coach</option>
                   <option value="Athlete">Athlete</option>
                   <option value="Organizer">Organizer</option>
+                  <option value="Official">Official</option>
                 </select>
                 {createFieldErrors.role && (
                   <p className="mt-1 text-xs text-red-600 font-medium">{createFieldErrors.role}</p>
@@ -752,6 +756,7 @@ export const UserAccountsPage: React.FC = () => {
                     <option value="Coach">Coach</option>
                     <option value="Athlete">Athlete</option>
                     <option value="Organizer">Organizer</option>
+                    <option value="Official">Official</option>
                   </select>
                   {editFieldErrors.role && (
                     <p className="mt-1 text-xs text-red-600 font-medium">{editFieldErrors.role}</p>

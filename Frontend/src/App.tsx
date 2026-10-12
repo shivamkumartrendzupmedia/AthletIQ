@@ -44,6 +44,11 @@ import { TournamentDetailPage as DashboardTournamentDetailPage } from './pages/d
 import { VenuesPage } from './pages/dashboard/VenuesPage';
 import { OfficialsPage } from './pages/dashboard/OfficialsPage';
 import { UserAccountsPage } from './pages/dashboard/UserAccountsPage';
+import { OfficialDashboardPage } from './pages/dashboard/OfficialDashboardPage';
+import { LiveMatchesConsoleListPage } from './pages/dashboard/LiveMatchesConsoleListPage';
+import { ScorerConsolePage } from './pages/dashboard/ScorerConsolePage';
+import { PublicLiveMatchesPage } from './pages/PublicLiveMatchesPage';
+import { PublicMatchDetailPage } from './pages/PublicMatchDetailPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
@@ -293,6 +298,42 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/dashboard/official"
+            element={
+              <ProtectedRoute allowedRoles={['Official']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <OfficialDashboardPage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/live"
+            element={
+              <ProtectedRoute allowedRoles={['Official', 'Admin', 'Organizer']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <LiveMatchesConsoleListPage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/live/:matchId"
+            element={
+              <ProtectedRoute allowedRoles={['Official', 'Admin', 'Organizer']}>
+                <DashboardLayout>
+                  <ErrorBoundary>
+                    <ScorerConsolePage />
+                  </ErrorBoundary>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Public Website Routes */}
           <Route
@@ -355,6 +396,22 @@ function App() {
                     <Route path="/achievements" element={<AchievementsPage />} />
                     <Route path="/tournaments" element={<TournamentsPage />} />
                     <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
+                    <Route
+                      path="/live"
+                      element={
+                        <ErrorBoundary>
+                          <PublicLiveMatchesPage />
+                        </ErrorBoundary>
+                      }
+                    />
+                    <Route
+                      path="/matches/:id"
+                      element={
+                        <ErrorBoundary>
+                          <PublicMatchDetailPage />
+                        </ErrorBoundary>
+                      }
+                    />
                     <Route path="/gallery" element={<GalleryPage />} />
                     <Route path="/news" element={<NewsPage />} />
                     <Route path="/contact" element={<ContactPage />} />

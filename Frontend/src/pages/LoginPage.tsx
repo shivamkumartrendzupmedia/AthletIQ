@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Card, CrossAccent } from '../design-system';
-import { Lock, Mail, ArrowRight, Shield, Trophy, UserCheck, Activity, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Shield, Trophy, UserCheck, Activity, AlertCircle, Flag } from 'lucide-react';
 import { useAuth, type UserRole } from '../context/AuthContext';
 import { ApiClientError } from '../lib/apiClient';
 
@@ -33,6 +33,8 @@ export const LoginPage: React.FC = () => {
         return '/dashboard/athlete';
       case 'Organizer':
         return '/dashboard/organizer';
+      case 'Official':
+        return '/dashboard/official';
       default:
         return '/dashboard/athlete';
     }
@@ -69,6 +71,7 @@ export const LoginPage: React.FC = () => {
     { role: 'Organizer', name: 'Tournament Director', email: 'organizer@athletiq.com', icon: <Trophy size={16} /> },
     { role: 'Coach', name: 'Coach David', email: 'david.vance@athletiq.com', icon: <UserCheck size={16} /> },
     { role: 'Athlete', name: 'Alex Morgan', email: 'athlete@athletiq.com', icon: <Activity size={16} /> },
+    { role: 'Official', name: 'Referee Collina', email: 'official@athletiq.com', icon: <Flag size={16} /> },
   ];
 
   return (

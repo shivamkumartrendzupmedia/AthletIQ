@@ -32,13 +32,19 @@ import {
   type EnterMatchResultInput,
 } from '../lib/tournamentPayloads';
 import {
+  buildMatchStatusPayload,
+  buildMatchEventPayload,
+  type BuildMatchStatusInput,
+  type BuildMatchEventInput,
+} from '../lib/matchPayloads';
+import {
   buildCreateContactPayload,
   buildUpdateContactStatusPayload,
   type CreateContactInput,
   type UpdateContactStatusInput,
 } from '../lib/contactPayloads';
 
-export type { CreateContactInput, UpdateContactStatusInput };
+export type { CreateContactInput, UpdateContactStatusInput, BuildMatchStatusInput, BuildMatchEventInput };
 
 export type { PaginationMeta, PaginatedResult };
 
@@ -52,7 +58,7 @@ export interface AdminUserItem {
   id: string;
   name: string;
   email: string;
-  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
   avatar?: string;
   isActive: boolean;
   isLocked: boolean;
@@ -448,7 +454,7 @@ export interface CreateUserInput {
   name: string;
   email: string;
   password: string;
-  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
   phone?: string;
   avatar?: string;
 }
@@ -457,7 +463,7 @@ export interface UpdateUserInput {
   name?: string;
   phone?: string;
   avatar?: string;
-  role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+  role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
   isActive?: boolean;
 }
 
@@ -692,7 +698,7 @@ export const academyApi = {
     name: string;
     email: string;
     password: string;
-    role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+    role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
     isActive?: boolean;
   }): Promise<AdminUserItem | null> => {
     const res = await apiClient('/users', {
@@ -706,7 +712,7 @@ export const academyApi = {
     payload: {
       name?: string;
       email?: string;
-      role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+      role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
       isActive?: boolean;
     }
   ): Promise<AdminUserItem | null> => {
@@ -1291,6 +1297,93 @@ export const academyApi = {
     return normalizeSingleResponse<{ message: string }>(res);
   },
 
+  // ==================== LIVE MATCH CENTER (STEP 9A & 9B) ====================
+  getAssignedMatches: async (): Promise<MatchItem[]> => {
+    const res = await apiClient('/matches/assigned');
+    return normalizeListResponse<MatchItem>(res).items;
+  },
+
+  updateMatchStatus: async (
+    matchId: string,
+    payload: BuildMatchStatusInput | string
+  ): Promise<MatchItem | null> => {
+    const res = await apiClient(`/matches/${matchId}/status`, {
+      method: 'POST',
+      body: JSON.stringify(buildMatchStatusPayload(payload)),
+    });
+    return normalizeSingleResponse<MatchItem>(res);
+  },
+
+  createMatchEvent: async (
+    matchId: string,
+    payload: BuildMatchEventInput | Record<string, unknown>
+  ): Promise<MatchEventItem | null> => {
+    const res = await apiClient(`/matches/${matchId}/events`, {
+      method: 'POST',
+      body: JSON.stringify(
+        'type' in payload && 'minute' in payload && 'side' in payload
+          ? buildMatchEventPayload(payload as BuildMatchEventInput)
+          : payload
+      ),
+    });
+    return normalizeSingleResponse<MatchEventItem>(res);
+  },
+
+  getMatchEvents: async (matchId: string): Promise<MatchEventItem[]> => {
+    const res = await apiClient(`/matches/${matchId}/events`);
+    return normalizeListResponse<MatchEventItem>(res).items;
+  },
+
+  deleteMatchEvent: async (
+    matchId: string,
+    eventId: string
+  ): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/matches/${matchId}/events/${eventId}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
+  },
+
+  getMatchReport: async (matchId: string): Promise<MatchReportData | null> => {
+    const res = await apiClient(`/matches/${matchId}/report`);
+    return normalizeSingleResponse<MatchReportData>(res);
+  },
+
+  getPublicLiveMatches: async (): Promise<PublicLiveMatchesResponse> => {
+    const res = await apiClient<PublicLiveMatchesResponse>('/public/matches/live');
+    return (res.data || res) as PublicLiveMatchesResponse;
+  },
+
+  getPublicMatchById: async (matchId: string): Promise<PublicMatchDetailResponse> => {
+    const res = await apiClient<PublicMatchDetailResponse>(`/public/matches/${matchId}`);
+    return (res.data || res) as PublicMatchDetailResponse;
+  },
+
+  getPublicMatchReport: async (matchId: string): Promise<MatchReportData | null> => {
+    const res = await apiClient(`/public/matches/${matchId}/report`);
+    return normalizeSingleResponse<MatchReportData>(res);
+  },
+
+  getTournamentStandings: async (tournamentId: string): Promise<TournamentStandingsResponse> => {
+    const res = await apiClient<TournamentStandingsResponse>(`/public/tournaments/${tournamentId}/standings`);
+    return (res.data || res) as TournamentStandingsResponse;
+  },
+
+  getTournamentTopScorers: async (tournamentId: string): Promise<TournamentTopScorersResponse> => {
+    const res = await apiClient<TournamentTopScorersResponse>(`/public/tournaments/${tournamentId}/top-scorers`);
+    return (res.data || res) as TournamentTopScorersResponse;
+  },
+
+  getAthleteTournamentPerformance: async (athleteId: string): Promise<AthletePerformanceResponse | null> => {
+    const res = await apiClient(`/athletes/${athleteId}/tournament-performance`);
+    return normalizeSingleResponse<AthletePerformanceResponse>(res);
+  },
+
+  getAthleteSelfTournamentPerformance: async (): Promise<AthletePerformanceResponse | null> => {
+    const res = await apiClient('/athletes/me/tournament-performance');
+    return normalizeSingleResponse<AthletePerformanceResponse>(res);
+  },
+
   // ==================== PUBLIC PORTAL (STEP 8B) ====================
   getPublicTournaments: async (
     query: TournamentQuery = {}
@@ -1654,8 +1747,13 @@ export interface MatchItem {
   endsAt: string;
   venue: { id: string; name: string; address?: string };
   referee?: { id: string; name: string; type?: string } | null;
-  status: 'Scheduled' | 'Completed' | 'Cancelled';
-  result?: { homeScore: number; awayScore: number; enteredAt: string } | null;
+  status: 'Scheduled' | 'Live' | 'HalfTime' | 'Completed' | 'Cancelled';
+  liveScore?: { home: number; away: number };
+  startedAt?: string;
+  halfTimeAt?: string;
+  secondHalfAt?: string;
+  completedAt?: string;
+  result?: { homeScore: number; awayScore: number; enteredAt?: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1778,11 +1876,25 @@ export interface OrganizerDashboardOverview {
   }>;
 }
 
+export interface OfficialDashboardOverview {
+  role: 'Official';
+  matches: Array<{
+    id: string;
+    tournamentName: string;
+    round: string;
+    scheduledAt: string;
+    venueName: string;
+    homeTeamName: string;
+    awayTeamName: string;
+  }>;
+}
+
 export type DashboardOverviewResult =
   | AdminDashboardOverview
   | CoachDashboardOverview
   | AthleteDashboardOverview
-  | OrganizerDashboardOverview;
+  | OrganizerDashboardOverview
+  | OfficialDashboardOverview;
 
 export interface PublicOverviewResult {
   activeAthletes: number;
@@ -1821,6 +1933,157 @@ export interface ContactQuery extends PaginationQuery {
   status?: 'New' | 'Read' | 'Archived';
   search?: string;
 }
+
+// ==================== LIVE MATCH CENTER TYPES (STEP 9B) ====================
+export interface MatchEventItem {
+  id: string;
+  match: string;
+  type: 'Goal' | 'OwnGoal' | 'YellowCard' | 'RedCard' | 'Substitution';
+  side: 'home' | 'away';
+  minute: number;
+  player?: { _id?: string; id?: string; user?: { id?: string; name: string } } | string | null;
+  playerName?: string;
+  relatedPlayer?: { _id?: string; id?: string; user?: { id?: string; name: string } } | string | null;
+  relatedPlayerName?: string;
+  note?: string;
+  createdBy?: { id: string; name: string } | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMatchEventInput {
+  type: 'Goal' | 'OwnGoal' | 'YellowCard' | 'RedCard' | 'Substitution';
+  side: 'home' | 'away';
+  minute: number;
+  player?: string;
+  relatedPlayer?: string;
+  note?: string;
+}
+
+export interface PublicLiveMatchItem {
+  id: string;
+  tournamentName: string;
+  round: string;
+  group?: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  venueName: string;
+  status: 'Live' | 'HalfTime';
+  minuteEstimate: number;
+  score: {
+    home: number;
+    away: number;
+  };
+}
+
+export interface PublicLiveMatchesResponse {
+  serverTime: string;
+  matches: PublicLiveMatchItem[];
+}
+
+export interface PublicTimelineEvent {
+  id: string;
+  type: 'Goal' | 'OwnGoal' | 'YellowCard' | 'RedCard' | 'Substitution';
+  side: 'home' | 'away';
+  minute: number;
+  playerName: string;
+  relatedPlayerName?: string;
+}
+
+export interface PublicMatchDetail {
+  id: string;
+  tournamentName: string;
+  round: string;
+  group?: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  venueName: string;
+  status: 'Scheduled' | 'Live' | 'HalfTime' | 'Completed' | 'Cancelled';
+  minuteEstimate: number;
+  score: {
+    home: number;
+    away: number;
+  };
+  events: PublicTimelineEvent[];
+}
+
+export interface PublicMatchDetailResponse {
+  serverTime: string;
+  match: PublicMatchDetail;
+}
+
+export interface MatchReportEvent {
+  type: string;
+  side: 'home' | 'away';
+  minute: number;
+  player: string;
+  relatedPlayer?: string;
+}
+
+export interface MatchReportData {
+  matchId: string;
+  tournament: string;
+  round: string;
+  status: string;
+  homeTeam: string;
+  awayTeam: string;
+  score: {
+    home: number;
+    away: number;
+  };
+  events: MatchReportEvent[];
+  cards: {
+    yellow: number;
+    red: number;
+  };
+}
+
+export interface StandingsRow {
+  registrationId: string;
+  teamName: string;
+  group?: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+}
+
+export interface TournamentStandingsResponse {
+  standings: StandingsRow[];
+}
+
+export interface TopScorerRow {
+  athleteId: string;
+  playerName: string;
+  teamName: string;
+  goals: number;
+}
+
+export interface TournamentTopScorersResponse {
+  topScorers: TopScorerRow[];
+}
+
+export interface AthletePerformanceResponse {
+  athlete: {
+    id: string;
+    name: string;
+    jerseyNumber?: number;
+    position?: string;
+  };
+  performance: Array<{
+    tournamentId: string;
+    tournamentName: string;
+    matchesPlayed: number;
+    goals: number;
+    yellowCards: number;
+    redCards: number;
+  }>;
+}
+
 
 
 
