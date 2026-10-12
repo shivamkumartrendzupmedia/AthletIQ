@@ -27,6 +27,8 @@ const envSchema = z
     REFRESH_GRACE_MS: z.coerce.number().int().nonnegative().default(30000),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().optional(),
+    CHATBOT_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(600000),
+    CHATBOT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
     DOCUMENT_UPLOAD_DIR: z.string().default('./uploads/documents'),
     MAX_DOCUMENT_SIZE_BYTES: z.coerce.number().int().positive().default(5242880),
     COOKIE_SAMESITE: z.enum(['lax', 'none', 'strict']).default('lax'),

@@ -46,5 +46,10 @@ export { MatchEvent, type IMatchEvent } from './MatchEvent.js';
 export { ContactMessage, type IContactMessage, type ContactMessageStatus } from './ContactMessage.js';
 export { Notification, type INotification } from './Notification.js';
 export { PasswordReset, type IPasswordReset } from './PasswordReset.js';
+export {
+  Conversation,
+  type IConversation,
+  type IConversationMessage,
+} from './Conversation.js';
 
 

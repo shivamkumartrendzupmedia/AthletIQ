@@ -20,7 +20,8 @@ export type Resource =
   | 'matches'
   | 'reports'
   | 'contactMessages'
-  | 'dashboard';
+  | 'dashboard'
+  | 'chatbot';
 
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'resetPassword' | 'unlock' | 'manage';
 
@@ -143,6 +144,11 @@ export const PERMISSION_MATRIX: Record<
   },
   dashboard: {
     read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role reads overview' },
+  },
+  chatbot: {
+    create: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role interacts with chatbot' },
+    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role reads own conversation history' },
+    delete: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role clears own conversation history' },
   },
 };
 

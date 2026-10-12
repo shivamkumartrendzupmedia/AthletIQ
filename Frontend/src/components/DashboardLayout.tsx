@@ -22,6 +22,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { SafeImage, getInitials, isValidImageUrl } from './SafeImage';
+import { ChatbotPanel } from './chatbot/ChatbotPanel';
 
 const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -359,6 +360,9 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
         <main className="p-6 md:p-10 flex-1 space-y-8 max-w-7xl mx-auto w-full">
           {children}
         </main>
+
+        {/* Floating Chatbot Assistant */}
+        <ChatbotPanel userRole={role || 'Athlete'} />
       </div>
     </div>
   );

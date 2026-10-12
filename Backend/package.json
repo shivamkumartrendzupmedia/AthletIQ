@@ -23,6 +23,7 @@
     "verify:notifications": "tsx scripts/verify-notifications.ts",
     "verify:password-reset": "tsx scripts/verify-password-reset.ts",
     "verify:analytics": "tsx scripts/verify-analytics.ts",
+    "verify:chatbot": "tsx scripts/verify-chatbot.ts",
     "cleanup:orphans": "tsx scripts/cleanup-test-orphans.ts",
     "create:user": "tsx scripts/create-user.ts"
   },

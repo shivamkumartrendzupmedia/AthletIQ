@@ -43,8 +43,12 @@ import {
   type CreateContactInput,
   type UpdateContactStatusInput,
 } from '../lib/contactPayloads';
+import {
+  buildChatbotMessagePayload,
+  type BuildChatbotMessageInput,
+} from '../lib/chatbotPayloads';
 
-export type { CreateContactInput, UpdateContactStatusInput, BuildMatchStatusInput, BuildMatchEventInput };
+export type { CreateContactInput, UpdateContactStatusInput, BuildMatchStatusInput, BuildMatchEventInput, BuildChatbotMessageInput };
 
 export type { PaginationMeta, PaginatedResult };
 
@@ -1504,6 +1508,44 @@ export const academyApi = {
   getAnalyticsOverview: async (): Promise<AnalyticsOverviewData | null> => {
     const res = await apiClient('/analytics/overview');
     return normalizeSingleResponse<AnalyticsOverviewData>(res);
+  },
+
+  // ==================== CHATBOT (STEP 12) ====================
+  sendChatbotMessage: async (
+    payload: BuildChatbotMessageInput
+  ): Promise<{ reply: string; toolsUsed: string[] }> => {
+    const body = buildChatbotMessagePayload(payload);
+    const res = await apiClient<{ reply: string; toolsUsed: string[] }>(
+      '/chatbot/message',
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }
+    );
+    return {
+      reply: res.data?.reply ?? '',
+      toolsUsed: res.data?.toolsUsed ?? [],
+    };
+  },
+
+  getChatbotHistory: async (): Promise<Array<{ role: 'user' | 'assistant'; text: string; at: string }>> => {
+    const res = await apiClient<{ messages: Array<{ role: 'user' | 'assistant'; text: string; at: string }> }>(
+      '/chatbot/history'
+    );
+    return res.data?.messages ?? [];
+  },
+
+  clearChatbotHistory: async (): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient<{ message?: string }>(
+      '/chatbot/history',
+      {
+        method: 'DELETE',
+      }
+    );
+    return {
+      success: res.success,
+      message: res.message || 'History cleared',
+    };
   },
 };
 

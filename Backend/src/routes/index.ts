@@ -21,6 +21,7 @@ import { dashboardRoutes } from './dashboard.routes.js';
 import { contactRoutes } from './contact.routes.js';
 import { notificationRoutes } from './notification.routes.js';
 import { analyticsRoutes } from './analytics.routes.js';
+import chatbotRoutes from './chatbot.routes.js';
 
 const router = Router();
 
@@ -44,6 +45,9 @@ router.use('/notifications', notificationRoutes);
 
 // Mount analytics overview endpoint under /api/analytics
 router.use('/analytics', analyticsRoutes);
+
+// Mount role-based rule chatbot endpoint under /api/chatbot
+router.use('/chatbot', chatbotRoutes);
 
 // Mount admin contact inquiry management under /api/contact-messages
 router.use('/contact-messages', contactRoutes);

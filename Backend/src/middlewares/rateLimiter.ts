@@ -84,3 +84,42 @@ export const resetForgotPasswordLimiter = (): void => {
     limiter.resetKey('::ffff:127.0.0.1');
   }
 };
+
+/**
+ * Chatbot rate limiter.
+ * Limits to CHATBOT_RATE_LIMIT_MAX (default 20) per CHATBOT_RATE_LIMIT_WINDOW_MS (default 10m)
+ * Keyed per authenticated user id, falling back to IP.
+ */
+export const chatbotLimiter = rateLimit({
+  windowMs: process.env.CHATBOT_RATE_LIMIT_WINDOW_MS
+    ? parseInt(process.env.CHATBOT_RATE_LIMIT_WINDOW_MS, 10)
+    : 10 * 60 * 1000,
+  max: (_req, _res) => {
+    return process.env.CHATBOT_RATE_LIMIT_MAX
+      ? parseInt(process.env.CHATBOT_RATE_LIMIT_MAX, 10)
+      : 20;
+  },
+  keyGenerator: (req) => {
+    return req.user?.id ? `user:${req.user.id}` : (req.ip || 'unknown');
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  statusCode: 429,
+  message: {
+    success: false,
+    message: 'Too many messages sent to chatbot. Please slow down and try again later.',
+  },
+});
+
+export const resetChatbotLimiter = (key?: string): void => {
+  const limiter = chatbotLimiter as unknown as { resetKey?: (k: string) => void };
+  if (typeof limiter.resetKey === 'function') {
+    if (key) {
+      limiter.resetKey(key);
+    }
+    limiter.resetKey('127.0.0.1');
+    limiter.resetKey('::1');
+    limiter.resetKey('::ffff:127.0.0.1');
+  }
+};
+
