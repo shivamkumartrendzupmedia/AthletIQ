@@ -51,10 +51,61 @@ router.get('/announcements', (req, res, next) =>
   commsController.listPublicAnnouncements(req, res, next)
 );
 
+// Public Live Match Center (Step 9A)
+// 1. Matches live list (MUST be registered before /matches/:id)
+router.get('/matches/live', (req, res, next) =>
+  tournamentController.getPublicLiveMatches(req, res, next)
+);
+
+router.get(
+  '/matches/:id/report',
+  validateObjectId('id'),
+  (req, res, next) =>
+    tournamentController.getPublicMatchReport(
+      req as unknown as Request<{ id: string }>,
+      res,
+      next
+    )
+);
+
+router.get(
+  '/matches/:id',
+  validateObjectId('id'),
+  (req, res, next) =>
+    tournamentController.getPublicMatchById(
+      req as unknown as Request<{ id: string }>,
+      res,
+      next
+    )
+);
+
 // Public tournament endpoints (/public/tournaments)
+router.get(
+  '/tournaments/:id/standings',
+  validateObjectId('id'),
+  (req, res, next) =>
+    tournamentController.getPublicTournamentStandings(
+      req as unknown as Request<{ id: string }>,
+      res,
+      next
+    )
+);
+
+router.get(
+  '/tournaments/:id/top-scorers',
+  validateObjectId('id'),
+  (req, res, next) =>
+    tournamentController.getPublicTournamentTopScorers(
+      req as unknown as Request<{ id: string }>,
+      res,
+      next
+    )
+);
+
 router.get('/tournaments', (req, res, next) =>
   tournamentController.getPublicTournaments(req, res, next)
 );
+
 router.get(
   '/tournaments/:id/matches',
   validateObjectId('id'),
@@ -65,6 +116,7 @@ router.get(
       next
     )
 );
+
 router.get(
   '/tournaments/:id',
   validateObjectId('id'),

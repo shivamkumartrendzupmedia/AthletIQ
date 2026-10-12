@@ -5,6 +5,7 @@ export interface IOfficial extends Document {
   name: string;
   type: OfficialType;
   createdBy: Types.ObjectId;
+  user?: Types.ObjectId | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +29,10 @@ const officialSchema = new Schema<IOfficial>(
       ref: 'User',
       required: true,
     },
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
     active: {
       type: Boolean,
       default: true,
@@ -48,5 +53,6 @@ const officialSchema = new Schema<IOfficial>(
 );
 
 officialSchema.index({ createdBy: 1, type: 1 });
+officialSchema.index({ user: 1 }, { unique: true, sparse: true });
 
 export const Official = model<IOfficial>('Official', officialSchema);

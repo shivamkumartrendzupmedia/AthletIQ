@@ -358,6 +358,163 @@ export class TournamentController {
       next(err);
     }
   }
+
+  // ==========================================
+  // LIVE MATCH CENTER (STEP 9A)
+  // ==========================================
+
+  async getAssignedMatches(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const matches = await tournamentService.getAssignedMatches({
+        id: req.user!.id,
+        role: req.user!.role,
+      });
+      res.status(200).json({ data: matches });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async updateMatchStatus(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const match = await tournamentService.updateMatchStatus(
+        req.params.id,
+        req.body.status,
+        {
+          id: req.user!.id,
+          role: req.user!.role,
+        }
+      );
+      res.status(200).json({
+        data: match,
+        message: 'Match status updated successfully',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async createMatchEvent(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const event = await tournamentService.createMatchEvent(
+        req.params.id,
+        req.body,
+        {
+          id: req.user!.id,
+          role: req.user!.role,
+        }
+      );
+      res.status(201).json({
+        data: event,
+        message: 'Match event recorded successfully',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getMatchEvents(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const events = await tournamentService.getMatchEvents(
+        req.params.id,
+        {
+          id: req.user!.id,
+          role: req.user!.role,
+        }
+      );
+      res.status(200).json({ data: events });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async deleteMatchEvent(
+    req: Request<{ id: string; eventId: string }>,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      await tournamentService.deleteMatchEvent(
+        req.params.id,
+        req.params.eventId,
+        {
+          id: req.user!.id,
+          role: req.user!.role,
+        }
+      );
+      res.status(200).json({ message: 'Match event deleted successfully' });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getMatchReport(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const report = await tournamentService.getMatchReport(
+        req.params.id,
+        false,
+        req.user
+          ? {
+              id: req.user.id,
+              role: req.user.role,
+            }
+          : undefined
+      );
+      res.status(200).json({ data: report });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPublicLiveMatches(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      const data = await tournamentService.getPublicLiveMatches();
+      res.status(200).json(data);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPublicMatchById(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      const data = await tournamentService.getPublicMatchById(req.params.id);
+      res.status(200).json(data);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPublicTournamentStandings(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      const data = await tournamentService.getTournamentStandings(req.params.id);
+      res.status(200).json(data);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPublicTournamentTopScorers(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      const data = await tournamentService.getTournamentTopScorers(req.params.id);
+      res.status(200).json(data);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPublicMatchReport(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      const data = await tournamentService.getMatchReport(req.params.id, true);
+      res.status(200).json({ data });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const tournamentController = new TournamentController();

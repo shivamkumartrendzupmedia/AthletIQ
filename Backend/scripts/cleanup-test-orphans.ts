@@ -18,6 +18,7 @@ import {
   Venue,
   Official,
   Match,
+  MatchEvent,
   AuditLog,
   ContactMessage,
 } from '../src/models/index.js';
@@ -31,6 +32,30 @@ interface OrphanItem {
 
 export async function findOrphans(): Promise<OrphanItem[]> {
   const orphans: OrphanItem[] = [];
+
+  // 0. MatchEvents (event whose match or created-by user is gone)
+  const matchEvents = await MatchEvent.find({});
+  for (const me of matchEvents) {
+    let reason = '';
+    const matchExists = await Match.exists({ _id: me.match });
+    if (!matchExists) {
+      reason = `Referenced match ${me.match.toString()} does not exist`;
+    } else {
+      const userExists = await User.exists({ _id: me.createdBy });
+      if (!userExists) {
+        reason = `Referenced createdBy user ${me.createdBy.toString()} does not exist`;
+      }
+    }
+
+    if (reason) {
+      orphans.push({
+        collection: 'MatchEvent',
+        id: me._id,
+        name: `MatchEvent ${me.type} (${me._id.toString()})`,
+        reason,
+      });
+    }
+  }
 
   // 1. Matches
   const matches = await Match.find({});
@@ -309,6 +334,7 @@ async function getCounts() {
     venues: await Venue.countDocuments(),
     officials: await Official.countDocuments(),
     matches: await Match.countDocuments(),
+    matchEvents: await MatchEvent.countDocuments(),
     auditLogs: await AuditLog.countDocuments(),
     contactMessages: await ContactMessage.countDocuments(),
   };
@@ -349,8 +375,9 @@ async function run() {
     return;
   }
 
-  console.log('\n--- DELETING ORPHANS IN ORDER: matches -> registrations -> tournaments -> venues -> officials ---');
+  console.log('\n--- DELETING ORPHANS IN ORDER: matchEvents -> matches -> registrations -> tournaments -> venues -> officials ---');
 
+  const matchEventIds = orphans.filter((o) => o.collection === 'MatchEvent').map((o) => o.id);
   const matchIds = orphans.filter((o) => o.collection === 'Match').map((o) => o.id);
   const regIds = orphans.filter((o) => o.collection === 'TournamentTeam').map((o) => o.id);
   const tourneyIds = orphans.filter((o) => o.collection === 'Tournament').map((o) => o.id);
@@ -369,6 +396,10 @@ async function run() {
   const contactIds = orphans.filter((o) => o.collection === 'ContactMessage').map((o) => o.id);
   const userIds = orphans.filter((o) => o.collection === 'User').map((o) => o.id);
 
+  if (matchEventIds.length > 0) {
+    const res = await MatchEvent.deleteMany({ _id: { $in: matchEventIds } });
+    console.log(`Deleted ${res.deletedCount} orphan MatchEvents`);
+  }
   if (matchIds.length > 0) {
     const res = await Match.deleteMany({ _id: { $in: matchIds } });
     console.log(`Deleted ${res.deletedCount} orphan Matches`);

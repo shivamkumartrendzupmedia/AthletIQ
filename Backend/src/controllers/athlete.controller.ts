@@ -1,5 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import { athleteService } from '../services/athlete.service.js';
+import { tournamentService } from '../services/tournament.service.js';
+import { Athlete } from '../models/Athlete.js';
+import { ApiError } from '../utils/ApiError.js';
 import type {
   CreateAthleteInput,
   UpdateAthleteAdminInput,
@@ -223,6 +226,34 @@ export class AthleteController {
         message: 'Athlete verification status updated successfully',
         data: athlete,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAthleteSelfTournamentPerformance(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const athlete = await Athlete.findOne({ user: req.user!._id });
+      if (!athlete) {
+        throw new ApiError(404, 'Athlete profile not found');
+      }
+      const result = await tournamentService.getAthleteTournamentPerformance(athlete._id.toString(), {
+        id: req.user!.id,
+        role: req.user!.role,
+      });
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAthleteTournamentPerformance(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await tournamentService.getAthleteTournamentPerformance(req.params.id, {
+        id: req.user!.id,
+        role: req.user!.role,
+      });
+      res.status(200).json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

@@ -3,7 +3,7 @@
  * Single source of truth for schema validation and TypeScript types
  */
 
-export const ROLES = ['Admin', 'Coach', 'Athlete', 'Organizer'] as const;
+export const ROLES = ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const SPORT_STATUSES = ['Active', 'Inactive'] as const;
@@ -154,6 +154,9 @@ export const AUDIT_ACTIONS = [
   'OFFICIAL_DELETED',
   'MATCH_CREATED',
   'MATCH_UPDATED',
+  'MATCH_STATUS_CHANGED',
+  'MATCH_EVENT_CREATED',
+  'MATCH_EVENT_DELETED',
   'MATCH_RESULT_ENTERED',
   'MATCH_DELETED',
   'CONTACT_MESSAGE_STATUS_CHANGED',
@@ -198,7 +201,27 @@ export type TournamentTeamStatus = (typeof TOURNAMENT_TEAM_STATUSES)[number];
 export const OFFICIAL_TYPES = ['Referee', 'Assistant Referee', 'Scorer'] as const;
 export type OfficialType = (typeof OFFICIAL_TYPES)[number];
 
-export const MATCH_STATUSES = ['Scheduled', 'Completed', 'Cancelled'] as const;
+export const MATCH_STATUSES = [
+  'Scheduled',
+  'Live',
+  'HalfTime',
+  'Completed',
+  'Cancelled',
+] as const;
 export type MatchStatus = (typeof MATCH_STATUSES)[number];
+
+export const MATCH_EVENT_TYPES = [
+  'Goal',
+  'OwnGoal',
+  'YellowCard',
+  'RedCard',
+  'Substitution',
+  'Injury',
+] as const;
+export type MatchEventType = (typeof MATCH_EVENT_TYPES)[number];
+
+export const MATCH_EVENT_SIDES = ['home', 'away'] as const;
+export type MatchEventSide = (typeof MATCH_EVENT_SIDES)[number];
+
 
 

@@ -41,7 +41,8 @@ export { Tournament, type ITournament } from './Tournament.js';
 export { TournamentTeam, type ITournamentTeam } from './TournamentTeam.js';
 export { Venue, type IVenue } from './Venue.js';
 export { Official, type IOfficial } from './Official.js';
-export { Match, type IMatch, type IMatchResult } from './Match.js';
+export { Match, type IMatch, type IMatchResult, type ILiveScore } from './Match.js';
+export { MatchEvent, type IMatchEvent } from './MatchEvent.js';
 export { ContactMessage, type IContactMessage, type ContactMessageStatus } from './ContactMessage.js';
 
 

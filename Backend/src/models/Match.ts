@@ -8,6 +8,11 @@ export interface IMatchResult {
   enteredAt: Date;
 }
 
+export interface ILiveScore {
+  home: number;
+  away: number;
+}
+
 export interface IMatch extends Document {
   tournament: Types.ObjectId;
   homeTeam: Types.ObjectId;
@@ -20,6 +25,11 @@ export interface IMatch extends Document {
   venue: Types.ObjectId;
   referee?: Types.ObjectId;
   status: MatchStatus;
+  startedAt?: Date | null;
+  halfTimeAt?: Date | null;
+  secondHalfAt?: Date | null;
+  completedAt?: Date | null;
+  liveScore?: ILiveScore;
   result?: IMatchResult | null;
   createdAt: Date;
   updatedAt: Date;
@@ -107,6 +117,34 @@ const matchSchema = new Schema<IMatch>(
       type: String,
       enum: MATCH_STATUSES,
       default: 'Scheduled',
+    },
+    startedAt: {
+      type: Date,
+      default: null,
+    },
+    halfTimeAt: {
+      type: Date,
+      default: null,
+    },
+    secondHalfAt: {
+      type: Date,
+      default: null,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+    liveScore: {
+      home: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      away: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
     },
     result: {
       type: matchResultSchema,

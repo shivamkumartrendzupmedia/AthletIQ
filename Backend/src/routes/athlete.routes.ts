@@ -57,6 +57,12 @@ router.get(
   developmentController.getAthleteSelfDevelopment
 );
 
+router.get(
+  '/me/tournament-performance',
+  requireRole('Athlete'),
+  athleteController.getAthleteSelfTournamentPerformance
+);
+
 // 2. List athletes (Admin, Coach) — Organizer explicitly gets 403
 router.get(
   '/',
@@ -147,6 +153,13 @@ router.get(
   requireRole('Admin', 'Coach', 'Athlete'),
   validateObjectId('id'),
   developmentController.getAthleteDevelopment
+);
+
+router.get(
+  '/:id/tournament-performance',
+  requireRole('Admin', 'Coach', 'Athlete'),
+  validateObjectId('id'),
+  athleteController.getAthleteTournamentPerformance
 );
 
 router.get(

@@ -4,6 +4,8 @@ import {
   TOURNAMENT_STATUSES,
   OFFICIAL_TYPES,
   MATCH_STATUSES,
+  MATCH_EVENT_TYPES,
+  MATCH_EVENT_SIDES,
 } from '../models/constants.js';
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
@@ -160,6 +162,7 @@ export const createOfficialSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
     type: z.enum(OFFICIAL_TYPES),
+    user: z.string().regex(objectIdRegex).nullable().optional(),
     active: z.boolean().optional(),
   })
   .strict();
@@ -168,6 +171,7 @@ export const updateOfficialSchema = z
   .object({
     name: z.string().trim().min(1).max(100).optional(),
     type: z.enum(OFFICIAL_TYPES).optional(),
+    user: z.string().regex(objectIdRegex).nullable().optional(),
     active: z.boolean().optional(),
   })
   .strict();
@@ -202,9 +206,27 @@ export const updateMatchSchema = z
   })
   .strict();
 
+export const matchStatusTransitionSchema = z
+  .object({
+    status: z.enum(MATCH_STATUSES),
+  })
+  .strict();
+
+export const createMatchEventSchema = z
+  .object({
+    type: z.enum(MATCH_EVENT_TYPES),
+    side: z.enum(MATCH_EVENT_SIDES),
+    minute: z.number().int().min(0).max(130),
+    player: z.string().regex(objectIdRegex).nullable().optional(),
+    relatedPlayer: z.string().regex(objectIdRegex).nullable().optional(),
+    note: z.string().trim().max(200).optional(),
+  })
+  .strict();
+
 export const enterMatchResultSchema = z
   .object({
     homeScore: z.number().int().min(0).max(99),
     awayScore: z.number().int().min(0).max(99),
   })
   .strict();
+
