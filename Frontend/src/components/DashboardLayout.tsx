@@ -280,21 +280,21 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header Bar */}
-        <header className="bg-[#F7F1E8]/90 backdrop-blur-md border-b border-[#171044]/10 h-20 px-6 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-4">
+        <header className="bg-[#F7F1E8]/90 backdrop-blur-md border-b border-[#171044]/10 h-20 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <button
               onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-              className="lg:hidden p-2 rounded-xl bg-[#171044] text-white cursor-pointer"
+              className="lg:hidden p-2 rounded-xl bg-[#171044] text-white cursor-pointer shrink-0"
               aria-label="Toggle navigation menu"
             >
               <Menu size={20} />
             </button>
-            <h1 className="text-xl md:text-2xl font-black font-display text-[#171044] uppercase tracking-tight">
+            <h1 className="text-sm sm:text-lg md:text-2xl font-black font-display text-[#171044] uppercase tracking-tight truncate">
               ATHLETIQ ACADEMY {role} MANAGEMENT
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {isDemoMode && (
               <div className="hidden sm:flex items-center gap-2 bg-[#171044] text-white px-3 py-1.5 rounded-full text-xs font-bold">
                 <span className="text-white/60">Role:</span>

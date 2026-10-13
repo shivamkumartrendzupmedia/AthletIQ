@@ -126,6 +126,18 @@ export const LoginPage: React.FC = () => {
           >
             {isSubmitting ? 'Logging In...' : 'Login to Portal'}
           </Button>
+
+          <p className="text-[11px] text-white/60 text-center leading-relaxed">
+            By signing in, you agree to our{' '}
+            <Link to="/terms" className="text-[#D8F500] underline hover:text-white">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link to="/privacy" className="text-[#D8F500] underline hover:text-white">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </form>
 
         <div className="text-center text-xs text-white/70 pt-2 border-t border-white/10">

@@ -212,6 +212,22 @@ export const RegisterPage: React.FC = () => {
           <Button variant="lime" fullWidth size="lg" disabled={isSubmitting} iconRight={<ArrowRight size={18} />}>
             {isSubmitting ? 'Creating Athlete Account...' : 'Create Athlete Account'}
           </Button>
+
+          <p className="text-[11px] text-white/60 text-center leading-relaxed">
+            By creating an account, you agree to our{' '}
+            <Link to="/terms" className="text-[#D8F500] underline hover:text-white">
+              Terms of Service
+            </Link>
+            ,{' '}
+            <Link to="/privacy" className="text-[#D8F500] underline hover:text-white">
+              Privacy Policy
+            </Link>
+            , and{' '}
+            <Link to="/code-of-conduct" className="text-[#D8F500] underline hover:text-white">
+              Code of Conduct
+            </Link>
+            .
+          </p>
         </form>
 
         <div className="text-center text-xs text-white/70 pt-2 border-t border-white/10">

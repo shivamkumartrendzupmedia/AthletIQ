@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Card, CrossAccent, AthleticBadge } from '../design-system';
 import { Mail, Phone, MapPin, Send, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { academyApi, mapFieldErrors } from '../services/academyApi';
@@ -235,6 +236,18 @@ export const ContactPage: React.FC = () => {
                   >
                     {isSubmitting ? 'Sending Message...' : 'Send Message'}
                   </Button>
+
+                  <p className="text-[11px] text-white/60 text-center leading-relaxed mt-2">
+                    By submitting this form, you acknowledge that your information will be processed in accordance with our{' '}
+                    <Link to="/privacy" className="text-[#D8F500] underline hover:text-white">
+                      Privacy Policy
+                    </Link>{' '}
+                    and{' '}
+                    <Link to="/terms" className="text-[#D8F500] underline hover:text-white">
+                      Terms of Service
+                    </Link>
+                    .
+                  </p>
                 </form>
               )}
             </Card>

@@ -113,6 +113,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({
       alt={altText}
       className={className}
       loading="lazy"
+      decoding="async"
       onError={() => setHasError(true)}
     />
   );

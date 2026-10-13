@@ -564,6 +564,8 @@ export const HomePage: React.FC = () => {
                   {/* Large Prominent Coach Portrait Photo */}
                   <div className="w-full h-80 rounded-[1.5rem] overflow-hidden border-2 border-[#171044]/10 group-hover:border-[#FF5A00] transition-colors relative">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={coach.image}
                       alt={coach.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -616,7 +618,7 @@ export const HomePage: React.FC = () => {
 
             {/* Team Photo Container */}
             <div className="rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg">
-              <img src={u16TeamImg} alt="U16 Strikers Team" className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />
+              <img loading="lazy" decoding="async" src={u16TeamImg} alt="U16 Strikers Team" className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />
             </div>
 
             {/* Metrics Bar */}
@@ -714,7 +716,7 @@ export const HomePage: React.FC = () => {
             {/* Player Portrait Image */}
             <div className="sm:col-span-5 relative">
               <div className="rounded-2xl overflow-hidden border-2 border-white/20 shadow-xl">
-                <img src={alexMorganPortraitImg} alt="Alex Morgan Portrait" className="w-full h-64 object-cover" />
+                <img loading="lazy" decoding="async" src={alexMorganPortraitImg} alt="Alex Morgan Portrait" className="w-full h-64 object-cover" />
               </div>
             </div>
           </div>
@@ -741,7 +743,7 @@ export const HomePage: React.FC = () => {
           {/* Tournament Overview Card with Trophy Image */}
           <div className="lg:col-span-5 bg-white p-8 rounded-[2.5rem] shadow-xl border border-[#171044]/10 space-y-6 relative overflow-hidden">
             <div className="rounded-2xl overflow-hidden h-48 border border-[#171044]/10">
-              <img src={trophySpotlightImg} alt="Trophy Spotlight" className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={trophySpotlightImg} alt="Trophy Spotlight" className="w-full h-full object-cover" />
             </div>
 
             <div className="space-y-2">
