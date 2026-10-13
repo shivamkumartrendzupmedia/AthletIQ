@@ -17,6 +17,7 @@ import {
   MapPin,
   RefreshCw,
 } from 'lucide-react';
+import { mapCoachDashboardCards } from '../../lib/dashboardMappers';
 
 export const CoachDashboard: React.FC = () => {
   const [overview, setOverview] = useState<CoachDashboardOverview | null>(null);
@@ -49,10 +50,6 @@ export const CoachDashboard: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
-
-  const totalAthletes = overview?.teams
-    ? overview.teams.reduce((acc, t) => acc + t.athleteCount, 0)
-    : athletes.length;
 
   return (
     <div className="space-y-8 bg-[#F7F1E8] p-4 md:p-8 rounded-[2.5rem]">
@@ -106,39 +103,44 @@ export const CoachDashboard: React.FC = () => {
       )}
 
       {/* Statistics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Assigned Teams</div>
-          <div className="text-4xl font-black font-display text-[#171044]">
-            {overview?.teams?.length ?? 0}
-          </div>
-          <div className="text-xs font-bold text-emerald-600">Active squads</div>
-        </div>
+      {(() => {
+        const cards = mapCoachDashboardCards(overview);
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Assigned Teams</div>
+              <div className="text-4xl font-black font-display text-[#171044]">
+                {cards.assignedTeams}
+              </div>
+              <div className="text-xs font-bold text-emerald-600">Active squads</div>
+            </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Rostered Athletes</div>
-          <div className="text-4xl font-black font-display text-[#FF5A00]">{totalAthletes}</div>
-          <div className="text-xs font-bold text-[#171044]/60">Across assigned teams</div>
-        </div>
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Rostered Athletes</div>
+              <div className="text-4xl font-black font-display text-[#FF5A00]">
+                {cards.rosteredAthletes}
+              </div>
+              <div className="text-xs font-bold text-[#171044]/60">Across assigned teams</div>
+            </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Upcoming Drills</div>
-          <div className="text-4xl font-black font-display text-[#4B2A9B]">
-            {overview?.nextSessions?.length ?? 0}
-          </div>
-          <div className="text-xs font-bold text-emerald-600">Next 5 sessions</div>
-        </div>
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Upcoming Drills</div>
+              <div className="text-4xl font-black font-display text-[#4B2A9B]">
+                {cards.upcomingDrills}
+              </div>
+              <div className="text-xs font-bold text-emerald-600">Next 5 sessions</div>
+            </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Attendance Rate</div>
-          <div className="text-4xl font-black font-display text-[#171044]">
-            {overview?.attendanceRate !== null && overview?.attendanceRate !== undefined
-              ? `${overview.attendanceRate}%`
-              : '—'}
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Attendance Rate</div>
+              <div className="text-4xl font-black font-display text-[#171044]">
+                {cards.attendanceRate}
+              </div>
+              <div className="text-xs font-bold text-[#171044]/60">Last 30 days</div>
+            </div>
           </div>
-          <div className="text-xs font-bold text-[#171044]/60">Last 30 days</div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-[#171044]/10 pb-3">

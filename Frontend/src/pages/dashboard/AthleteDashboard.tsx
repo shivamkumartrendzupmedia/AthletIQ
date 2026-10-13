@@ -25,6 +25,7 @@ import {
   RefreshCw,
   AlertCircle,
 } from 'lucide-react';
+import { mapAthleteDashboardCards } from '../../lib/dashboardMappers';
 
 export const AthleteDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -63,12 +64,6 @@ export const AthleteDashboard: React.FC = () => {
 
   const displayName = overview?.displayName || user?.name || 'Athlete';
   const teamName = overview?.teamName || devData?.athlete.teamName || 'Unassigned';
-  const attendanceRate =
-    overview?.attendanceRate !== null && overview?.attendanceRate !== undefined
-      ? `${overview.attendanceRate}%`
-      : devData?.attendanceRate !== null && devData?.attendanceRate !== undefined
-      ? `${devData.attendanceRate}%`
-      : 'N/A';
   const ovrRating =
     overview?.latestAssessmentOverallScore ??
     devData?.skillCategoryAverages?.overall ??
@@ -165,59 +160,64 @@ export const AthleteDashboard: React.FC = () => {
       )}
 
       {/* 4 Quick Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-5 bg-white border border-[#171044]/10 shadow-sm rounded-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase text-[#171044]/60">Attendance Rate</span>
-            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
-              <CheckCircle2 size={18} />
-            </div>
-          </div>
-          <div className="text-3xl font-black text-[#171044] mt-2 font-display">
-            {attendanceRate}
-          </div>
-          <p className="text-[11px] text-[#171044]/60 mt-1">Past 30 days attendance</p>
-        </Card>
+      {(() => {
+        const cards = mapAthleteDashboardCards(overview);
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="p-5 bg-white border border-[#171044]/10 shadow-sm rounded-2xl">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase text-[#171044]/60">Attendance Rate</span>
+                <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                  <CheckCircle2 size={18} />
+                </div>
+              </div>
+              <div className="text-3xl font-black text-[#171044] mt-2 font-display">
+                {cards.attendanceRate}
+              </div>
+              <p className="text-[11px] text-[#171044]/60 mt-1">Past 30 days attendance</p>
+            </Card>
 
-        <Card className="p-5 bg-white border border-[#171044]/10 shadow-sm rounded-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase text-[#171044]/60">Active Goals</span>
-            <div className="p-2 bg-[#FF5A00]/10 rounded-xl text-[#FF5A00]">
-              <Target size={18} />
-            </div>
-          </div>
-          <div className="text-3xl font-black text-[#171044] mt-2 font-display">
-            {overview?.activeGoalsCount ?? devData?.goals?.filter((g) => g.status === 'Active').length ?? 0}
-          </div>
-          <p className="text-[11px] text-[#171044]/60 mt-1">Development targets</p>
-        </Card>
+            <Card className="p-5 bg-white border border-[#171044]/10 shadow-sm rounded-2xl">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase text-[#171044]/60">Active Goals</span>
+                <div className="p-2 bg-[#FF5A00]/10 rounded-xl text-[#FF5A00]">
+                  <Target size={18} />
+                </div>
+              </div>
+              <div className="text-3xl font-black text-[#171044] mt-2 font-display">
+                {cards.activeGoals}
+              </div>
+              <p className="text-[11px] text-[#171044]/60 mt-1">Development targets</p>
+            </Card>
 
-        <Card className="p-5 bg-white border border-[#171044]/10 shadow-sm rounded-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase text-[#171044]/60">Coach Feedback</span>
-            <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
-              <MessageSquare size={18} />
-            </div>
-          </div>
-          <div className="text-3xl font-black text-[#171044] mt-2 font-display">
-            {overview?.unacknowledgedFeedbackCount ?? devData?.feedback?.filter((f) => !f.acknowledgedAt).length ?? 0}
-          </div>
-          <p className="text-[11px] text-[#171044]/60 mt-1">Unacknowledged notes</p>
-        </Card>
+            <Card className="p-5 bg-white border border-[#171044]/10 shadow-sm rounded-2xl">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase text-[#171044]/60">Coach Feedback</span>
+                <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
+                  <MessageSquare size={18} />
+                </div>
+              </div>
+              <div className="text-3xl font-black text-[#171044] mt-2 font-display">
+                {cards.coachFeedback}
+              </div>
+              <p className="text-[11px] text-[#171044]/60 mt-1">Unacknowledged notes</p>
+            </Card>
 
-        <Card className="p-5 bg-white border border-[#171044]/10 shadow-sm rounded-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase text-[#171044]/60">Next Matches</span>
-            <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
-              <Trophy size={18} />
-            </div>
+            <Card className="p-5 bg-white border border-[#171044]/10 shadow-sm rounded-2xl">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase text-[#171044]/60">Next Matches</span>
+                <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+                  <Trophy size={18} />
+                </div>
+              </div>
+              <div className="text-3xl font-black text-[#171044] mt-2 font-display">
+                {cards.nextMatches}
+              </div>
+              <p className="text-[11px] text-[#171044]/60 mt-1">Scheduled tournament ties</p>
+            </Card>
           </div>
-          <div className="text-3xl font-black text-[#171044] mt-2 font-display">
-            {overview?.nextMatches?.length ?? 0}
-          </div>
-          <p className="text-[11px] text-[#171044]/60 mt-1">Scheduled tournament ties</p>
-        </Card>
-      </div>
+        );
+      })()}
 
       {/* DASHBOARD TABS */}
       <div className="flex items-center justify-start overflow-x-auto pb-2 gap-2 border-b border-[#171044]/10 scrollbar-none">

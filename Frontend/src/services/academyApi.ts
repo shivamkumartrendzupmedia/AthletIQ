@@ -1891,11 +1891,11 @@ export interface PublicMatchItem {
 export interface AdminDashboardOverview {
   role: 'Admin';
   userCounts: {
-    total: number;
-    admin: number;
-    coach: number;
-    athlete: number;
-    organizer: number;
+    Admin: number;
+    Coach: number;
+    Athlete: number;
+    Organizer: number;
+    total?: number;
   };
   activeAthletes: number;
   teams: number;

@@ -1,0 +1,21 @@
+{
+  "role": "Coach",
+  "teams": [
+    {
+      "id": "6accd1811d9aa00a62889cf4",
+      "name": "Panthers FC 1791807873275",
+      "athleteCount": 1
+    }
+  ],
+  "nextSessions": [
+    {
+      "id": "6accd1811d9aa00a62889cfa",
+      "teamName": "Panthers FC 1791807873275",
+      "venue": "Main Field North",
+      "scheduledAt": "2026-10-13T12:24:32.943Z",
+      "endsAt": "2026-10-13T13:54:32.943Z",
+      "type": "Training"
+    }
+  ],
+  "attendanceRate": 100
+}

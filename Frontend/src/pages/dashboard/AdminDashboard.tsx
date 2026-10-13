@@ -15,6 +15,7 @@ import {
   ArrowRight,
   RefreshCw,
 } from 'lucide-react';
+import { mapAdminDashboardCards } from '../../lib/dashboardMappers';
 
 export const AdminDashboard: React.FC = () => {
   const [overview, setOverview] = useState<AdminDashboardOverview | null>(null);
@@ -104,48 +105,53 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* Statistics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Total Users</div>
-          <div className="text-4xl font-black font-display text-[#171044]">
-            {overview?.userCounts?.total ?? 0}
-          </div>
-          <div className="text-xs font-bold text-emerald-600">
-            {overview?.activeAthletes ?? 0} active athletes
-          </div>
-        </div>
+      {(() => {
+        const cards = mapAdminDashboardCards(overview);
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Total Users</div>
+              <div className="text-4xl font-black font-display text-[#171044]">
+                {cards.totalUsers}
+              </div>
+              <div className="text-xs font-bold text-emerald-600">
+                {cards.activeAthletes} active athletes
+              </div>
+            </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Active Coaches</div>
-          <div className="text-4xl font-black font-display text-[#FF5A00]">
-            {overview?.coaches ?? 0}
-          </div>
-          <div className="text-xs font-bold text-[#171044]/60">Assigned staff</div>
-        </div>
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Active Coaches</div>
+              <div className="text-4xl font-black font-display text-[#FF5A00]">
+                {cards.activeCoaches}
+              </div>
+              <div className="text-xs font-bold text-[#171044]/60">Assigned staff</div>
+            </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Active Teams</div>
-          <div className="text-4xl font-black font-display text-[#171044]">
-            {overview?.teams ?? 0}
-          </div>
-          <div className="text-xs font-bold text-[#171044]/60">
-            {overview?.upcomingSessions ?? 0} upcoming sessions
-          </div>
-        </div>
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Active Teams</div>
+              <div className="text-4xl font-black font-display text-[#171044]">
+                {cards.activeTeams}
+              </div>
+              <div className="text-xs font-bold text-[#171044]/60">
+                {cards.upcomingSessions} upcoming sessions
+              </div>
+            </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Unread Inquiries</div>
-          <div className="text-4xl font-black font-display text-[#4B2A9B]">
-            {overview?.unreadContactMessages ?? 0}
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Unread Inquiries</div>
+              <div className="text-4xl font-black font-display text-[#4B2A9B]">
+                {cards.unreadInquiries}
+              </div>
+              <Link
+                to="/dashboard/messages"
+                className="text-xs font-bold text-[#FF5A00] hover:underline inline-block"
+              >
+                Review messages →
+              </Link>
+            </div>
           </div>
-          <Link
-            to="/dashboard/messages"
-            className="text-xs font-bold text-[#FF5A00] hover:underline inline-block"
-          >
-            Review messages →
-          </Link>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Main Dashboard Section Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

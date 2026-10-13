@@ -1,0 +1,22 @@
+{
+  "role": "Admin",
+  "userCounts": {
+    "Admin": 3,
+    "Coach": 4,
+    "Athlete": 4,
+    "Organizer": 2
+  },
+  "activeAthletes": 1,
+  "teams": 0,
+  "coaches": 0,
+  "upcomingSessions": 1,
+  "tournaments": {
+    "Draft": 0,
+    "Registration Open": 1,
+    "In Progress": 0,
+    "Completed": 0,
+    "Cancelled": 0
+  },
+  "pendingRegistrations": 1,
+  "unreadContactMessages": 1
+}

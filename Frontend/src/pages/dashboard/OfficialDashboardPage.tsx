@@ -16,6 +16,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { formatSessionStartHint } from '../../lib/datetime';
+import { mapOfficialDashboardCards } from '../../lib/dashboardMappers';
 
 export const OfficialDashboardPage: React.FC = () => {
   const [overview, setOverview] = useState<OfficialDashboardOverview | null>(null);
@@ -44,15 +45,6 @@ export const OfficialDashboardPage: React.FC = () => {
   }, []);
 
   const matches = overview?.matches || [];
-  const liveMatches = matches.filter((m) => {
-    // If status exists on m, check; otherwise matches in dashboard service are assigned upcoming/live
-    const status = (m as { status?: string }).status;
-    return status === 'Live' || status === 'HalfTime';
-  });
-  const upcomingMatches = matches.filter((m) => {
-    const status = (m as { status?: string }).status;
-    return status !== 'Live' && status !== 'HalfTime';
-  });
 
   return (
     <div className="space-y-6">
@@ -98,34 +90,39 @@ export const OfficialDashboardPage: React.FC = () => {
       )}
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-white/10 bg-neutral-900/50 p-5">
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-xs font-medium uppercase tracking-wider">Total Assigned</span>
-            <Trophy className="h-4 w-4 text-emerald-400" />
-          </div>
-          <p className="mt-2 text-3xl font-black text-white">{matches.length}</p>
-          <span className="text-xs text-neutral-500">Active assigned fixtures</span>
-        </div>
+      {(() => {
+        const cards = mapOfficialDashboardCards(overview);
+        return (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-white/10 bg-neutral-900/50 p-5">
+              <div className="flex items-center justify-between text-neutral-400">
+                <span className="text-xs font-medium uppercase tracking-wider">Total Assigned</span>
+                <Trophy className="h-4 w-4 text-emerald-400" />
+              </div>
+              <p className="mt-2 text-3xl font-black text-white">{cards.totalAssigned}</p>
+              <span className="text-xs text-neutral-500">Active assigned fixtures</span>
+            </div>
 
-        <div className="rounded-xl border border-white/10 bg-neutral-900/50 p-5">
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-xs font-medium uppercase tracking-wider">In Progress</span>
-            <Radio className="h-4 w-4 text-amber-400" />
-          </div>
-          <p className="mt-2 text-3xl font-black text-white">{liveMatches.length}</p>
-          <span className="text-xs text-neutral-500">Currently live fixtures</span>
-        </div>
+            <div className="rounded-xl border border-white/10 bg-neutral-900/50 p-5">
+              <div className="flex items-center justify-between text-neutral-400">
+                <span className="text-xs font-medium uppercase tracking-wider">Upcoming</span>
+                <Calendar className="h-4 w-4 text-sky-400" />
+              </div>
+              <p className="mt-2 text-3xl font-black text-white">{cards.upcoming}</p>
+              <span className="text-xs text-neutral-500">Scheduled next</span>
+            </div>
 
-        <div className="rounded-xl border border-white/10 bg-neutral-900/50 p-5">
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-xs font-medium uppercase tracking-wider">Upcoming</span>
-            <Calendar className="h-4 w-4 text-sky-400" />
+            <div className="rounded-xl border border-white/10 bg-neutral-900/50 p-5">
+              <div className="flex items-center justify-between text-neutral-400">
+                <span className="text-xs font-medium uppercase tracking-wider">Tournaments</span>
+                <Trophy className="h-4 w-4 text-amber-400" />
+              </div>
+              <p className="mt-2 text-3xl font-black text-white">{cards.assignedTournaments}</p>
+              <span className="text-xs text-neutral-500">Active tournament events</span>
+            </div>
           </div>
-          <p className="mt-2 text-3xl font-black text-white">{upcomingMatches.length}</p>
-          <span className="text-xs text-neutral-500">Scheduled next</span>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Assigned Matches Section */}
       <div className="rounded-2xl border border-white/10 bg-neutral-900/40 p-6">

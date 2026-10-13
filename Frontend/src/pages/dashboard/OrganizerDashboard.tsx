@@ -16,6 +16,7 @@ import {
   Clock,
   RefreshCw,
 } from 'lucide-react';
+import { mapOrganizerDashboardCards } from '../../lib/dashboardMappers';
 
 export const OrganizerDashboard: React.FC = () => {
   const [overview, setOverview] = useState<OrganizerDashboardOverview | null>(null);
@@ -47,10 +48,6 @@ export const OrganizerDashboard: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
-
-  const totalTournaments = overview?.tournaments
-    ? Object.values(overview.tournaments).reduce((acc, curr) => acc + curr, 0)
-    : 0;
 
   if (isLoading) {
     return (
@@ -110,39 +107,44 @@ export const OrganizerDashboard: React.FC = () => {
       )}
 
       {/* Statistics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Total Tournaments</div>
-          <div className="text-4xl font-black font-display text-[#171044]">{totalTournaments}</div>
-          <div className="text-xs font-bold text-[#FF5A00]">
-            {overview?.tournaments?.['Registration Open'] ?? 0} Registration Open
-          </div>
-        </div>
+      {(() => {
+        const cards = mapOrganizerDashboardCards(overview);
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Total Tournaments</div>
+              <div className="text-4xl font-black font-display text-[#171044]">{cards.totalTournaments}</div>
+              <div className="text-xs font-bold text-[#FF5A00]">
+                {cards.registrationOpen} Registration Open
+              </div>
+            </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Pending Registrations</div>
-          <div className="text-4xl font-black font-display text-[#FF5A00]">
-            {overview?.pendingRegistrations ?? 0}
-          </div>
-          <div className="text-xs font-bold text-amber-600">Requires review</div>
-        </div>
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Pending Registrations</div>
+              <div className="text-4xl font-black font-display text-[#FF5A00]">
+                {cards.pendingRegistrations}
+              </div>
+              <div className="text-xs font-bold text-amber-600">Requires review</div>
+            </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">In Progress Tournaments</div>
-          <div className="text-4xl font-black font-display text-[#4B2A9B]">
-            {overview?.tournaments?.['In Progress'] ?? 0}
-          </div>
-          <div className="text-xs font-bold text-emerald-600">Active competition</div>
-        </div>
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">In Progress Tournaments</div>
+              <div className="text-4xl font-black font-display text-[#4B2A9B]">
+                {cards.inProgressTournaments}
+              </div>
+              <div className="text-xs font-bold text-emerald-600">Active competition</div>
+            </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
-          <div className="text-xs font-bold uppercase text-[#171044]/60">Upcoming Matches</div>
-          <div className="text-4xl font-black font-display text-[#171044]">
-            {overview?.nextMatches?.length ?? 0}
+            <div className="bg-white p-6 rounded-3xl border border-[#171044]/10 shadow-md space-y-1">
+              <div className="text-xs font-bold uppercase text-[#171044]/60">Upcoming Matches</div>
+              <div className="text-4xl font-black font-display text-[#171044]">
+                {cards.upcomingMatches}
+              </div>
+              <div className="text-xs font-bold text-emerald-600">Scheduled fixtures</div>
+            </div>
           </div>
-          <div className="text-xs font-bold text-emerald-600">Scheduled fixtures</div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Main Grid: Tournaments & Next Matches */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
