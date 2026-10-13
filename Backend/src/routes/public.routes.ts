@@ -4,11 +4,13 @@ import { commsController } from '../controllers/comms.controller.js';
 import { tournamentController } from '../controllers/tournament.controller.js';
 import { contactController } from '../controllers/contact.controller.js';
 import { dashboardController } from '../controllers/dashboard.controller.js';
+import { achievementController } from '../controllers/achievement.controller.js';
 import { validateObjectId } from '../utils/objectId.js';
 import { sanitizeInput } from '../middlewares/sanitizeInput.js';
 import { validate } from '../middlewares/validate.js';
 import { contactLimiter } from '../middlewares/rateLimiter.js';
 import { createContactMessageSchema } from '../validators/contact.validator.js';
+import { achievementQuerySchema } from '../validators/achievement.validator.js';
 
 const router = Router();
 
@@ -18,6 +20,18 @@ router.use(sanitizeInput);
 // Public overview metrics & spotlight
 router.get('/overview', (req, res, next) =>
   dashboardController.getPublicOverview(req, res, next)
+);
+
+// Public achievements feed (static before parameterized)
+router.get(
+  '/achievements',
+  validate(achievementQuerySchema, 'query'),
+  (req, res, next) => achievementController.getPublicAchievements(req, res, next)
+);
+router.get(
+  '/achievements/:id',
+  validateObjectId('id'),
+  (req, res, next) => achievementController.getPublicAchievementById(req, res, next)
 );
 
 // Public contact message inquiry

@@ -51,5 +51,6 @@ export {
   type IConversation,
   type IConversationMessage,
 } from './Conversation.js';
+export { Achievement, type IAchievement } from './Achievement.js';
 
 

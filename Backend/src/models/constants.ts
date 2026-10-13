@@ -99,6 +99,15 @@ export const DOCUMENT_VISIBILITIES = [
 ] as const;
 export type DocumentVisibility = (typeof DOCUMENT_VISIBILITIES)[number];
 
+export const ACHIEVEMENT_CATEGORIES = [
+  'Tournament Win',
+  'Individual Award',
+  'Team Milestone',
+  'Academy Milestone',
+  'Other',
+] as const;
+export type AchievementCategory = (typeof ACHIEVEMENT_CATEGORIES)[number];
+
 export const AUDIT_ACTIONS = [
   'USER_CREATED',
   'USER_UPDATED',
@@ -161,6 +170,9 @@ export const AUDIT_ACTIONS = [
   'MATCH_DELETED',
   'CONTACT_MESSAGE_STATUS_CHANGED',
   'CHATBOT_TURN',
+  'ACHIEVEMENT_CREATED',
+  'ACHIEVEMENT_UPDATED',
+  'ACHIEVEMENT_DELETED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

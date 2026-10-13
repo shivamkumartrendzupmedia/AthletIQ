@@ -24,6 +24,7 @@
     "verify:password-reset": "tsx scripts/verify-password-reset.ts",
     "verify:analytics": "tsx scripts/verify-analytics.ts",
     "verify:chatbot": "tsx scripts/verify-chatbot.ts",
+    "verify:achievements": "tsx scripts/verify-achievements.ts",
     "cleanup:orphans": "tsx scripts/cleanup-test-orphans.ts",
     "export:dashboard-fixtures": "tsx scripts/export-dashboard-fixtures.ts",
     "create:user": "tsx scripts/create-user.ts"

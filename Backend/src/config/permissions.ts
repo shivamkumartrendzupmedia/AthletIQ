@@ -21,7 +21,8 @@ export type Resource =
   | 'reports'
   | 'contactMessages'
   | 'dashboard'
-  | 'chatbot';
+  | 'chatbot'
+  | 'achievements';
 
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'resetPassword' | 'unlock' | 'manage';
 
@@ -149,6 +150,12 @@ export const PERMISSION_MATRIX: Record<
     create: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role interacts with chatbot' },
     read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role reads own conversation history' },
     delete: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role clears own conversation history' },
+  },
+  achievements: {
+    create: { roles: ['Admin'], status: 'enforced_now', description: 'Admin creates achievement' },
+    read: { roles: ['Admin'], status: 'enforced_now', description: 'Admin lists and views achievements' },
+    update: { roles: ['Admin'], status: 'enforced_now', description: 'Admin updates achievement' },
+    delete: { roles: ['Admin'], status: 'enforced_now', description: 'Admin deletes achievement' },
   },
 };
 

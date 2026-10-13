@@ -24,6 +24,7 @@ import {
   Notification,
   PasswordReset,
   Conversation,
+  Achievement,
 } from '../src/models/index.js';
 
 export interface OrphanItem {
@@ -398,6 +399,20 @@ export async function findOrphans(): Promise<OrphanItem[]> {
     }
   }
 
+  // 18. Achievements
+  const achievements = await Achievement.find({});
+  for (const a of achievements) {
+    const userExists = await User.exists({ _id: a.createdBy });
+    if (!userExists) {
+      orphans.push({
+        collection: 'Achievement',
+        id: a._id,
+        name: a.title,
+        reason: `CreatedBy user ${a.createdBy.toString()} does not exist`,
+      });
+    }
+  }
+
   return orphans;
 }
 
@@ -426,6 +441,7 @@ export async function getCounts() {
     notifications: await Notification.countDocuments(),
     passwordResets: await PasswordReset.countDocuments(),
     conversations: await Conversation.countDocuments(),
+    achievements: await Achievement.countDocuments(),
   };
 }
 
@@ -448,8 +464,13 @@ async function deleteOrphanItems(orphans: OrphanItem[]) {
   const notificationIds = orphans.filter((o) => o.collection === 'Notification').map((o) => o.id);
   const passwordResetIds = orphans.filter((o) => o.collection === 'PasswordReset').map((o) => o.id);
   const convIds = orphans.filter((o) => o.collection === 'Conversation').map((o) => o.id);
+  const achievementIds = orphans.filter((o) => o.collection === 'Achievement').map((o) => o.id);
   const userIds = orphans.filter((o) => o.collection === 'User').map((o) => o.id);
 
+  if (achievementIds.length > 0) {
+    const res = await Achievement.deleteMany({ _id: { $in: achievementIds } });
+    console.log(`Deleted ${res.deletedCount} orphan Achievements`);
+  }
   if (convIds.length > 0) {
     const res = await Conversation.deleteMany({ _id: { $in: convIds } });
     console.log(`Deleted ${res.deletedCount} orphan Conversations`);
@@ -641,11 +662,12 @@ async function run() {
       console.log(`Deleted ${res.deletedCount} Official-link documents belonging to test users`);
     }
 
-    // Notifications, password resets & conversations
+    // Notifications, password resets, conversations & achievements
     const delNotifs = await Notification.deleteMany({ user: { $in: testUserIds } });
     const delPw = await PasswordReset.deleteMany({ user: { $in: testUserIds } });
     const delConvs = await Conversation.deleteMany({ user: { $in: testUserIds } });
-    console.log(`Deleted ${delNotifs.deletedCount} notifications, ${delPw.deletedCount} password resets, and ${delConvs.deletedCount} conversations belonging to test users`);
+    const delAch = await Achievement.deleteMany({ createdBy: { $in: testUserIds } });
+    console.log(`Deleted ${delNotifs.deletedCount} notifications, ${delPw.deletedCount} password resets, ${delConvs.deletedCount} conversations, and ${delAch.deletedCount} achievements belonging to test users`);
 
     // Test Users themselves
     const delUsers = await User.deleteMany({ _id: { $in: testUserIds } });

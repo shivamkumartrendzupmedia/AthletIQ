@@ -22,6 +22,7 @@ import { contactRoutes } from './contact.routes.js';
 import { notificationRoutes } from './notification.routes.js';
 import { analyticsRoutes } from './analytics.routes.js';
 import chatbotRoutes from './chatbot.routes.js';
+import { achievementRoutes } from './achievement.routes.js';
 
 const router = Router();
 
@@ -62,6 +63,7 @@ router.use('/announcements', announcementRoutes);
 router.use('/documents', documentRoutes);
 router.use('/feedback', feedbackRoutes);
 router.use('/goals', goalRoutes);
+router.use('/achievements', achievementRoutes);
 
 // Mount tournament domain routes
 router.use('/tournaments', tournamentRoutes);
