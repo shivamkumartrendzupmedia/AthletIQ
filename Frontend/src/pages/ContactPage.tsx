@@ -4,6 +4,7 @@ import { Button, Card, CrossAccent, AthleticBadge } from '../design-system';
 import { Mail, Phone, MapPin, Send, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { academyApi, mapFieldErrors } from '../services/academyApi';
 import { ApiClientError } from '../lib/apiClient';
+import { SITE_CONFIG } from '../lib/siteConfig';
 
 export const ContactPage: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
@@ -99,7 +100,7 @@ export const ContactPage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-xs text-[#171044]/60 uppercase tracking-wider font-bold">Phone Number</div>
-                  <div className="font-display font-black text-lg text-[#171044]">+1 (506) 123-4567</div>
+                  <div className="font-display font-black text-lg text-[#171044]">{SITE_CONFIG.CONTACT_PHONE}</div>
                 </div>
               </div>
 
@@ -109,7 +110,7 @@ export const ContactPage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-xs text-[#171044]/60 uppercase tracking-wider font-bold">Email Address</div>
-                  <div className="font-display font-black text-lg text-[#171044]">info@athletiq.com</div>
+                  <div className="font-display font-black text-lg text-[#171044]">{SITE_CONFIG.CONTACT_EMAIL}</div>
                 </div>
               </div>
 
@@ -119,7 +120,7 @@ export const ContactPage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-xs text-[#171044]/60 uppercase tracking-wider font-bold">Academy Complex Location</div>
-                  <div className="font-display font-black text-base text-[#171044]">125 Sports Way, Moncton, NB, Canada</div>
+                  <div className="font-display font-black text-base text-[#171044]">{SITE_CONFIG.CONTACT_ADDRESS}</div>
                 </div>
               </div>
             </div>

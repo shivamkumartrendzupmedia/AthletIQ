@@ -30,17 +30,14 @@ const darkBgIndicators = [
   'bg-[#1E1656]',
   'bg-[#FF5A00]',
   'bg-[#E65100]',
-  'bg-gradient-to',
   'from-neutral-900',
+  'from-neutral-950',
   'from-[#171044]',
-  'bg-white/10',
-  'bg-black/',
+  'from-[#0F0B26]',
+  'from-black',
   'variant="dark"',
   'variant="accent"',
-  'bg-emerald-',
-  'bg-amber-',
-  'bg-red-',
-  'bg-blue-',
+  'bg-black/',
 ];
 
 function getAllPageFiles(dir: string): string[] {
@@ -69,13 +66,6 @@ function runAudit() {
     const content = fs.readFileSync(file, 'utf-8');
     const lines = content.split('\n');
 
-    // Check if the entire page has a dark background (e.g. ScorerConsolePage, PublicLiveMatchesPage)
-    const pageLevelDark =
-      content.includes('bg-neutral-950') ||
-      content.includes('bg-neutral-900') ||
-      content.includes('bg-[#0F0B26]') ||
-      content.includes('bg-black');
-
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       // Check for headings or paragraphs with text-white
@@ -84,28 +74,23 @@ function runAudit() {
         const tag = headingMatch[1];
         const lineNum = i + 1;
 
-        // Search backward for ancestor with dark background within the preceding 40 lines
+        // Search backward for ancestor with dark background within the preceding 60 lines
         let hasDarkAncestor = false;
         let ancestorDetail = '';
 
-        if (pageLevelDark) {
-          hasDarkAncestor = true;
-          ancestorDetail = 'Page-level dark root (bg-neutral-950/bg-black)';
-        } else {
-          const lookbackStart = Math.max(0, i - 40);
-          for (let j = i; j >= lookbackStart; j--) {
-            for (const indicator of darkBgIndicators) {
-              if (lines[j].includes(indicator)) {
-                hasDarkAncestor = true;
-                ancestorDetail = `Enclosing container at line ${j + 1} (${indicator})`;
-                break;
-              }
+        const lookbackStart = Math.max(0, i - 200);
+        for (let j = i; j >= lookbackStart; j--) {
+          for (const indicator of darkBgIndicators) {
+            if (lines[j].includes(indicator)) {
+              hasDarkAncestor = true;
+              ancestorDetail = `Ancestor at line ${j + 1} (${indicator}): ${lines[j].trim().slice(0, 70)}`;
+              break;
             }
-            if (hasDarkAncestor) break;
           }
+          if (hasDarkAncestor) break;
         }
 
-        // Specific known false positives (e.g. dark image overlay with absolute inset-0 bg-black/60)
+        // Specific known false positives or fixed defects
         let isFalsePositive = false;
         let isFixed = false;
         let reason = '';

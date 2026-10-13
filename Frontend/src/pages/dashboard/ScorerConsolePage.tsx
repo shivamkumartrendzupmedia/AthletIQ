@@ -211,22 +211,24 @@ export const ScorerConsolePage: React.FC = () => {
   // Render 404 state cleanly
   if (isNotFound) {
     return (
-      <div className="py-20 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-400 mb-4">
-          <AlertCircle className="h-8 w-8" />
-        </div>
-        <h2 className="text-2xl font-black text-white">Match Not Found</h2>
-        <p className="mt-2 text-sm text-neutral-400 max-w-md mx-auto">
-          The requested fixture does not exist or you are not authorized to score this match.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/dashboard/live"
-            className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Match Console Hub
-          </Link>
+      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-4">
+        <div className="py-20 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-400 mb-4">
+            <AlertCircle className="h-8 w-8" />
+          </div>
+          <h2 className="text-2xl font-black text-white">Match Not Found</h2>
+          <p className="mt-2 text-sm text-neutral-400 max-w-md mx-auto">
+            The requested fixture does not exist or you are not authorized to score this match.
+          </p>
+          <div className="mt-6">
+            <Link
+              to="/dashboard/live"
+              className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Match Console Hub
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -234,9 +236,11 @@ export const ScorerConsolePage: React.FC = () => {
 
   if (isLoading || !match) {
     return (
-      <div className="py-24 text-center">
-        <RefreshCw className="mx-auto h-8 w-8 animate-spin text-emerald-400 mb-3" />
-        <p className="text-sm font-medium text-neutral-400">Loading Scorer Console...</p>
+      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center py-24 text-center">
+        <div>
+          <RefreshCw className="mx-auto h-8 w-8 animate-spin text-emerald-400 mb-3" />
+          <p className="text-sm font-medium text-neutral-400">Loading Scorer Console...</p>
+        </div>
       </div>
     );
   }
@@ -251,7 +255,7 @@ export const ScorerConsolePage: React.FC = () => {
   const currentAwayScore = match.liveScore ? match.liveScore.away : match.result ? match.result.awayScore : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-4 md:p-8 space-y-6">
       {/* Navigation & Status Breadcrumb */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <button
