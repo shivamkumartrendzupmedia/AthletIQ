@@ -126,7 +126,7 @@ function App() {
             <Route
               path="/dashboard/organizer"
               element={
-                <ProtectedRoute allowedRoles={['Organizer']}>
+                <ProtectedRoute allowedRoles={['Organizer', 'Admin']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <OrganizerDashboard />
@@ -150,7 +150,7 @@ function App() {
             <Route
               path="/dashboard/live"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Official']}>
+                <ProtectedRoute allowedRoles={['Official', 'Admin', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <LiveMatchesConsoleListPage />
@@ -160,12 +160,26 @@ function App() {
               }
             />
             <Route
+              path="/dashboard/live/:matchId"
+              element={
+                <ProtectedRoute allowedRoles={['Official', 'Admin', 'Organizer']}>
+                  <DashboardLayout>
+                    <ErrorBoundary>
+                      <ScorerConsolePage />
+                    </ErrorBoundary>
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dashboard/matches/:id/score"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Official']}>
-                  <ErrorBoundary>
-                    <ScorerConsolePage />
-                  </ErrorBoundary>
+                <ProtectedRoute allowedRoles={['Official', 'Admin', 'Organizer']}>
+                  <DashboardLayout>
+                    <ErrorBoundary>
+                      <ScorerConsolePage />
+                    </ErrorBoundary>
+                  </DashboardLayout>
                 </ProtectedRoute>
               }
             />
@@ -208,7 +222,7 @@ function App() {
             <Route
               path="/dashboard/teams"
               element={
-                <ProtectedRoute allowedRoles={['Admin']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <TeamManagementPage />
@@ -230,9 +244,9 @@ function App() {
               }
             />
             <Route
-              path="/dashboard/roster"
+              path="/dashboard/rosters"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Coach']}>
+                <ProtectedRoute allowedRoles={['Admin']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <RosterManagementPage />
@@ -244,7 +258,7 @@ function App() {
             <Route
               path="/dashboard/documents"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <DocumentsPage />
@@ -268,7 +282,7 @@ function App() {
             <Route
               path="/dashboard/training"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <TrainingCalendarPage />
@@ -280,7 +294,7 @@ function App() {
             <Route
               path="/dashboard/tournaments"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Organizer', 'Coach']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Organizer', 'Coach', 'Athlete']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <TournamentManagementPage />
@@ -292,7 +306,7 @@ function App() {
             <Route
               path="/dashboard/tournaments/:id"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Organizer', 'Coach']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Organizer', 'Coach', 'Athlete']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <DashboardTournamentDetailPage />
@@ -316,7 +330,7 @@ function App() {
             <Route
               path="/dashboard/officials"
               element={
-                <ProtectedRoute allowedRoles={['Admin']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <OfficialsPage />
@@ -332,6 +346,18 @@ function App() {
                   <DashboardLayout>
                     <ErrorBoundary>
                       <UserAccountsPage />
+                    </ErrorBoundary>
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/messages"
+              element={
+                <ProtectedRoute allowedRoles={['Admin']}>
+                  <DashboardLayout>
+                    <ErrorBoundary>
+                      <ContactMessagesPage />
                     </ErrorBoundary>
                   </DashboardLayout>
                 </ProtectedRoute>
@@ -356,6 +382,18 @@ function App() {
                   <DashboardLayout>
                     <ErrorBoundary>
                       <AnalyticsPage />
+                    </ErrorBoundary>
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/athlete/:id"
+              element={
+                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete']}>
+                  <DashboardLayout>
+                    <ErrorBoundary>
+                      <AthleteProfilePage />
                     </ErrorBoundary>
                   </DashboardLayout>
                 </ProtectedRoute>
