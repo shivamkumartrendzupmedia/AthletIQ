@@ -22,3 +22,6 @@ yarn-debug.log*
 
 # Uploads
 uploads/
+
+# TypeScript build info
+tsconfig.tsbuildinfo

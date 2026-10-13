@@ -260,6 +260,38 @@ for (const { role, target, requiredRole } of roleTargets) {
   }
 }
 
+// ─── (g) Assert specific role requirements on key routes ─────────────────────
+
+console.log('\n--- SECTION G: Route allowedRoles specifications ---');
+
+const routeRoleExpectations: Array<{ route: string; roles: string[] }> = [
+  { route: '/dashboard/organizer', roles: ['Organizer', 'Admin'] },
+  { route: '/dashboard/officials', roles: ['Admin', 'Organizer'] },
+  { route: '/dashboard/venues', roles: ['Admin', 'Organizer'] },
+  { route: '/dashboard/live', roles: ['Official', 'Admin', 'Organizer'] },
+  { route: '/dashboard/live/:matchId', roles: ['Official', 'Admin', 'Organizer'] },
+  { route: '/dashboard/documents', roles: ['Admin', 'Coach', 'Athlete', 'Organizer'] },
+  { route: '/dashboard/training', roles: ['Admin', 'Coach', 'Athlete', 'Organizer'] },
+  { route: '/dashboard/tournaments', roles: ['Admin', 'Organizer', 'Coach', 'Athlete'] },
+  { route: '/dashboard/tournaments/:id', roles: ['Admin', 'Organizer', 'Coach', 'Athlete'] },
+  { route: '/dashboard/teams', roles: ['Admin', 'Coach', 'Organizer'] },
+];
+
+for (const { route, roles } of routeRoleExpectations) {
+  const lineIdx = appSrc.split('\n').findIndex((l) => l.includes(`path="${route}"`));
+  if (lineIdx >= 0) {
+    const block = appSrc.split('\n').slice(lineIdx, lineIdx + 12).join('\n');
+    for (const r of roles) {
+      assertPass(
+        block.includes(`'${r}'`) || block.includes(`"${r}"`),
+        `Route "${route}" allows role "${r}"`,
+      );
+    }
+  } else {
+    fail(`Could not find route block for "${route}"`);
+  }
+}
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 
 console.log(`\n========================================`);
