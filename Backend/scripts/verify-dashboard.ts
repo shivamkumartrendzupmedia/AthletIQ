@@ -873,6 +873,190 @@ async function runVerification() {
   assert(g5Requests < 90, `Group 5 request count (${g5Requests}) strictly < 90`);
 
   // =========================================================================
+  // GROUP 6: EXACT COUNT DELTAS & ACTIVE TEAM/COACH LOGIC VERIFICATION
+  // =========================================================================
+  console.log('\n--- GROUP 6: EXACT COUNT DELTAS & ACTIVE TEAM/COACH VERIFICATION ---');
+  let g6Requests = 0;
+  const srv6 = await startTestServer();
+
+  try {
+    // 1. Fetch baselines via HTTP before creating test delta records
+    const resBaseAdmin = await httpFetch(`${srv6.baseUrl}/api/dashboard/overview`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g6Requests++;
+    assert(resBaseAdmin.status === 200, 'Baseline Admin overview returns 200 OK');
+    const baseAdminData = resBaseAdmin.body as {
+      data: { teams: number; coaches: number; activeAthletes: number };
+    };
+
+    const resBasePub = await httpFetch(`${srv6.baseUrl}/api/public/overview`);
+    g6Requests++;
+    assert(resBasePub.status === 200, 'Baseline Public overview returns 200 OK');
+    const basePubData = resBasePub.body as {
+      data: { activeTeams: number; activeCoaches: number; activeAthletes: number; sportsCount: number };
+    };
+
+    // 2. Create sport for teams and athletes
+    const ts = Date.now();
+    const testSport = await Sport.create({
+      name: `Delta Sport ${ts}`,
+      slug: `delta-sport-${ts}`,
+      description: 'Sport for count delta testing',
+      status: 'Active',
+    });
+    createdSportIds.push(testSport._id);
+
+    // 3. Create 3 active teams and 1 inactive team
+    for (let i = 1; i <= 3; i++) {
+      const activeTeam = await Team.create({
+        name: `Active Team ${i} ${ts}`,
+        slug: `active-team-${i}-${ts}`,
+        sport: testSport._id,
+        ageGroup: 'U18',
+        status: 'Active',
+      });
+      createdTeamIds.push(activeTeam._id);
+    }
+    const inactiveTeam = await Team.create({
+      name: `Inactive Team ${ts}`,
+      slug: `inactive-team-${ts}`,
+      sport: testSport._id,
+      ageGroup: 'U18',
+      status: 'Inactive',
+    });
+    createdTeamIds.push(inactiveTeam._id);
+
+    // 4. Create 2 coaches with active users and 1 coach with an inactive user
+    const coachUserActive1 = await User.create({
+      name: `Active Coach 1 ${ts}`,
+      email: `active-coach-1-${ts}@athletiq.test`,
+      passwordHash: pwHash,
+      role: 'Coach',
+      isActive: true,
+    });
+    createdUserIds.push(coachUserActive1._id);
+    const coachProfileActive1 = await Coach.create({
+      user: coachUserActive1._id,
+      experienceYears: 4,
+    });
+    createdCoachIds.push(coachProfileActive1._id);
+
+    const coachUserActive2 = await User.create({
+      name: `Active Coach 2 ${ts}`,
+      email: `active-coach-2-${ts}@athletiq.test`,
+      passwordHash: pwHash,
+      role: 'Coach',
+      isActive: true,
+    });
+    createdUserIds.push(coachUserActive2._id);
+    const coachProfileActive2 = await Coach.create({
+      user: coachUserActive2._id,
+      experienceYears: 6,
+    });
+    createdCoachIds.push(coachProfileActive2._id);
+
+    const coachUserInactive = await User.create({
+      name: `Inactive Coach ${ts}`,
+      email: `inactive-coach-${ts}@athletiq.test`,
+      passwordHash: pwHash,
+      role: 'Coach',
+      isActive: false,
+    });
+    createdUserIds.push(coachUserInactive._id);
+    const coachProfileInactive = await Coach.create({
+      user: coachUserInactive._id,
+      experienceYears: 2,
+    });
+    createdCoachIds.push(coachProfileInactive._id);
+
+    // 5. Create 2 active athletes and 1 inactive athlete
+    for (let i = 1; i <= 2; i++) {
+      const activeAth = await Athlete.create({
+        sport: testSport._id,
+        status: 'Active',
+        medicalClearance: true,
+      });
+      createdAthleteIds.push(activeAth._id);
+    }
+    const inactiveAth = await Athlete.create({
+      sport: testSport._id,
+      status: 'Inactive',
+      medicalClearance: false,
+    });
+    createdAthleteIds.push(inactiveAth._id);
+
+    // 6. Test Admin overview exact deltas
+    const resDeltaAdmin = await httpFetch(`${srv6.baseUrl}/api/dashboard/overview`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g6Requests++;
+    const deltaAdminData = resDeltaAdmin.body as {
+      data: { teams: number; coaches: number; activeAthletes: number };
+    };
+    assert(
+      deltaAdminData.data.teams === baseAdminData.data.teams + 3,
+      `Admin active teams count exactly +3 delta (${deltaAdminData.data.teams} === ${baseAdminData.data.teams + 3})`
+    );
+    assert(
+      deltaAdminData.data.coaches === baseAdminData.data.coaches + 2,
+      `Admin active coaches count exactly +2 delta (${deltaAdminData.data.coaches} === ${baseAdminData.data.coaches + 2})`
+    );
+    assert(
+      deltaAdminData.data.activeAthletes === baseAdminData.data.activeAthletes + 2,
+      `Admin active athletes count exactly +2 delta (${deltaAdminData.data.activeAthletes} === ${baseAdminData.data.activeAthletes + 2})`
+    );
+
+    // 7. Test Public overview exact deltas
+    const resDeltaPub = await httpFetch(`${srv6.baseUrl}/api/public/overview`);
+    g6Requests++;
+    const deltaPubData = resDeltaPub.body as {
+      data: { activeTeams: number; activeCoaches: number; activeAthletes: number; sportsCount: number };
+    };
+    assert(
+      deltaPubData.data.activeTeams === basePubData.data.activeTeams + 3,
+      `Public activeTeams count exactly +3 delta (${deltaPubData.data.activeTeams} === ${basePubData.data.activeTeams + 3})`
+    );
+    assert(
+      deltaPubData.data.activeCoaches === basePubData.data.activeCoaches + 2,
+      `Public activeCoaches count exactly +2 delta (${deltaPubData.data.activeCoaches} === ${basePubData.data.activeCoaches + 2})`
+    );
+    assert(
+      deltaPubData.data.activeAthletes === basePubData.data.activeAthletes + 2,
+      `Public activeAthletes count exactly +2 delta (${deltaPubData.data.activeAthletes} === ${basePubData.data.activeAthletes + 2})`
+    );
+    assert(
+      deltaPubData.data.sportsCount === basePubData.data.sportsCount + 1,
+      `Public sportsCount count exactly +1 delta (${deltaPubData.data.sportsCount} === ${basePubData.data.sportsCount + 1})`
+    );
+
+    // 8. Deactivate coachUserActive1 and verify both overviews decrease coach count by 1
+    await User.findByIdAndUpdate(coachUserActive1._id, { isActive: false });
+
+    const resDeactAdmin = await httpFetch(`${srv6.baseUrl}/api/dashboard/overview`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g6Requests++;
+    const deactAdminData = resDeactAdmin.body as { data: { coaches: number } };
+    assert(
+      deactAdminData.data.coaches === baseAdminData.data.coaches + 1,
+      `Deactivating coach's user lowers Admin active coaches count by 1 (${deactAdminData.data.coaches} === ${baseAdminData.data.coaches + 1})`
+    );
+
+    const resDeactPub = await httpFetch(`${srv6.baseUrl}/api/public/overview`);
+    g6Requests++;
+    const deactPubData = resDeactPub.body as { data: { activeCoaches: number } };
+    assert(
+      deactPubData.data.activeCoaches === basePubData.data.activeCoaches + 1,
+      `Deactivating coach's user lowers Public activeCoaches count by 1 (${deactPubData.data.activeCoaches} === ${basePubData.data.activeCoaches + 1})`
+    );
+  } finally {
+    srv6.server.close();
+  }
+
+  assert(g6Requests < 90, `Group 6 request count (${g6Requests}) strictly < 90`);
+
+  // =========================================================================
   // CLEANUP TEST RESOURCES
   // =========================================================================
   console.log('\n--- CLEANING UP CREATED TEST RESOURCES ---');
@@ -963,7 +1147,7 @@ async function runVerification() {
   console.log('\n========================================');
   console.log(`Summary: ${passed} passed, ${failed} failed`);
   console.log(`Total HTTP Requests Executed: ${totalHttpRequests}`);
-  console.log(`Per-group counts breakdown: Group 1=${g1Requests}, Group 2=${g2Requests}, Group 3=${g3Requests}, Group 4=${g4Requests}, Group 5=${g5Requests} (Sum: ${totalHttpRequests})`);
+  console.log(`Per-group counts breakdown: Group 1=${g1Requests}, Group 2=${g2Requests}, Group 3=${g3Requests}, Group 4=${g4Requests}, Group 5=${g5Requests}, Group 6=${g6Requests} (Sum: ${totalHttpRequests})`);
   console.log('========================================\n');
 
   if (failed > 0) {

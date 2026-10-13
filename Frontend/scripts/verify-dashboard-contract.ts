@@ -95,12 +95,54 @@ assert(
   'Admin pendingRegistrations matches fixture count (1)',
   `Expected 1, got ${adminCards.pendingRegistrationsRaw}`
 );
-// Verify that legitimately returned 0 preserves '0'
 assert(
-  adminCards.activeCoaches === '0' && adminCards.activeTeams === '0',
-  'Admin zero fields from backend legitimately show "0"',
-  `coaches: ${adminCards.activeCoaches}, teams: ${adminCards.activeTeams}`
+  adminCards.activeTeamsRaw !== null && adminCards.activeTeamsRaw > 0,
+  'Admin activeTeams in fixture is > 0',
+  `Expected > 0, got ${adminCards.activeTeamsRaw}`
 );
+assert(
+  adminCards.activeTeams === '3',
+  'Admin activeTeams card renders "3"',
+  `Got "${adminCards.activeTeams}"`
+);
+assert(
+  adminCards.activeCoachesRaw !== null && adminCards.activeCoachesRaw > 0,
+  'Admin activeCoaches in fixture is > 0',
+  `Expected > 0, got ${adminCards.activeCoachesRaw}`
+);
+assert(
+  adminCards.activeCoaches === '3',
+  'Admin activeCoaches card renders "3"',
+  `Got "${adminCards.activeCoaches}"`
+);
+
+// Verify that an explicitly sent 0 renders "0" while missing key renders "-"
+{
+  const testExplicitZero = {
+    ...adminFixture,
+    teams: 0,
+    coaches: 0,
+  };
+  const zeroMapped = mapAdminDashboardCards(testExplicitZero);
+  assert(
+    zeroMapped.activeTeams === '0' && zeroMapped.activeCoaches === '0',
+    'Explicitly sent 0 renders "0" for Admin active teams and coaches',
+    `teams: ${zeroMapped.activeTeams}, coaches: ${zeroMapped.activeCoaches}`
+  );
+}
+{
+  const testMissingKeys = {
+    ...adminFixture,
+  };
+  delete (testMissingKeys as Record<string, unknown>).teams;
+  delete (testMissingKeys as Record<string, unknown>).coaches;
+  const missingMapped = mapAdminDashboardCards(testMissingKeys);
+  assert(
+    missingMapped.activeTeams === '-' && missingMapped.activeCoaches === '-',
+    'Missing key renders "-" instead of defaulting silently to 0',
+    `teams: ${missingMapped.activeTeams}, coaches: ${missingMapped.activeCoaches}`
+  );
+}
 
 // ============================================================================
 // 2. COACH DASHBOARD CONTRACT

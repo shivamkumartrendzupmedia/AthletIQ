@@ -195,6 +195,7 @@ async function run(): Promise<void> {
 
   // Tracking IDs created specifically by this test run
   const createdUserIds: Types.ObjectId[] = [];
+  const createdSportIds: Types.ObjectId[] = [];
   const createdTeamIds: Types.ObjectId[] = [];
   const createdCoachIds: Types.ObjectId[] = [];
   const createdAthleteIds: Types.ObjectId[] = [];
@@ -234,7 +235,16 @@ async function run(): Promise<void> {
   const organizerUser = await createTestUser('verify-dev-organizer@athletiq.test', 'Organizer', 'Dev Organizer');
 
   // Find sport & team for athlete/coach profiles
-  const existingSport = await Sport.findOne();
+  let existingSport = await Sport.findOne();
+  if (!existingSport) {
+    existingSport = await Sport.create({
+      name: `Dev Test Sport ${Date.now()}`,
+      slug: `dev-test-sport-${Date.now()}`,
+      description: 'Test sport for development verification suite',
+      status: 'Active',
+    });
+    createdSportIds.push(existingSport._id);
+  }
 
   const coachDocA = await Coach.create({
     user: coachUserA._id,
@@ -1340,6 +1350,9 @@ async function run(): Promise<void> {
   await TrainingSession.deleteMany({ _id: { $in: createdSessionIds } });
   await Athlete.deleteMany({ _id: { $in: createdAthleteIds } });
   await Team.deleteMany({ _id: { $in: createdTeamIds } });
+  if (createdSportIds.length > 0) {
+    await Sport.deleteMany({ _id: { $in: createdSportIds } });
+  }
   await Coach.deleteMany({ _id: { $in: createdCoachIds } });
   await AuditLog.deleteMany({ actor: { $in: createdUserIds } });
   await Notification.deleteMany({ user: { $in: createdUserIds } });

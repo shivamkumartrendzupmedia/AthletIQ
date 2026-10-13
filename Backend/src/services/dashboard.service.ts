@@ -140,6 +140,31 @@ export interface PublicOverviewResponse {
   latestAnnouncements: PublicAnnouncementOverview[];
 }
 
+async function countActiveCoaches(): Promise<number> {
+  const result = await Coach.aggregate<{ total: number }>([
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'userData',
+      },
+    },
+    {
+      $unwind: '$userData',
+    },
+    {
+      $match: {
+        'userData.isActive': true,
+      },
+    },
+    {
+      $count: 'total',
+    },
+  ]);
+  return result[0]?.total ?? 0;
+}
+
 export class DashboardService {
   /**
    * Role-driven dashboard overview.
@@ -171,8 +196,8 @@ export class DashboardService {
         User.countDocuments({ role: 'Athlete' }),
         User.countDocuments({ role: 'Organizer' }),
         Athlete.countDocuments({ status: 'Active' }),
-        Team.countDocuments({ active: true }),
-        Coach.countDocuments({ active: true }),
+        Team.countDocuments({ status: 'Active' }),
+        countActiveCoaches(),
         TrainingSession.countDocuments({
           startsAt: { $gte: now, $lte: in7Days },
           status: 'Scheduled',
@@ -535,8 +560,8 @@ export class DashboardService {
       latestAnnouncements,
     ] = await Promise.all([
       Athlete.countDocuments({ status: 'Active' }),
-      Coach.countDocuments({ active: true }),
-      Team.countDocuments({ active: true }),
+      countActiveCoaches(),
+      Team.countDocuments({ status: 'Active' }),
       Sport.countDocuments({ status: 'Active' }),
       Tournament.find({ status: { $ne: 'Draft' } })
         .sort({ startDate: 1 })
