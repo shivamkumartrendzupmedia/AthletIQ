@@ -47,6 +47,32 @@ Open `.env` and fill in your configuration:
 - `JWT_ACCESS_SECRET=<your-secret>`
 - `JWT_REFRESH_SECRET=<your-secret>`
 
+### Environment Variables Reference
+
+| Variable | Type / Options | Default | Description |
+|---|---|---|---|
+| `PORT` | number | `5000` | Port for Express API server |
+| `NODE_ENV` | `development` \| `production` \| `test` | `development` | Runtime environment |
+| `MONGODB_URI` | string | *required* | MongoDB Atlas connection string |
+| `CLIENT_URL` | string | `http://localhost:5173` | Allowed frontend origin for CORS |
+| `FRONTEND_URL` | string | `CLIENT_URL` | Frontend URL for constructing password reset links |
+| `JWT_ACCESS_SECRET` | string (min 32 chars) | *required* | JWT access token secret |
+| `JWT_REFRESH_SECRET` | string (min 32 chars) | *required* | JWT refresh token secret (different from access) |
+| `EMAIL_PROVIDER` | `emailjs` \| `smtp` \| `none` | `none` | Transactional email provider for password resets |
+| `EMAILJS_SERVICE_ID` | string | *optional* | EmailJS service ID (required if `EMAIL_PROVIDER=emailjs`) |
+| `EMAILJS_PUBLIC_KEY` | string | *optional* | EmailJS public key / user_id (required if `EMAIL_PROVIDER=emailjs`) |
+| `EMAILJS_PRIVATE_KEY` | string | *optional* | EmailJS private key / accessToken (required if `EMAIL_PROVIDER=emailjs`) |
+| `EMAILJS_TEMPLATE_RESET`| string | *optional* | EmailJS template ID (required if `EMAIL_PROVIDER=emailjs`) |
+
+#### EmailJS Configuration & Template Setup
+When `EMAIL_PROVIDER=emailjs`, emails are dispatched via the REST API (`POST https://api.emailjs.com/api/v1.0/email/send`).
+- **Template Variables**: Configure your EmailJS reset template with the following parameters:
+  - `{{to_email}}`: Recipient email address
+  - `{{user_name}}`: Recipient full name (sanitized of HTML/newlines)
+  - `{{reset_link}}`: Full password reset URL (`https://<domain>/reset-password?token=<hexToken>`)
+  - `{{expires_in}}`: Token validity duration (e.g. `30 minutes`)
+- **Non-Browser API Toggle**: In your **EmailJS Dashboard > Account > Security**, enable **"Allow EmailJS API for non-browser applications"** so that server-side REST requests authenticate with your private key (`accessToken`).
+
 ---
 
 ## 🌐 MongoDB Atlas Setup Guide

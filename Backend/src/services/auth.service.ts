@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { User, type IUser } from '../models/User.js';
 import { PasswordReset } from '../models/PasswordReset.js';
 import { AuditLog } from '../models/AuditLog.js';
-import { mailerService } from './mailer.service.js';
+import { emailService } from './email.service.js';
 import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
 import {
@@ -444,7 +444,15 @@ export class AuthService {
           expiresAt,
         });
 
-        await mailerService.sendPasswordResetEmail(user.email, rawToken, user.name);
+        const frontendUrl = (env.FRONTEND_URL || env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
+        const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
+
+        await emailService.sendPasswordReset({
+          toEmail: user.email,
+          userName: user.name,
+          resetLink,
+          expiresIn: '30 minutes',
+        });
 
         await AuditLog.create({
           actor: user._id,

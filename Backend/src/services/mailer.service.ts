@@ -56,7 +56,9 @@ class MailerService {
     userName?: string
   ): Promise<void> {
     const clientUrl = env.CLIENT_URL || 'http://localhost:5173';
-    const resetUrl = `${clientUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
+    const resetUrl = resetToken.startsWith('http://') || resetToken.startsWith('https://')
+      ? resetToken
+      : `${clientUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
     const greeting = userName ? `Hello ${userName},` : 'Hello,';
 
     const subject = 'ATHLETIQ — Password Reset Instructions';

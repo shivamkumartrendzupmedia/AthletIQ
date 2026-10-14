@@ -61,12 +61,26 @@ Configure these in Render **Environment** settings. Use placeholder/real secret 
 | `RATE_LIMIT_FORGOT_PASSWORD_MAX` | **OPTIONAL** | `5` (Reset requests per IP per window) |
 | `DOCUMENT_UPLOAD_DIR` | **OPTIONAL** | `./uploads/documents` |
 | `MAX_DOCUMENT_SIZE_BYTES` | **OPTIONAL** | `5242880` (5 MB) |
-| `SMTP_HOST` | **OPTIONAL** | `smtp.mailgun.org` (or SendGrid/Postmark) |
+| `EMAIL_PROVIDER` | **OPTIONAL** | `emailjs` \| `smtp` \| `none` (default: `none`) |
+| `EMAILJS_SERVICE_ID` | **CONDITIONAL** | Required if `EMAIL_PROVIDER=emailjs` (from EmailJS Email Services) |
+| `EMAILJS_PUBLIC_KEY` | **CONDITIONAL** | Required if `EMAIL_PROVIDER=emailjs` (Account Public Key) |
+| `EMAILJS_PRIVATE_KEY` | **CONDITIONAL** | Required if `EMAIL_PROVIDER=emailjs` (Account Private Key / accessToken) |
+| `EMAILJS_TEMPLATE_RESET` | **CONDITIONAL** | Required if `EMAIL_PROVIDER=emailjs` (Password Reset Template ID) |
+| `SMTP_HOST` | **OPTIONAL** | `smtp.mailgun.org` (or SendGrid/Postmark, used if `EMAIL_PROVIDER=smtp`) |
 | `SMTP_PORT` | **OPTIONAL** | `587` |
 | `SMTP_SECURE` | **OPTIONAL** | `false` |
 | `SMTP_USER` | **OPTIONAL** | `postmaster@yourdomain.mailgun.org` |
 | `SMTP_PASS` | **OPTIONAL** | `<smtp-secret-password>` |
 | `SMTP_FROM` | **OPTIONAL** | `"ATHLETIQ Academy" <no-reply@athletiq.app>` |
+
+> **EmailJS Integration Notes**:
+> - **REST API**: ATHLETIQ dispatches emails from the backend server via `POST https://api.emailjs.com/api/v1.0/email/send`.
+> - **Security Toggle**: In EmailJS Dashboard > **Account > Security**, you MUST enable **"Allow EmailJS API for non-browser applications"** so that server-side REST requests authenticated with your private key are accepted.
+> - **Template Parameters**: Your EmailJS reset template must reference:
+>   - `{{to_email}}`: Recipient email
+>   - `{{user_name}}`: Recipient sanitized name
+>   - `{{reset_link}}`: Password reset link (`https://<domain>/reset-password?token=...`)
+>   - `{{expires_in}}`: Expiration duration (`30 minutes`)
 
 ---
 

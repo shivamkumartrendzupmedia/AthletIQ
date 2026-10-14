@@ -39,6 +39,11 @@ const envSchema = z
     TRUST_PROXY: z.coerce.number().int().nonnegative().optional(),
     CORS_ORIGINS: z.string().optional(),
     FRONTEND_URL: z.string().optional(),
+    EMAIL_PROVIDER: z.enum(['emailjs', 'smtp', 'none']).default('none'),
+    EMAILJS_SERVICE_ID: z.string().min(1).optional(),
+    EMAILJS_PUBLIC_KEY: z.string().min(1).optional(),
+    EMAILJS_PRIVATE_KEY: z.string().min(1).optional(),
+    EMAILJS_TEMPLATE_RESET: z.string().min(1).optional(),
   })
   .refine(
     (data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET,
@@ -75,6 +80,38 @@ const envSchema = z
       path: ['CORS_ORIGINS'],
     }
   )
+  .superRefine((data, ctx) => {
+    if (data.EMAIL_PROVIDER === 'emailjs') {
+      if (!data.EMAILJS_SERVICE_ID) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'EMAILJS_SERVICE_ID is required when EMAIL_PROVIDER=emailjs',
+          path: ['EMAILJS_SERVICE_ID'],
+        });
+      }
+      if (!data.EMAILJS_PUBLIC_KEY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'EMAILJS_PUBLIC_KEY is required when EMAIL_PROVIDER=emailjs',
+          path: ['EMAILJS_PUBLIC_KEY'],
+        });
+      }
+      if (!data.EMAILJS_PRIVATE_KEY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'EMAILJS_PRIVATE_KEY is required when EMAIL_PROVIDER=emailjs',
+          path: ['EMAILJS_PRIVATE_KEY'],
+        });
+      }
+      if (!data.EMAILJS_TEMPLATE_RESET) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'EMAILJS_TEMPLATE_RESET is required when EMAIL_PROVIDER=emailjs',
+          path: ['EMAILJS_TEMPLATE_RESET'],
+        });
+      }
+    }
+  })
   .transform((data) => {
     const isProd = data.NODE_ENV === 'production';
     const cookieSecure =
