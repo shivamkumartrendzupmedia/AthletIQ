@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ScrollToTop } from './components/ScrollToTop';
@@ -79,6 +79,35 @@ const PageLoadingFallback: React.FC = () => (
   </div>
 );
 
+const DashboardRoleRedirect: React.FC = () => {
+  const { role, isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F7F1E8] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#171044] border-t-[#FF5A00] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  switch (role) {
+    case 'Admin':
+      return <Navigate to="/dashboard/admin" replace />;
+    case 'Coach':
+      return <Navigate to="/dashboard/coach" replace />;
+    case 'Athlete':
+      return <Navigate to="/dashboard/athlete" replace />;
+    case 'Organizer':
+      return <Navigate to="/dashboard/organizer" replace />;
+    default:
+      return <Navigate to="/dashboard/athlete" replace />;
+  }
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -86,6 +115,16 @@ function App() {
         <ScrollToTop />
         <Suspense fallback={<PageLoadingFallback />}>
           <Routes>
+            {/* Base Dashboard Route with Role-based Redirection */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer']}>
+                  <DashboardRoleRedirect />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Dashboard Management Routes (Protected by Authentication & Role) */}
             <Route
               path="/dashboard/admin"

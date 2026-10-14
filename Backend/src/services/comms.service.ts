@@ -263,7 +263,7 @@ export class CommsService {
             type: 'Announcement',
             title: `New Announcement: ${ann.title}`,
             body: ann.body.length > 280 ? ann.body.slice(0, 277) + '...' : ann.body,
-            link: '/dashboard',
+            link: '/dashboard/announcements',
           });
         }
       } catch {

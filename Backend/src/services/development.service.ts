@@ -315,7 +315,7 @@ export class DevelopmentService {
         type: 'Assessment',
         title: 'New Skill Assessment Recorded',
         body: `Skill assessment recorded with overall rating ${overall}/10.`,
-        link: '/dashboard',
+        link: '/athlete/me',
       });
     }
 
@@ -415,7 +415,7 @@ export class DevelopmentService {
         type: 'Feedback',
         title: 'New Coach Feedback',
         body: input.text.length > 280 ? input.text.slice(0, 277) + '...' : input.text,
-        link: '/dashboard',
+        link: '/athlete/me',
       });
     }
 
@@ -629,7 +629,7 @@ export class DevelopmentService {
         type: 'Goal',
         title: `New Goal: ${goal.title}`,
         body: `A new athletic goal "${goal.title}" was created for you.`,
-        link: '/dashboard',
+        link: '/athlete/me',
       });
     }
 
@@ -723,7 +723,7 @@ export class DevelopmentService {
             type: 'Goal',
             title: `Goal Updated: ${goal.title}`,
             body: `Goal status: ${goal.status}, progress: ${goal.progress}%.`,
-            link: '/dashboard',
+            link: '/athlete/me',
           });
         }
       } catch {

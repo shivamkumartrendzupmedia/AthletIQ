@@ -16,9 +16,11 @@ import {
 } from 'lucide-react';
 import { academyApi, type NotificationItem } from '../../services/academyApi';
 import { formatNotificationTime } from '../../lib/notificationPayloads';
+import { useAuth } from '../../context/AuthContext';
 
 export const NotificationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [page, setPage] = useState(1);
@@ -75,12 +77,46 @@ export const NotificationsPage: React.FC = () => {
     }
   };
 
+  const resolveNotificationLink = (notif: NotificationItem): string => {
+    const rawLink = notif.link?.trim() || '';
+
+    // If link is empty or points to generic '/dashboard', intelligently direct based on notification type:
+    if (!rawLink || rawLink === '/dashboard') {
+      switch (notif.type) {
+        case 'Announcement':
+          return '/dashboard/announcements';
+        case 'Assessment':
+        case 'Feedback':
+        case 'Goal':
+          return role === 'Athlete' ? '/athlete/me' : role === 'Coach' ? '/dashboard/athletes' : '/dashboard/admin';
+        case 'Match':
+          return '/dashboard/tournaments';
+        default:
+          switch (role) {
+            case 'Admin':
+              return '/dashboard/admin';
+            case 'Coach':
+              return '/dashboard/coach';
+            case 'Athlete':
+              return '/dashboard/athlete';
+            case 'Organizer':
+              return '/dashboard/organizer';
+            default:
+              return '/dashboard/athlete';
+          }
+      }
+    }
+
+    return rawLink;
+  };
+
   const handleClickNotification = async (notif: NotificationItem) => {
     if (!notif.readAt) {
       await handleMarkAsRead(notif._id || notif.id || '');
     }
-    if (notif.link) {
-      navigate(notif.link);
+    const targetLink = resolveNotificationLink(notif);
+    if (targetLink) {
+      navigate(targetLink);
     }
   };
 
@@ -223,11 +259,9 @@ export const NotificationsPage: React.FC = () => {
                       <span className="flex items-center gap-1">
                         <Clock size={11} /> {formatNotificationTime(notif.createdAt)}
                       </span>
-                      {notif.link && (
-                        <span className="flex items-center gap-0.5 text-[#D8F500]/70 hover:text-[#D8F500]">
-                          View <ArrowRight size={10} />
-                        </span>
-                      )}
+                      <span className="flex items-center gap-0.5 text-[#D8F500]/70 hover:text-[#D8F500] font-semibold transition-colors">
+                        View <ArrowRight size={10} />
+                      </span>
                     </div>
                   </div>
 
