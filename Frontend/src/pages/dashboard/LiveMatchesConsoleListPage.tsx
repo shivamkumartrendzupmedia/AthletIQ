@@ -107,7 +107,7 @@ export const LiveMatchesConsoleListPage: React.FC = () => {
               Refresh
             </button>
             <Link
-              to="/live"
+              to="/matches/live"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"

@@ -105,7 +105,7 @@ export const PublicMatchDetailPage: React.FC = () => {
           </p>
           <div className="pt-4">
             <Link
-              to="/live"
+              to="/matches/live"
               className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -134,7 +134,7 @@ export const PublicMatchDetailPage: React.FC = () => {
         {/* Navigation & Live Breadcrumb */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <button
-            onClick={() => navigate('/live')}
+            onClick={() => navigate('/matches/live')}
             className="inline-flex items-center gap-2 text-sm font-medium text-neutral-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />

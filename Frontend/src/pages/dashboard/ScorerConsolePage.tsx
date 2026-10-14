@@ -28,6 +28,7 @@ import {
   ArrowRightLeft,
 } from 'lucide-react';
 import { buildMatchStatusPayload, buildMatchEventPayload } from '../../lib/matchPayloads';
+import { useAuth } from '../../context/AuthContext';
 
 type EventType = 'Goal' | 'OwnGoal' | 'YellowCard' | 'RedCard' | 'Substitution';
 type EventSide = 'home' | 'away';
@@ -35,6 +36,7 @@ type EventSide = 'home' | 'away';
 export const ScorerConsolePage: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [match, setMatch] = useState<MatchItem | null>(null);
   const [events, setEvents] = useState<MatchEventItem[]>([]);
@@ -42,6 +44,8 @@ export const ScorerConsolePage: React.FC = () => {
   const [isNotFound, setIsNotFound] = useState<boolean>(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+
+  const [isSubmittingEvent, setIsSubmittingEvent] = useState<boolean>(false);
 
   // Form State
   const [eventType, setEventType] = useState<EventType>('Goal');
@@ -94,9 +98,28 @@ export const ScorerConsolePage: React.FC = () => {
     [matchId]
   );
 
+  const [currentTimeMs, setCurrentTimeMs] = useState<number>(() => Date.now());
+
+  // Clock tick interval for live minute display (updates every 30 seconds without impure Date.now in render)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTimeMs(Date.now());
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Initial load
   useEffect(() => {
-    void loadMatchAndEvents();
+    let active = true;
+    const init = async () => {
+      if (active) {
+        await loadMatchAndEvents();
+      }
+    };
+    void init();
+    return () => {
+      active = false;
+    };
   }, [loadMatchAndEvents]);
 
   // Polling Hook
@@ -107,7 +130,7 @@ export const ScorerConsolePage: React.FC = () => {
     enabled: Boolean(matchId && !isNotFound && match?.status !== 'Completed' && match?.status !== 'Cancelled'),
   });
 
-  // Calculate live minute estimate
+  // Calculate live minute estimate using interval-backed currentTimeMs
   const computeMinuteDisplay = (m: MatchItem | null): string => {
     if (!m) return '0\'';
     if (m.status === 'Completed') return 'FT (90\')';
@@ -117,7 +140,7 @@ export const ScorerConsolePage: React.FC = () => {
 
     if (m.status === 'Live' && m.startedAt) {
       const startMs = new Date(m.startedAt).getTime();
-      const elapsedMin = Math.max(1, Math.floor((Date.now() - startMs) / 60000));
+      const elapsedMin = Math.max(1, Math.floor((currentTimeMs - startMs) / 60000));
       return `${Math.min(elapsedMin, 120)}'`;
     }
     return 'Live';
@@ -154,7 +177,8 @@ export const ScorerConsolePage: React.FC = () => {
   // Add Match Event
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!matchId) return;
+    if (!matchId || isSubmittingEvent) return;
+    setIsSubmittingEvent(true);
     setActionLoading(true);
     setErrorBanner(null);
 
@@ -187,6 +211,7 @@ export const ScorerConsolePage: React.FC = () => {
         setErrorBanner(errorObj.message || 'Failed to record event');
       }
     } finally {
+      setIsSubmittingEvent(false);
       setActionLoading(false);
     }
   };
@@ -207,6 +232,32 @@ export const ScorerConsolePage: React.FC = () => {
       setActionLoading(false);
     }
   };
+
+  // Verify role permission (Admin and Organizer only)
+  if (user && user.role !== 'Admin' && user.role !== 'Organizer') {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-4">
+        <div className="py-20 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-400 mb-4">
+            <AlertCircle className="h-8 w-8" />
+          </div>
+          <h2 className="text-2xl font-black text-white">Access Forbidden</h2>
+          <p className="mt-2 text-sm text-neutral-400 max-w-md mx-auto">
+            Live scorer controls are strictly reserved for Admins and Tournament Organizers.
+          </p>
+          <div className="mt-6">
+            <Link
+              to="/matches/live"
+              className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Go to Public Live Center
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Render 404 state cleanly
   if (isNotFound) {
@@ -594,11 +645,20 @@ export const ScorerConsolePage: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={actionLoading}
+                disabled={actionLoading || isSubmittingEvent}
                 className="w-full mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-black hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50"
               >
-                <Plus className="h-4 w-4" />
-                Submit Event to Scoreboard
+                {isSubmittingEvent ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Recording Event...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Submit Event to Scoreboard
+                  </>
+                )}
               </button>
             </form>
           )}
