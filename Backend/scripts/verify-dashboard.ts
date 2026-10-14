@@ -18,7 +18,6 @@ import {
   Tournament,
   TournamentTeam,
   Venue,
-  Official,
   Match,
   AuditLog,
   ContactMessage,
@@ -112,7 +111,6 @@ const createdGoalIds: Types.ObjectId[] = [];
 const createdTournamentIds: Types.ObjectId[] = [];
 const createdTournamentTeamIds: Types.ObjectId[] = [];
 const createdVenueIds: Types.ObjectId[] = [];
-const createdOfficialIds: Types.ObjectId[] = [];
 const createdMatchIds: Types.ObjectId[] = [];
 const createdContactIds: Types.ObjectId[] = [];
 const createdAuditLogIds: Types.ObjectId[] = [];
@@ -134,7 +132,7 @@ async function getCollectionCounts() {
     tournaments: await Tournament.countDocuments(),
     tournamentTeams: await TournamentTeam.countDocuments(),
     venues: await Venue.countDocuments(),
-    officials: await Official.countDocuments(),
+    officials: await mongoose.connection.collection('officials').countDocuments(),
     matches: await Match.countDocuments(),
     auditLogs: await AuditLog.countDocuments(),
     contactMessages: await ContactMessage.countDocuments(),
@@ -1196,9 +1194,6 @@ async function runVerification() {
   }
   if (createdMatchIds.length > 0) {
     await Match.deleteMany({ _id: { $in: createdMatchIds } });
-  }
-  if (createdOfficialIds.length > 0) {
-    await Official.deleteMany({ _id: { $in: createdOfficialIds } });
   }
   if (createdVenueIds.length > 0) {
     await Venue.deleteMany({ _id: { $in: createdVenueIds } });

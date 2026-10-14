@@ -197,45 +197,6 @@ export function buildUpdateVenuePayload(input: UpdateVenueInput) {
   return payload;
 }
 
-export interface CreateOfficialInput {
-  name: string;
-  type: 'Referee' | 'Assistant Referee' | 'Scorer';
-  active?: boolean;
-}
-
-export function buildCreateOfficialPayload(input: CreateOfficialInput) {
-  const payload: { name: string; type: 'Referee' | 'Assistant Referee' | 'Scorer'; active?: boolean } = {
-    name: input.name.trim(),
-    type: input.type,
-  };
-
-  if (input.active !== undefined) {
-    payload.active = Boolean(input.active);
-  }
-
-  return payload;
-}
-
-export interface UpdateOfficialInput {
-  name?: string;
-  type?: 'Referee' | 'Assistant Referee' | 'Scorer';
-  active?: boolean;
-}
-
-export function buildUpdateOfficialPayload(input: UpdateOfficialInput) {
-  const payload: {
-    name?: string;
-    type?: 'Referee' | 'Assistant Referee' | 'Scorer';
-    active?: boolean;
-  } = {};
-
-  if (input.name !== undefined) payload.name = input.name.trim();
-  if (input.type !== undefined) payload.type = input.type;
-  if (input.active !== undefined) payload.active = Boolean(input.active);
-
-  return payload;
-}
-
 export interface CreateMatchInput {
   homeTeam: string;
   awayTeam: string;
@@ -244,7 +205,6 @@ export interface CreateMatchInput {
   scheduledAt: string;
   durationMinutes?: string | number;
   venue: string;
-  referee?: string;
 }
 
 export function buildCreateMatchPayload(input: CreateMatchInput) {
@@ -256,7 +216,6 @@ export function buildCreateMatchPayload(input: CreateMatchInput) {
     scheduledAt: string;
     durationMinutes: number;
     venue: string;
-    referee?: string;
   } = {
     homeTeam: input.homeTeam.trim(),
     awayTeam: input.awayTeam.trim(),
@@ -270,10 +229,6 @@ export function buildCreateMatchPayload(input: CreateMatchInput) {
     payload.group = input.group.trim();
   }
 
-  if (input.referee && input.referee.trim().length > 0) {
-    payload.referee = input.referee.trim();
-  }
-
   return payload;
 }
 
@@ -283,7 +238,6 @@ export interface UpdateMatchInput {
   scheduledAt?: string;
   durationMinutes?: string | number;
   venue?: string;
-  referee?: string | null;
   status?: 'Scheduled' | 'Completed' | 'Cancelled';
 }
 
@@ -294,7 +248,6 @@ export function buildUpdateMatchPayload(input: UpdateMatchInput) {
     scheduledAt?: string;
     durationMinutes?: number;
     venue?: string;
-    referee?: string | null;
     status?: 'Scheduled' | 'Completed' | 'Cancelled';
   } = {};
 
@@ -305,9 +258,6 @@ export function buildUpdateMatchPayload(input: UpdateMatchInput) {
     payload.durationMinutes = Number(input.durationMinutes);
   }
   if (input.venue !== undefined) payload.venue = input.venue.trim();
-  if (input.referee !== undefined) {
-    payload.referee = input.referee ? input.referee.trim() : null;
-  }
   if (input.status !== undefined) payload.status = input.status;
 
   return payload;

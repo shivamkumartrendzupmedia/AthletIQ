@@ -12,7 +12,6 @@ import {
   Edit2,
   Trash2,
   MapPin,
-  UserCheck,
   X,
   Award,
   Radio,
@@ -24,7 +23,6 @@ import {
   type TournamentTeamItem,
   type MatchItem,
   type VenueItem,
-  type OfficialItem,
   type StandingsRow,
   mapFieldErrors,
 } from '../../services/academyApi';
@@ -44,7 +42,6 @@ export const TournamentDetailPage: React.FC = () => {
   const [registrations, setRegistrations] = useState<TournamentTeamItem[]>([]);
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [venues, setVenues] = useState<VenueItem[]>([]);
-  const [officials, setOfficials] = useState<OfficialItem[]>([]);
   const [standings, setStandings] = useState<StandingsRow[]>([]);
   const [standingsGroups, setStandingsGroups] = useState<Record<string, StandingsRow[]> | undefined>(undefined);
   const [standingsLoading, setStandingsLoading] = useState(false);
@@ -74,7 +71,6 @@ export const TournamentDetailPage: React.FC = () => {
   const [matchScheduledAt, setMatchScheduledAt] = useState('');
   const [matchDuration, setMatchDuration] = useState('90');
   const [matchVenue, setMatchVenue] = useState('');
-  const [matchReferee, setMatchReferee] = useState('');
 
   // Result Modal
   const [resultMatch, setResultMatch] = useState<MatchItem | null>(null);
@@ -91,7 +87,6 @@ export const TournamentDetailPage: React.FC = () => {
   const mSchedId = useId();
   const mDurId = useId();
   const mVenId = useId();
-  const mRefId = useId();
 
   // Load tournament and tab data (strictly <= 4 requests on first load)
   const loadData = useCallback(async () => {
@@ -123,18 +118,6 @@ export const TournamentDetailPage: React.FC = () => {
     }, 0);
     return () => clearTimeout(timer);
   }, [loadData]);
-
-  // Load officials on demand when match modal is opened
-  const ensureOfficials = async () => {
-    if (officials.length === 0) {
-      try {
-        const offRes = await academyApi.listOfficials({ limit: 100 });
-        setOfficials(offRes.items);
-      } catch {
-        // non-blocking
-      }
-    }
-  };
 
   // Filter approved registrations for match fixtures
   const approvedTeams = registrations.filter((r) => r.status === 'Approved');
@@ -177,7 +160,6 @@ export const TournamentDetailPage: React.FC = () => {
 
   // Open Create / Edit Match Modal
   const openCreateMatchModal = async () => {
-    await ensureOfficials();
     setEditingMatch(null);
     setMatchHomeTeam(approvedTeams.length > 0 ? approvedTeams[0].id : '');
     setMatchAwayTeam(approvedTeams.length > 1 ? approvedTeams[1].id : '');
@@ -189,21 +171,18 @@ export const TournamentDetailPage: React.FC = () => {
     setMatchScheduledAt(toDatetimeLocalString(defaultTime.toISOString()));
     setMatchDuration('90');
     setMatchVenue(venues.length > 0 ? venues[0].id : '');
-    setMatchReferee('');
     setMatchFieldErrors({});
     setMatchOverlapError(null);
     setShowMatchModal(true);
   };
 
   const openEditMatchModal = async (m: MatchItem) => {
-    await ensureOfficials();
     setEditingMatch(m);
     setMatchRound(m.round);
     setMatchGroup(m.group || '');
     setMatchScheduledAt(toDatetimeLocalString(m.scheduledAt));
     setMatchDuration(String(m.durationMinutes));
     setMatchVenue(m.venue.id);
-    setMatchReferee(m.referee?.id || '');
     setMatchFieldErrors({});
     setMatchOverlapError(null);
     setShowMatchModal(true);
@@ -227,7 +206,6 @@ export const TournamentDetailPage: React.FC = () => {
           scheduledAt: schedIso,
           durationMinutes: Number(matchDuration),
           venue: matchVenue,
-          referee: matchReferee ? matchReferee : null,
         });
         setSuccessBanner('Fixture updated successfully.');
       } else {
@@ -239,7 +217,6 @@ export const TournamentDetailPage: React.FC = () => {
           scheduledAt: schedIso,
           durationMinutes: Number(matchDuration),
           venue: matchVenue,
-          referee: matchReferee || undefined,
         });
         setSuccessBanner('Match fixture scheduled.');
       }
@@ -248,7 +225,7 @@ export const TournamentDetailPage: React.FC = () => {
     } catch (err: unknown) {
       if (err instanceof ApiClientError && err.statusCode === 409) {
         setMatchOverlapError(
-          `Schedule Overlap (409 Conflict): ${err.message}. Please select a different time, venue, or referee.`
+          `Schedule Overlap (409 Conflict): ${err.message}. Please select a different time or venue.`
         );
       } else {
         const mapped = mapFieldErrors(err);
@@ -677,12 +654,6 @@ export const TournamentDetailPage: React.FC = () => {
                           <MapPin className="w-3.5 h-3.5 opacity-60" />
                           <span>Venue: {m.venue?.name || 'Assigned Pitch'}</span>
                         </div>
-                        {m.referee?.name && (
-                          <div className="flex items-center gap-1.5">
-                            <UserCheck className="w-3.5 h-3.5 opacity-60" />
-                            <span>Referee: {m.referee.name}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
 
@@ -1045,44 +1016,23 @@ export const TournamentDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor={mVenId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
-                    Venue Facility *
-                  </label>
-                  <select
-                    id={mVenId}
-                    required
-                    value={matchVenue}
-                    onChange={(e) => setMatchVenue(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
-                  >
-                    {venues.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor={mRefId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
-                    Referee (Optional)
-                  </label>
-                  <select
-                    id={mRefId}
-                    value={matchReferee}
-                    onChange={(e) => setMatchReferee(e.target.value)}
-                    className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
-                  >
-                    <option value="">No Referee Assigned</option>
-                    {officials.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name} ({o.type})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label htmlFor={mVenId} className="block text-xs font-bold uppercase text-[#111111]/60 mb-1">
+                  Venue Facility *
+                </label>
+                <select
+                  id={mVenId}
+                  required
+                  value={matchVenue}
+                  onChange={(e) => setMatchVenue(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
+                >
+                  {venues.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#111111]/10">

@@ -23,7 +23,6 @@ export interface IMatch extends Document {
   durationMinutes: number;
   endsAt: Date;
   venue: Types.ObjectId;
-  referee?: Types.ObjectId;
   status: MatchStatus;
   startedAt?: Date | null;
   halfTimeAt?: Date | null;
@@ -109,10 +108,6 @@ const matchSchema = new Schema<IMatch>(
       ref: 'Venue',
       required: true,
     },
-    referee: {
-      type: Schema.Types.ObjectId,
-      ref: 'Official',
-    },
     status: {
       type: String,
       enum: MATCH_STATUSES,
@@ -169,6 +164,5 @@ matchSchema.index({ tournament: 1, scheduledAt: 1 });
 matchSchema.index({ venue: 1, scheduledAt: 1, endsAt: 1 });
 matchSchema.index({ homeTeam: 1, scheduledAt: 1, endsAt: 1 });
 matchSchema.index({ awayTeam: 1, scheduledAt: 1, endsAt: 1 });
-matchSchema.index({ referee: 1, scheduledAt: 1, endsAt: 1 });
 
 export const Match = model<IMatch>('Match', matchSchema);

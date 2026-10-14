@@ -16,7 +16,6 @@ import {
   Tournament,
   TournamentTeam,
   Venue,
-  Official,
   Match,
   MatchEvent,
   AuditLog,
@@ -207,21 +206,7 @@ export async function findOrphans(): Promise<OrphanItem[]> {
     }
   }
 
-  // 5. Officials (whose creator is gone)
-  const officials = await Official.find({});
-  for (const off of officials) {
-    const creatorExists = await User.exists({ _id: off.createdBy });
-    if (!creatorExists) {
-      orphans.push({
-        collection: 'Official',
-        id: off._id,
-        name: off.name,
-        reason: `CreatedBy user ${off.createdBy.toString()} does not exist`,
-      });
-    }
-  }
-
-  // 6. Test Users from interrupted dash-* runs
+  // 5. Test Users from interrupted dash-* runs
   const dashTestUsers = await User.find({ email: /^dash-/ });
   for (const u of dashTestUsers) {
     orphans.push({
@@ -433,7 +418,6 @@ export async function getCounts() {
     tournaments: await Tournament.countDocuments(),
     tournamentTeams: await TournamentTeam.countDocuments(),
     venues: await Venue.countDocuments(),
-    officials: await Official.countDocuments(),
     matches: await Match.countDocuments(),
     matchEvents: await MatchEvent.countDocuments(),
     auditLogs: await AuditLog.countDocuments(),
@@ -451,7 +435,6 @@ async function deleteOrphanItems(orphans: OrphanItem[]) {
   const regIds = orphans.filter((o) => o.collection === 'TournamentTeam').map((o) => o.id);
   const tourneyIds = orphans.filter((o) => o.collection === 'Tournament').map((o) => o.id);
   const venueIds = orphans.filter((o) => o.collection === 'Venue').map((o) => o.id);
-  const officialIds = orphans.filter((o) => o.collection === 'Official').map((o) => o.id);
   const auditLogIds = orphans.filter((o) => o.collection === 'AuditLog').map((o) => o.id);
   const sessionIds = orphans.filter((o) => o.collection === 'TrainingSession').map((o) => o.id);
   const attendanceIds = orphans.filter((o) => o.collection === 'Attendance').map((o) => o.id);
@@ -502,10 +485,6 @@ async function deleteOrphanItems(orphans: OrphanItem[]) {
   if (venueIds.length > 0) {
     const res = await Venue.deleteMany({ _id: { $in: venueIds } });
     console.log(`Deleted ${res.deletedCount} orphan Venues`);
-  }
-  if (officialIds.length > 0) {
-    const res = await Official.deleteMany({ _id: { $in: officialIds } });
-    console.log(`Deleted ${res.deletedCount} orphan Officials`);
   }
   if (auditLogIds.length > 0) {
     const res = await AuditLog.deleteMany({ _id: { $in: auditLogIds } });
@@ -627,8 +606,6 @@ async function run() {
     const testAthleteIds = testAthletes.map((a) => a._id);
     const testCoaches = await Coach.find({ user: { $in: testUserIds } });
     const testCoachIds = testCoaches.map((c) => c._id);
-    const testOfficials = await Official.find({ user: { $in: testUserIds } });
-    const testOfficialIds = testOfficials.map((o) => o._id);
 
     // Dependent athletic records
     if (testAthleteIds.length > 0) {
@@ -648,7 +625,7 @@ async function run() {
       console.log(`Deleted ${delFb.deletedCount} coach feedback records`);
     }
 
-    // Profiles and official link documents belonging to test users
+    // Profiles belonging to test users
     if (testAthleteIds.length > 0) {
       const res = await Athlete.deleteMany({ _id: { $in: testAthleteIds } });
       console.log(`Deleted ${res.deletedCount} Athlete profiles belonging to test users`);
@@ -656,10 +633,6 @@ async function run() {
     if (testCoachIds.length > 0) {
       const res = await Coach.deleteMany({ _id: { $in: testCoachIds } });
       console.log(`Deleted ${res.deletedCount} Coach profiles belonging to test users`);
-    }
-    if (testOfficialIds.length > 0) {
-      const res = await Official.deleteMany({ _id: { $in: testOfficialIds } });
-      console.log(`Deleted ${res.deletedCount} Official-link documents belonging to test users`);
     }
 
     // Notifications, password resets, conversations & achievements

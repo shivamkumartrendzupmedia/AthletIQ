@@ -199,61 +199,6 @@ export class TournamentController {
     }
   }
 
-  // Officials
-  async createOfficial(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const official = await tournamentService.createOfficial(req.body, {
-        id: req.user!.id,
-        role: req.user!.role,
-      });
-      res.status(201).json({
-        data: official,
-        message: 'Official created successfully',
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  async listOfficials(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const officials = await tournamentService.listOfficials(req.user ? {
-        id: req.user.id,
-        role: req.user.role,
-      } : undefined);
-      res.status(200).json({ data: officials });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  async updateOfficial(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const official = await tournamentService.updateOfficial(req.params.id, req.body, {
-        id: req.user!.id,
-        role: req.user!.role,
-      });
-      res.status(200).json({
-        data: official,
-        message: 'Official updated successfully',
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  async deleteOfficial(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
-    try {
-      await tournamentService.deleteOfficial(req.params.id, {
-        id: req.user!.id,
-        role: req.user!.role,
-      });
-      res.status(200).json({ message: 'Official deleted successfully' });
-    } catch (err) {
-      next(err);
-    }
-  }
-
   // Matches
   async createMatch(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
     try {

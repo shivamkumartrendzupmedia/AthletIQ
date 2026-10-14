@@ -23,8 +23,6 @@ import {
   reviewRegistrationSchema,
   createVenueSchema,
   updateVenueSchema,
-  createOfficialSchema,
-  updateOfficialSchema,
   createMatchSchema,
   updateMatchSchema,
   enterMatchResultSchema,
@@ -37,8 +35,6 @@ import {
   buildReviewRegistrationPayload,
   buildCreateVenuePayload,
   buildUpdateVenuePayload,
-  buildCreateOfficialPayload,
-  buildUpdateOfficialPayload,
   buildCreateMatchPayload,
   buildUpdateMatchPayload,
   buildEnterMatchResultPayload,
@@ -151,28 +147,7 @@ const validId3 = '507f1f77bcf86cd799439013';
   assert(res.success && payload.name === 'Updated Arena' && payload.capacity === 2500, 'buildUpdateVenuePayload valid');
 }
 
-// 9. buildCreateOfficialPayload
-{
-  const payload = buildCreateOfficialPayload({
-    name: '  Alex Smith  ',
-    type: 'Referee',
-    active: true,
-  });
-  const res = createOfficialSchema.safeParse(payload);
-  assert(res.success && payload.name === 'Alex Smith' && payload.type === 'Referee', 'buildCreateOfficialPayload valid');
-}
-
-// 10. buildUpdateOfficialPayload
-{
-  const payload = buildUpdateOfficialPayload({
-    type: 'Assistant Referee',
-    active: false,
-  });
-  const res = updateOfficialSchema.safeParse(payload);
-  assert(res.success && payload.type === 'Assistant Referee' && payload.active === false, 'buildUpdateOfficialPayload valid');
-}
-
-// 11. buildCreateMatchPayload
+// 9. buildCreateMatchPayload
 {
   const payload = buildCreateMatchPayload({
     homeTeam: validId1,
@@ -187,15 +162,39 @@ const validId3 = '507f1f77bcf86cd799439013';
   assert(res.success && payload.round === 'Quarter Final' && payload.durationMinutes === 90, 'buildCreateMatchPayload valid');
 }
 
-// 12. buildUpdateMatchPayload
+// 10. createMatchSchema strictly rejects payload containing referee
+{
+  const payloadWithReferee = {
+    homeTeam: validId1,
+    awayTeam: validId2,
+    round: 'Quarter Final',
+    scheduledAt: '2026-11-02T14:00:00Z',
+    durationMinutes: 90,
+    venue: validId3,
+    referee: validId1,
+  };
+  const res = createMatchSchema.safeParse(payloadWithReferee);
+  assert(!res.success, 'createMatchSchema strictly rejects payload containing referee');
+}
+
+// 11. buildUpdateMatchPayload
 {
   const payload = buildUpdateMatchPayload({
     round: 'Semi Final',
     scheduledAt: '2026-11-04T16:00:00Z',
-    referee: null,
   });
   const res = updateMatchSchema.safeParse(payload);
-  assert(res.success && payload.round === 'Semi Final' && payload.referee === null, 'buildUpdateMatchPayload valid');
+  assert(res.success && payload.round === 'Semi Final', 'buildUpdateMatchPayload valid');
+}
+
+// 12. updateMatchSchema strictly rejects payload containing referee
+{
+  const updateWithReferee = {
+    round: 'Semi Final',
+    referee: validId1,
+  };
+  const res = updateMatchSchema.safeParse(updateWithReferee);
+  assert(!res.success, 'updateMatchSchema strictly rejects payload containing referee');
 }
 
 // 13. buildEnterMatchResultPayload

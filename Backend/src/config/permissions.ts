@@ -16,7 +16,6 @@ export type Resource =
   | 'tournaments'
   | 'registrations'
   | 'venues'
-  | 'officials'
   | 'matches'
   | 'reports'
   | 'contactMessages'
@@ -121,12 +120,6 @@ export const PERMISSION_MATRIX: Record<
     read: { roles: ['Admin', 'Organizer', 'Coach', 'Athlete'], status: 'enforced_now', description: 'View venues' },
     update: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or creator Organizer updates venue' },
     delete: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or creator Organizer deletes venue' },
-  },
-  officials: {
-    create: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or Organizer creates official' },
-    read: { roles: ['Admin', 'Organizer', 'Coach', 'Athlete'], status: 'enforced_now', description: 'View officials' },
-    update: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or creator Organizer updates official' },
-    delete: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or creator Organizer deletes official' },
   },
   matches: {
     create: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or owning Organizer schedules match' },

@@ -29,6 +29,7 @@
     "export:dashboard-fixtures": "tsx scripts/export-dashboard-fixtures.ts",
     "create:user": "tsx scripts/create-user.ts",
     "migrate:remove-official-role": "tsx scripts/remove-official-role.ts",
+    "migrate:remove-officials": "tsx scripts/remove-officials.ts",
     "verify:profile": "tsx scripts/verify-profile.ts"
   },
   "keywords": [

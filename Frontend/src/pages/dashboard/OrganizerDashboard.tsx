@@ -70,7 +70,7 @@ export const OrganizerDashboard: React.FC = () => {
             Tournament Hub <CrossAccent color="orange" size="lg" />
           </h1>
           <p className="text-sm text-white/80 mt-1 max-w-xl">
-            Create and sanction athletic tournaments, manage participating team registrations, allocate competition venues, and coordinate certified officials.
+            Create and sanction athletic tournaments, manage participating team registrations, and allocate competition venues.
           </p>
         </div>
 
@@ -83,11 +83,6 @@ export const OrganizerDashboard: React.FC = () => {
           <Link to="/dashboard/venues">
             <button className="px-5 py-2.5 bg-[#D8F500] text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full hover:bg-[#c4e000] transition-colors flex items-center gap-1.5">
               <MapPin size={16} /> Venues
-            </button>
-          </Link>
-          <Link to="/dashboard/officials">
-            <button className="px-5 py-2.5 bg-white/10 text-white font-display font-black text-xs uppercase tracking-wider rounded-full hover:bg-white/20 transition-colors flex items-center gap-1.5">
-              <UserCheck size={16} /> Officials
             </button>
           </Link>
         </div>

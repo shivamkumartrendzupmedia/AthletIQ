@@ -6,8 +6,6 @@ import {
   type ITournamentTeam,
   Venue,
   type IVenue,
-  Official,
-  type IOfficial,
   Match,
   type IMatch,
   MatchEvent,
@@ -708,116 +706,6 @@ export class TournamentService {
   }
 
   // ==========================================
-  // OFFICIALS
-  // ==========================================
-
-  async createOfficial(
-    data: { name: string; type: 'Referee' | 'Assistant Referee' | 'Scorer'; active?: boolean },
-    user: AuthUser
-  ): Promise<IOfficial> {
-    const official = await Official.create({
-      ...data,
-      createdBy: new Types.ObjectId(user.id),
-      active: data.active ?? true,
-    });
-
-    await AuditLog.create({
-      action: 'OFFICIAL_CREATED',
-      actor: new Types.ObjectId(user.id),
-      targetId: official._id,
-      targetType: 'Official',
-      meta: { officialId: official._id.toString() },
-    });
-
-    return official;
-  }
-
-  async listOfficials(user?: AuthUser): Promise<IOfficial[]> {
-    const filter: Record<string, unknown> = {};
-    if (!user || user.role !== 'Admin') {
-      filter.active = true;
-    }
-    return Official.find(filter).populate('user', 'name').sort({ name: 1 });
-  }
-
-  async updateOfficial(
-    id: string,
-    data: {
-      name?: string;
-      type?: 'Referee' | 'Assistant Referee' | 'Scorer';
-      active?: boolean;
-      user?: string | null;
-    },
-    user: AuthUser
-  ): Promise<IOfficial> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new ApiError(400, 'Invalid official ID');
-    }
-
-    const official = await Official.findById(id);
-    if (!official) {
-      throw new ApiError(404, 'Official not found');
-    }
-
-    if (user.role !== 'Admin' && official.createdBy.toString() !== user.id) {
-      throw new ApiError(404, 'Official not found');
-    }
-
-    const updateDoc: Record<string, unknown> = {};
-    if (data.name !== undefined) updateDoc.name = data.name;
-    if (data.type !== undefined) updateDoc.type = data.type;
-    if (data.active !== undefined) updateDoc.active = data.active;
-
-    const updateQuery: Record<string, unknown> = {};
-    if (Object.keys(updateDoc).length > 0) updateQuery.$set = updateDoc;
-
-    const updated = await Official.findByIdAndUpdate(id, updateQuery, { new: true });
-    if (!updated) {
-      throw new ApiError(404, 'Official not found');
-    }
-
-    await AuditLog.create({
-      action: 'OFFICIAL_UPDATED',
-      actor: new Types.ObjectId(user.id),
-      targetId: updated._id,
-      targetType: 'Official',
-      meta: { officialId: updated._id.toString() },
-    });
-
-    return updated;
-  }
-
-  async deleteOfficial(id: string, user: AuthUser): Promise<void> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new ApiError(400, 'Invalid official ID');
-    }
-
-    const official = await Official.findById(id);
-    if (!official) {
-      throw new ApiError(404, 'Official not found');
-    }
-
-    if (user.role !== 'Admin' && official.createdBy.toString() !== user.id) {
-      throw new ApiError(404, 'Official not found');
-    }
-
-    const matchCount = await Match.countDocuments({ referee: id });
-    if (matchCount > 0) {
-      throw new ApiError(409, 'Cannot delete official referenced by existing matches');
-    }
-
-    await Official.findByIdAndDelete(id);
-
-    await AuditLog.create({
-      action: 'OFFICIAL_DELETED',
-      actor: new Types.ObjectId(user.id),
-      targetId: new Types.ObjectId(id),
-      targetType: 'Official',
-      meta: { officialId: id },
-    });
-  }
-
-  // ==========================================
   // MATCHES
   // ==========================================
 
@@ -831,7 +719,6 @@ export class TournamentService {
       scheduledAt: string;
       durationMinutes?: number;
       venue: string;
-      referee?: string;
     },
     user: AuthUser
   ): Promise<IMatch> {
@@ -839,8 +726,7 @@ export class TournamentService {
       !Types.ObjectId.isValid(tournamentId) ||
       !Types.ObjectId.isValid(data.homeTeam) ||
       !Types.ObjectId.isValid(data.awayTeam) ||
-      !Types.ObjectId.isValid(data.venue) ||
-      (data.referee && !Types.ObjectId.isValid(data.referee))
+      !Types.ObjectId.isValid(data.venue)
     ) {
       throw new ApiError(400, 'Invalid ID format');
     }
@@ -891,7 +777,6 @@ export class TournamentService {
       venueId: data.venue,
       homeTeamId: data.homeTeam,
       awayTeamId: data.awayTeam,
-      refereeId: data.referee,
       scheduledAt,
       endsAt,
     });
@@ -906,12 +791,11 @@ export class TournamentService {
       durationMinutes,
       endsAt,
       venue: new Types.ObjectId(data.venue),
-      referee: data.referee ? new Types.ObjectId(data.referee) : undefined,
       status: 'Scheduled',
     });
 
     // Post-insert concurrency race check (Interval Query Window Rollback pattern from training.service.ts):
-    // Re-query overlapping matches for venue, teams, or referee excluding itself.
+    // Re-query overlapping matches for venue or teams excluding itself.
     // If another match exists with an earlier _id, revert and return 409.
     const venueRaceConflict = await Match.findOne({
       _id: { $ne: match._id },
@@ -940,21 +824,6 @@ export class TournamentService {
     if (teamRaceConflict && teamRaceConflict._id.toString() < match._id.toString()) {
       await Match.findByIdAndDelete(match._id);
       throw new ApiError(409, 'One of the teams is already scheduled for another match during this time window');
-    }
-
-    if (match.referee) {
-      const refRaceConflict = await Match.findOne({
-        _id: { $ne: match._id },
-        referee: match.referee,
-        status: { $ne: 'Cancelled' },
-        scheduledAt: { $lt: endsAt },
-        endsAt: { $gt: scheduledAt },
-      }).sort({ _id: 1 });
-
-      if (refRaceConflict && refRaceConflict._id.toString() < match._id.toString()) {
-        await Match.findByIdAndDelete(match._id);
-        throw new ApiError(409, 'Referee is already assigned to another match during this time window');
-      }
     }
 
     await AuditLog.create({
@@ -1001,7 +870,6 @@ export class TournamentService {
         populate: { path: 'team', select: 'name code logo' },
       })
       .populate('venue', 'name address')
-      .populate('referee', 'name type')
       .sort({ scheduledAt: 1 });
   }
 
@@ -1021,8 +889,7 @@ export class TournamentService {
         select: 'team status',
         populate: { path: 'team', select: 'name code logo' },
       })
-      .populate('venue', 'name address')
-      .populate('referee', 'name type');
+      .populate('venue', 'name address');
 
     if (!match) {
       throw new ApiError(404, 'Match not found');
@@ -1100,7 +967,6 @@ export class TournamentService {
       scheduledAt?: string;
       durationMinutes?: number;
       venue?: string;
-      referee?: string | null;
       status?: 'Scheduled' | 'Completed' | 'Cancelled';
     },
     user: AuthUser
@@ -1127,14 +993,12 @@ export class TournamentService {
     const durationMinutes = data.durationMinutes ?? match.durationMinutes;
     const endsAt = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
     const venueId = data.venue ?? match.venue.toString();
-    const refereeId = data.referee !== undefined ? data.referee : (match.referee ? match.referee.toString() : undefined);
 
-    if (data.scheduledAt || data.durationMinutes || data.venue || data.referee !== undefined) {
+    if (data.scheduledAt || data.durationMinutes || data.venue) {
       await this.checkMatchOverlaps({
         venueId,
         homeTeamId: match.homeTeam.toString(),
         awayTeamId: match.awayTeam.toString(),
-        refereeId: refereeId ?? undefined,
         scheduledAt,
         endsAt,
         excludeMatchId: id,
@@ -1147,16 +1011,13 @@ export class TournamentService {
       durationMinutes,
       endsAt,
     };
-    if (data.referee === null) {
-      updatePayload.referee = undefined;
-    }
 
     const updated = await Match.findByIdAndUpdate(id, updatePayload, { new: true });
     if (!updated) {
       throw new ApiError(404, 'Match not found');
     }
 
-    if (data.scheduledAt || data.durationMinutes || data.venue || data.referee !== undefined) {
+    if (data.scheduledAt || data.durationMinutes || data.venue) {
       const venueConflict = await Match.findOne({
         _id: { $ne: updated._id },
         venue: updated.venue,
@@ -1171,7 +1032,6 @@ export class TournamentService {
           durationMinutes: match.durationMinutes,
           endsAt: match.endsAt,
           venue: match.venue,
-          referee: match.referee,
         });
         throw new ApiError(409, 'Venue is already booked for another match during this time window');
       }
@@ -1193,30 +1053,8 @@ export class TournamentService {
           durationMinutes: match.durationMinutes,
           endsAt: match.endsAt,
           venue: match.venue,
-          referee: match.referee,
         });
         throw new ApiError(409, 'One of the teams is already scheduled for another match during this time window');
-      }
-
-      if (updated.referee) {
-        const refConflict = await Match.findOne({
-          _id: { $ne: updated._id },
-          referee: updated.referee,
-          status: { $ne: 'Cancelled' },
-          scheduledAt: { $lt: updated.endsAt },
-          endsAt: { $gt: updated.scheduledAt },
-        }).sort({ _id: 1 });
-
-        if (refConflict && refConflict._id.toString() < updated._id.toString()) {
-          await Match.findByIdAndUpdate(id, {
-            scheduledAt: match.scheduledAt,
-            durationMinutes: match.durationMinutes,
-            endsAt: match.endsAt,
-            venue: match.venue,
-            referee: match.referee,
-          });
-          throw new ApiError(409, 'Referee is already assigned to another match during this time window');
-        }
       }
     }
 
@@ -1333,7 +1171,6 @@ export class TournamentService {
     venueId: string;
     homeTeamId: string;
     awayTeamId: string;
-    refereeId?: string;
     scheduledAt: Date;
     endsAt: Date;
     excludeMatchId?: string;
@@ -1367,17 +1204,6 @@ export class TournamentService {
     });
     if (teamConflict) {
       throw new ApiError(409, 'One of the teams is already scheduled for another match during this time window');
-    }
-
-    // 3. Referee overlap
-    if (params.refereeId) {
-      const refConflict = await Match.findOne({
-        ...baseFilter,
-        referee: new Types.ObjectId(params.refereeId),
-      });
-      if (refConflict) {
-        throw new ApiError(409, 'Referee is already assigned to another match during this time window');
-      }
     }
   }
 

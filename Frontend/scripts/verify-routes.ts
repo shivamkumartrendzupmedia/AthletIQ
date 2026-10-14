@@ -177,7 +177,6 @@ const mustBeProtected = [
   '/dashboard/training',
   '/dashboard/tournaments',
   '/dashboard/venues',
-  '/dashboard/officials',
   '/dashboard/users',
   '/dashboard/achievements',
   '/dashboard/analytics',
@@ -266,7 +265,6 @@ console.log('\n--- SECTION G: Route allowedRoles specifications ---');
 
 const routeRoleExpectations: Array<{ route: string; roles: string[] }> = [
   { route: '/dashboard/organizer', roles: ['Organizer', 'Admin'] },
-  { route: '/dashboard/officials', roles: ['Admin', 'Organizer'] },
   { route: '/dashboard/venues', roles: ['Admin', 'Organizer'] },
   { route: '/dashboard/live', roles: ['Admin', 'Organizer'] },
   { route: '/dashboard/live/:matchId', roles: ['Admin', 'Organizer'] },
@@ -331,6 +329,32 @@ for (const r of rolesWithProfile) {
     fail(`Could not find sidebar config block for role "${r}"`);
   }
 }
+
+// ─── (j) Assert /dashboard/officials is NOT declared and NOT linked anywhere ──
+
+console.log('\n--- SECTION J: Official feature removal assertions ---');
+
+assertPass(
+  !declaredPaths.includes('/dashboard/officials'),
+  'Route "/dashboard/officials" is NOT declared in App.tsx',
+);
+
+assertPass(
+  !layoutSrc.includes('/dashboard/officials'),
+  'DashboardLayout sidebar config contains no link to "/dashboard/officials"',
+);
+
+const navbarSrc = fs.readFileSync(path.resolve(SRC, 'components/Navbar.tsx'), 'utf-8');
+assertPass(
+  !navbarSrc.includes('/dashboard/officials'),
+  'Navbar contains no link to "/dashboard/officials"',
+);
+
+const footerSrc = fs.readFileSync(path.resolve(SRC, 'components/Footer.tsx'), 'utf-8');
+assertPass(
+  !footerSrc.includes('/dashboard/officials'),
+  'Footer contains no link to "/dashboard/officials"',
+);
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
 

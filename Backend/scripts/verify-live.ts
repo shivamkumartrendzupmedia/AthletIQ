@@ -19,7 +19,6 @@ import {
   Tournament,
   TournamentTeam,
   Venue,
-  Official,
   Match,
   MatchEvent,
   ContactMessage,
@@ -109,7 +108,6 @@ const createdAthleteIds: Types.ObjectId[] = [];
 const createdTournamentIds: Types.ObjectId[] = [];
 const createdTournamentTeamIds: Types.ObjectId[] = [];
 const createdVenueIds: Types.ObjectId[] = [];
-const createdOfficialIds: Types.ObjectId[] = [];
 const createdMatchIds: Types.ObjectId[] = [];
 const createdMatchEventIds: Types.ObjectId[] = [];
 
@@ -130,7 +128,7 @@ async function getCollectionCounts() {
     tournaments: await Tournament.countDocuments(),
     tournamentTeams: await TournamentTeam.countDocuments(),
     venues: await Venue.countDocuments(),
-    officials: await Official.countDocuments(),
+    officials: await mongoose.connection.collection('officials').countDocuments(),
     matches: await Match.countDocuments(),
     matchEvents: await MatchEvent.countDocuments(),
     auditLogs: await AuditLog.countDocuments(),
@@ -318,23 +316,6 @@ async function run() {
   });
   createdAthleteIds.push(athB1._id);
 
-  // Official records
-  const officialAssignedRec = await Official.create({
-    name: 'Pierluigi Collina',
-    type: 'Referee',
-    createdBy: orgOwnerUser._id,
-    active: true,
-  });
-  createdOfficialIds.push(officialAssignedRec._id);
-
-  const officialOtherRec = await Official.create({
-    name: 'Howard Webb',
-    type: 'Referee',
-    createdBy: orgOwnerUser._id,
-    active: true,
-  });
-  createdOfficialIds.push(officialOtherRec._id);
-
   // Venues
   const venue1 = await Venue.create({
     name: `Camp Nou Pitch ${Date.now()}`,
@@ -397,7 +378,7 @@ async function run() {
   });
   createdTournamentTeamIds.push(regB._id);
 
-  // Match 1: In tourney1, scheduled now, referee is officialAssignedRec
+  // Match 1: In tourney1, scheduled now
   const now = new Date();
   const match1 = await Match.create({
     tournament: tourney1._id,
@@ -408,7 +389,6 @@ async function run() {
     durationMinutes: 90,
     endsAt: new Date(now.getTime() + 80 * 60 * 1000),
     venue: venue1._id,
-    referee: officialAssignedRec._id,
     status: 'Scheduled',
     liveScore: { home: 0, away: 0 },
   });
@@ -587,7 +567,6 @@ async function run() {
       durationMinutes: 90,
       endsAt: new Date(Date.now() + 3.5 * 60 * 60 * 1000),
       venue: venue1._id,
-      referee: officialAssignedRec._id,
       status: 'Scheduled',
     });
     createdMatchIds.push(futureMatch._id);
@@ -639,7 +618,6 @@ async function run() {
       durationMinutes: 90,
       endsAt: new Date(Date.now() + 85 * 60 * 1000),
       venue: venue1._id,
-      referee: officialAssignedRec._id,
       status: 'Scheduled',
     });
     createdMatchIds.push(draftMatch._id);
@@ -662,7 +640,6 @@ async function run() {
       durationMinutes: 90,
       endsAt: new Date(Date.now() + 80 * 60 * 1000),
       venue: venue1._id,
-      referee: officialAssignedRec._id,
       status: 'Scheduled',
     });
     createdMatchIds.push(validMatch._id);
@@ -731,7 +708,6 @@ async function run() {
       durationMinutes: 90,
       endsAt: new Date(Date.now() + 100 * 60 * 1000),
       venue: venue1._id,
-      referee: officialAssignedRec._id,
       status: 'Scheduled',
     });
     createdMatchIds.push(cancelMatch._id);
@@ -762,7 +738,6 @@ async function run() {
       durationMinutes: 90,
       endsAt: new Date(Date.now() + 85 * 60 * 1000),
       venue: venue1._id,
-      referee: officialAssignedRec._id,
       status: 'Scheduled',
     });
     createdMatchIds.push(raceMatch._id);
@@ -813,7 +788,6 @@ async function run() {
       durationMinutes: 90,
       endsAt: new Date(Date.now() + 80 * 60 * 1000),
       venue: venue1._id,
-      referee: officialAssignedRec._id,
       status: 'Scheduled',
       liveScore: { home: 0, away: 0 },
     });
@@ -1398,160 +1372,7 @@ async function run() {
     assert(resAssigned404Org.status === 404, 'GET /api/matches/assigned returns 404 for Organizer');
     g8Pass++;
 
-    // 5. PATCH /api/officials/:id with { user } = 400
-    const resPatchUser = await srv8.fetchGroup(`/officials/${officialAssignedRec._id}`, {
-      method: 'PATCH',
-      headers: adminAuth,
-      body: JSON.stringify({ user: adminUser._id.toString() }),
-    });
-    assert(resPatchUser.status === 400, 'PATCH /api/officials/:id with { user } returns 400');
-    g8Pass++;
-
-    // 6. Official RECORD create/update/delete works for Admin and Organizer (403 for Coach and Athlete)
-    // 6a. Admin creates Official RECORD (201)
-    const resAdminCreateOff = await srv8.fetchGroup('/officials', {
-      method: 'POST',
-      headers: adminAuth,
-      body: JSON.stringify({
-        name: `Admin Ref ${Date.now()}`,
-        type: 'Referee',
-      }),
-    });
-    assert(resAdminCreateOff.status === 201, 'Official RECORD create works for Admin (201)');
-    g8Pass++;
-    const adminCreatedOff = (resAdminCreateOff.body as { data: { id: string } }).data;
-    createdOfficialIds.push(new Types.ObjectId(adminCreatedOff.id));
-
-    // 6b. Organizer creates Official RECORD (201)
-    const resOrgCreateOff = await srv8.fetchGroup('/officials', {
-      method: 'POST',
-      headers: orgOwnerAuth,
-      body: JSON.stringify({
-        name: `Org Ref ${Date.now()}`,
-        type: 'Assistant Referee',
-      }),
-    });
-    assert(resOrgCreateOff.status === 201, 'Official RECORD create works for Organizer (201)');
-    g8Pass++;
-    const orgCreatedOff = (resOrgCreateOff.body as { data: { id: string } }).data;
-    createdOfficialIds.push(new Types.ObjectId(orgCreatedOff.id));
-
-    // 6c. Coach and Athlete get 403 on Official create
-    const resCoachCreateOff = await srv8.fetchGroup('/officials', {
-      method: 'POST',
-      headers: coachAuth,
-      body: JSON.stringify({ name: 'Hacked Ref', type: 'Referee' }),
-    });
-    assert(resCoachCreateOff.status === 403, 'Official RECORD create returns 403 for Coach');
-    g8Pass++;
-
-    const resAthleteCreateOff = await srv8.fetchGroup('/officials', {
-      method: 'POST',
-      headers: athleteAuth,
-      body: JSON.stringify({ name: 'Hacked Ref', type: 'Referee' }),
-    });
-    assert(resAthleteCreateOff.status === 403, 'Official RECORD create returns 403 for Athlete');
-    g8Pass++;
-
-    // 6d. Update works for Admin and owning Organizer (403 for Coach and Athlete)
-    const resAdminUpdateOff = await srv8.fetchGroup(`/officials/${adminCreatedOff.id}`, {
-      method: 'PATCH',
-      headers: adminAuth,
-      body: JSON.stringify({ name: 'Admin Ref Renamed' }),
-    });
-    assert(resAdminUpdateOff.status === 200, 'Official RECORD update works for Admin (200)');
-    g8Pass++;
-
-    const resOrgUpdateOff = await srv8.fetchGroup(`/officials/${orgCreatedOff.id}`, {
-      method: 'PATCH',
-      headers: orgOwnerAuth,
-      body: JSON.stringify({ name: 'Org Ref Renamed' }),
-    });
-    assert(resOrgUpdateOff.status === 200, 'Official RECORD update works for owning Organizer (200)');
-    g8Pass++;
-
-    const resCoachUpdateOff = await srv8.fetchGroup(`/officials/${adminCreatedOff.id}`, {
-      method: 'PATCH',
-      headers: coachAuth,
-      body: JSON.stringify({ name: 'Coach Renamed' }),
-    });
-    assert(resCoachUpdateOff.status === 403, 'Official RECORD update returns 403 for Coach');
-    g8Pass++;
-
-    const resAthleteUpdateOff = await srv8.fetchGroup(`/officials/${adminCreatedOff.id}`, {
-      method: 'PATCH',
-      headers: athleteAuth,
-      body: JSON.stringify({ name: 'Athlete Renamed' }),
-    });
-    assert(resAthleteUpdateOff.status === 403, 'Official RECORD update returns 403 for Athlete');
-    g8Pass++;
-
-    // 6e. Delete works for Admin and owning Organizer
-    const resAdminDelOff = await srv8.fetchGroup(`/officials/${adminCreatedOff.id}`, {
-      method: 'DELETE',
-      headers: adminAuth,
-    });
-    assert(resAdminDelOff.status === 200, 'Official RECORD delete works for Admin (200)');
-    g8Pass++;
-
-    const resOrgDelOff = await srv8.fetchGroup(`/officials/${orgCreatedOff.id}`, {
-      method: 'DELETE',
-      headers: orgOwnerAuth,
-    });
-    assert(resOrgDelOff.status === 200, 'Official RECORD delete works for owning Organizer (200)');
-    g8Pass++;
-
-    // 7. Assigning a referee to a match works and the referee overlap still returns 409
-    const testOffRecAssign = await Official.create({
-      name: `Referee Overlap Test ${Date.now()}`,
-      type: 'Referee',
-      createdBy: orgOwnerUser._id,
-      active: true,
-    });
-    createdOfficialIds.push(testOffRecAssign._id);
-
-    const mOverlap1 = await Match.create({
-      tournament: tourney1._id,
-      homeTeam: regA._id,
-      awayTeam: regB._id,
-      round: 'Round 10',
-      scheduledAt: new Date(Date.now() + 5 * 60 * 60 * 1000),
-      durationMinutes: 90,
-      endsAt: new Date(Date.now() + 6.5 * 60 * 60 * 1000),
-      venue: venue1._id,
-      referee: testOffRecAssign._id,
-      status: 'Scheduled',
-    });
-    createdMatchIds.push(mOverlap1._id);
-    assert(mOverlap1.referee?.toString() === testOffRecAssign._id.toString(), 'Assigning referee to match works');
-    g8Pass++;
-
-    // Overlapping match creation via API returns 409
-    const venue2 = await Venue.create({
-      name: `Pitch 2 ${Date.now()}`,
-      address: 'Other Way 2',
-      capacity: 10000,
-      createdBy: orgOwnerUser._id,
-      active: true,
-    });
-    createdVenueIds.push(venue2._id);
-
-    const resOverlapMatch = await srv8.fetchGroup(`/tournaments/${tourney1._id}/matches`, {
-      method: 'POST',
-      headers: orgOwnerAuth,
-      body: JSON.stringify({
-        homeTeam: regA._id.toString(),
-        awayTeam: regB._id.toString(),
-        round: 'Round 11',
-        scheduledAt: new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString(),
-        venue: venue2._id.toString(),
-        referee: testOffRecAssign._id.toString(),
-      }),
-    });
-    assert(resOverlapMatch.status === 409, 'Assigning overlapping referee returns 409 conflict');
-    g8Pass++;
-
-    // 8. Live workflow works for Admin and the owning Organizer, 404 for another Organizer, 403 for Coach and Athlete on every live write endpoint
+    // 5. Live workflow works for Admin and the owning Organizer, 404 for another Organizer, 403 for Coach and Athlete on every live write endpoint
     const liveTestMatch = await Match.create({
       tournament: tourney1._id,
       homeTeam: regA._id,
@@ -1561,7 +1382,6 @@ async function run() {
       durationMinutes: 90,
       endsAt: new Date(Date.now() + 80 * 60 * 1000),
       venue: venue1._id,
-      referee: testOffRecAssign._id,
       status: 'Live',
       startedAt: new Date(),
     });
@@ -1772,10 +1592,6 @@ async function run() {
   if (createdVenueIds.length > 0) {
     const r = await Venue.deleteMany({ _id: { $in: createdVenueIds } });
     console.log(`Deleted ${r.deletedCount} test Venues`);
-  }
-  if (createdOfficialIds.length > 0) {
-    const r = await Official.deleteMany({ _id: { $in: createdOfficialIds } });
-    console.log(`Deleted ${r.deletedCount} test Officials`);
   }
   if (createdAthleteIds.length > 0) {
     const r = await Athlete.deleteMany({ _id: { $in: createdAthleteIds } });

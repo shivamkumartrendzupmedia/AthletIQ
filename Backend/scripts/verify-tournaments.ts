@@ -19,13 +19,14 @@ import {
   Tournament,
   TournamentTeam,
   Venue,
-  Official,
   Match,
+  MatchEvent,
   Notification,
 } from '../src/models/index.js';
 import { hashPassword } from '../src/utils/password.js';
 import { signAccessToken } from '../src/utils/jwt.js';
 import { findOrphans } from './cleanup-test-orphans.js';
+import { ROLE_TOOLS } from '../src/services/chatbot/tools.registry.js';
 
 let passed = 0;
 let failed = 0;
@@ -166,7 +167,6 @@ async function run(): Promise<void> {
     tournaments: await Tournament.countDocuments(),
     tournamentTeams: await TournamentTeam.countDocuments(),
     venues: await Venue.countDocuments(),
-    officials: await Official.countDocuments(),
     matches: await Match.countDocuments(),
     auditLogs: await AuditLog.countDocuments(),
   };
@@ -182,7 +182,6 @@ async function run(): Promise<void> {
   const createdTourneyIds: Types.ObjectId[] = [];
   const createdRegIds: Types.ObjectId[] = [];
   const createdVenueIds: Types.ObjectId[] = [];
-  const createdOfficialIds: Types.ObjectId[] = [];
   const createdMatchIds: Types.ObjectId[] = [];
 
   const runId = Math.random().toString(36).substring(2, 9);
@@ -364,7 +363,6 @@ async function run(): Promise<void> {
     let baselineRegId = '';
     let baselineRegBId = '';
     let baselineVenueId = '';
-    let baselineOfficialId = '';
     let baselineMatchId = '';
 
     // ==============================================================
@@ -412,15 +410,6 @@ async function run(): Promise<void> {
       baselineVenueId = (venueRes.body as { data: { id: string } }).data.id;
       createdVenueIds.push(new Types.ObjectId(baselineVenueId));
 
-      const officialRes = await fetch1A('/officials', {
-        method: 'POST',
-        headers: orgAAuth,
-        body: JSON.stringify({ name: `Head Ref ${runId}`, type: 'Referee' }),
-      });
-      assert(officialRes.status === 201, 'Organizer A creates baseline official (201)');
-      baselineOfficialId = (officialRes.body as { data: { id: string } }).data.id;
-      createdOfficialIds.push(new Types.ObjectId(baselineOfficialId));
-
       await fetch1A(`/registrations/${baselineRegId}/review`, {
         method: 'PATCH',
         headers: orgAAuth,
@@ -451,7 +440,6 @@ async function run(): Promise<void> {
           scheduledAt: new Date(Date.now() + 2 * 86400000).toISOString(),
           durationMinutes: 90,
           venue: baselineVenueId,
-          referee: baselineOfficialId,
         }),
       });
       assert(matchRes.status === 201, 'Organizer A schedules baseline match (201)');
@@ -617,14 +605,6 @@ async function run(): Promise<void> {
       ]);
       createdVenueIds.push(vDelAdm._id, vDelOrg._id, vDelOth._id);
 
-      // Dedicated unreferenced officials for DELETE testing
-      const [offDelAdm, offDelOrg, offDelOth] = await Promise.all([
-        Official.create({ name: `OffDelAdm ${runId}`, type: 'Referee', createdBy: adminUser._id }),
-        Official.create({ name: `OffDelOrg ${runId}`, type: 'Referee', createdBy: orgAUser._id }),
-        Official.create({ name: `OffDelOth ${runId}`, type: 'Referee', createdBy: orgAUser._id }),
-      ]);
-      createdOfficialIds.push(offDelAdm._id, offDelOrg._id, offDelOth._id);
-
       // Dedicated past scheduled matches for result entry
       const pastTime = new Date(Date.now() - 4 * 3600000); // 4 hours ago
       const [pastMAdm, pastMOrg, pastMOth] = await Promise.all([
@@ -668,32 +648,6 @@ async function run(): Promise<void> {
             if (roleName === 'Admin') return `/venues/${vDelAdm._id}`;
             if (roleName === 'Organizer A') return `/venues/${vDelOrg._id}`;
             return `/venues/${vDelOth._id}`;
-          },
-        },
-        {
-          name: 'POST /officials',
-          method: 'POST',
-          getPath: () => '/officials',
-          getBody: () => ({ name: `Off2 ${runId}`, type: 'Scorer' }),
-        },
-        {
-          name: 'GET /officials',
-          method: 'GET',
-          getPath: () => '/officials',
-        },
-        {
-          name: 'PATCH /officials/:id',
-          method: 'PATCH',
-          getPath: () => `/officials/${baselineOfficialId}`,
-          getBody: () => ({ name: 'O-Edit' }),
-        },
-        {
-          name: 'DELETE /officials/:id',
-          method: 'DELETE',
-          getPath: (roleName: string) => {
-            if (roleName === 'Admin') return `/officials/${offDelAdm._id}`;
-            if (roleName === 'Organizer A') return `/officials/${offDelOrg._id}`;
-            return `/officials/${offDelOth._id}`;
           },
         },
         {
@@ -781,7 +735,6 @@ async function run(): Promise<void> {
             if (createdIdStr) {
               const objId = new Types.ObjectId(createdIdStr);
               if (path === '/venues') createdVenueIds.push(objId);
-              else if (path === '/officials') createdOfficialIds.push(objId);
               else if (path.includes('/matches')) createdMatchIds.push(objId);
             }
           }
@@ -826,13 +779,6 @@ async function run(): Promise<void> {
       });
       createdVenueIds.push(venueA._id);
 
-      const officialA = await Official.create({
-        name: `Official A ${runId}`,
-        type: 'Referee',
-        createdBy: orgAUser._id,
-      });
-      createdOfficialIds.push(officialA._id);
-
       // Organizer B attempting to update/delete Org A's tournament => 404
       const orgBUpdateTourney = await fetch2(`/tournaments/${tourneyA._id}`, {
         method: 'PATCH',
@@ -860,20 +806,6 @@ async function run(): Promise<void> {
         headers: orgBAuth,
       });
       assert(orgBDeleteVenue.status === 404, 'Organizer B deleting Organizer A venue returns 404');
-
-      // Organizer B updating/deleting Org A's official => 404
-      const orgBUpdateOfficial = await fetch2(`/officials/${officialA._id}`, {
-        method: 'PATCH',
-        headers: orgBAuth,
-        body: JSON.stringify({ name: 'Hacked Official' }),
-      });
-      assert(orgBUpdateOfficial.status === 404, 'Organizer B updating Organizer A official returns 404');
-
-      const orgBDeleteOfficial = await fetch2(`/officials/${officialA._id}`, {
-        method: 'DELETE',
-        headers: orgBAuth,
-      });
-      assert(orgBDeleteOfficial.status === 404, 'Organizer B deleting Organizer A official returns 404');
 
       // Coach B scoping: Coach B attempting to register Team A (coached by Coach A) => 404
       const coachBRegTeamA = await fetch2(`/tournaments/${tourneyA._id}/registrations`, {
@@ -1416,18 +1348,6 @@ async function run(): Promise<void> {
       });
       createdVenueIds.push(testVenue._id, testVenue2._id);
 
-      const testOfficial = await Official.create({
-        name: `Referee Smith ${runId}`,
-        type: 'Referee',
-        createdBy: orgAUser._id,
-      });
-      const testOfficial2 = await Official.create({
-        name: `Referee Jones ${runId}`,
-        type: 'Referee',
-        createdBy: orgAUser._id,
-      });
-      createdOfficialIds.push(testOfficial._id, testOfficial2._id);
-
       // Same team twice => 400
       const sameTeamMatch = await fetch5(`/tournaments/${matchTourney._id}/matches`, {
         method: 'POST',
@@ -1469,7 +1389,6 @@ async function run(): Promise<void> {
             scheduledAt: matchTime.toISOString(),
             durationMinutes: 90,
             venue: testVenue._id.toString(),
-            referee: testOfficial._id.toString(),
           }),
         }),
         fetch5(`/tournaments/${matchTourney._id}/matches`, {
@@ -1482,7 +1401,6 @@ async function run(): Promise<void> {
             scheduledAt: new Date(matchTime.getTime() + 30 * 60000).toISOString(), // 30 mins later => inside 90m window
             durationMinutes: 90,
             venue: testVenue._id.toString(),
-            referee: testOfficial._id.toString(),
           }),
         }),
       ]);
@@ -1510,28 +1428,11 @@ async function run(): Promise<void> {
           scheduledAt: winningScheduledAt,
           durationMinutes: 90,
           venue: testVenue2._id.toString(),
-          referee: testOfficial2._id.toString(),
         }),
       });
       assert(teamOverlapMatch.status === 409, 'Team overlap (home team in two matches at the same time) returns 409');
 
-      // Referee overlap => 409
-      const refOverlapMatch = await fetch5(`/tournaments/${matchTourney._id}/matches`, {
-        method: 'POST',
-        headers: orgAAuth,
-        body: JSON.stringify({
-          homeTeam: regX._id.toString(),
-          awayTeam: regY._id.toString(),
-          round: 'Round 1',
-          scheduledAt: winningScheduledAt,
-          durationMinutes: 90,
-          venue: testVenue2._id.toString(),
-          referee: testOfficial._id.toString(),
-        }),
-      });
-      assert(refOverlapMatch.status === 409, 'Referee overlap returns 409');
-
-      // Same time at a DIFFERENT venue with different teams/referee => 201
+      // Same time at a DIFFERENT venue with different teams => 201
       const diffVenueMatch = await fetch5(`/tournaments/${matchTourney._id}/matches`, {
         method: 'POST',
         headers: orgAAuth,
@@ -1542,10 +1443,9 @@ async function run(): Promise<void> {
           scheduledAt: winningScheduledAt,
           durationMinutes: 90,
           venue: testVenue2._id.toString(),
-          referee: testOfficial2._id.toString(),
         }),
       });
-      assert(diffVenueMatch.status === 201, 'Same time at a DIFFERENT venue with different teams/referee returns 201');
+      assert(diffVenueMatch.status === 201, 'Same time at a DIFFERENT venue with different teams returns 201');
       const diffMId = (diffVenueMatch.body as { data: { id: string } }).data.id;
       createdMatchIds.push(new Types.ObjectId(diffMId));
 
@@ -1579,13 +1479,6 @@ async function run(): Promise<void> {
         headers: orgAAuth,
       });
       assert(delRefVenue.status === 409, 'Deleting venue referenced by match returns 409');
-
-      // Attempt deleting official while referenced by scheduled match => 409
-      const delRefOfficial = await fetch5(`/officials/${testOfficial._id}`, {
-        method: 'DELETE',
-        headers: orgAAuth,
-      });
-      assert(delRefOfficial.status === 409, 'Deleting official referenced by match returns 409');
 
       // Result entry for future match returns 400
       const earlyResult = await fetch5(`/matches/${winningMatchId}/result`, {
@@ -1858,14 +1751,6 @@ async function run(): Promise<void> {
       });
       assert(unknownVenueBody.status === 400, 'NoSQL operator in venue body returns 400');
 
-      // Body injection on official create
-      const unknownOffBody = await fetch7('/officials', {
-        method: 'POST',
-        headers: orgAAuth,
-        body: JSON.stringify({ name: `Off Inj ${runId}`, type: 'Referee', unknownField: 'test' }),
-      });
-      assert(unknownOffBody.status === 400, 'Unknown field in official body returns 400');
-
       // Body injection on match create
       const unknownMatchBody = await fetch7(`/tournaments/${baselineTourneyId}/matches`, {
         method: 'POST',
@@ -1895,6 +1780,211 @@ async function run(): Promise<void> {
     } finally {
       await group7.close();
     }
+
+    // ==============================================================
+    // GROUP 8: OFFICIAL (REFEREE) FEATURE REMOVAL VERIFICATION
+    // ==============================================================
+    console.log('\n--- GROUP 8: OFFICIAL FEATURE REMOVAL VERIFICATION ---');
+    const { group: group8, fetchGroup: fetch8 } = startServerGroup();
+
+    try {
+      // 1. GET / POST / PATCH / DELETE /api/officials = 404 for every role
+      const testRoles = [
+        { name: 'Admin', headers: adminAuth },
+        { name: 'Organizer A', headers: orgAAuth },
+        { name: 'Coach A', headers: coachAAuth },
+        { name: 'Athlete A1', headers: athleteAAuth },
+      ];
+
+      for (const r of testRoles) {
+        const getOff = await fetch8('/officials', { method: 'GET', headers: r.headers });
+        assert(getOff.status === 404, `GET /api/officials returns 404 for ${r.name}`);
+
+        const postOff = await fetch8('/officials', {
+          method: 'POST',
+          headers: r.headers,
+          body: JSON.stringify({ name: 'Ref Test', type: 'Referee' }),
+        });
+        assert(postOff.status === 404, `POST /api/officials returns 404 for ${r.name}`);
+
+        const fakeId = new Types.ObjectId().toString();
+        const patchOff = await fetch8(`/officials/${fakeId}`, {
+          method: 'PATCH',
+          headers: r.headers,
+          body: JSON.stringify({ name: 'Ref Patch' }),
+        });
+        assert(patchOff.status === 404, `PATCH /api/officials/:id returns 404 for ${r.name}`);
+
+        const delOff = await fetch8(`/officials/${fakeId}`, {
+          method: 'DELETE',
+          headers: r.headers,
+        });
+        assert(delOff.status === 404, `DELETE /api/officials/:id returns 404 for ${r.name}`);
+      }
+
+      // 2. Match create / update body containing referee = 400
+      const fakeRefId = new Types.ObjectId().toString();
+      const matchCreateWithReferee = await fetch8(`/tournaments/${baselineTourneyId}/matches`, {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          homeTeam: baselineRegId,
+          awayTeam: baselineRegBId,
+          round: 'RefTest',
+          scheduledAt: new Date(Date.now() + 150 * 86400000).toISOString(),
+          durationMinutes: 90,
+          venue: baselineVenueId,
+          referee: fakeRefId,
+        }),
+      });
+      assert(matchCreateWithReferee.status === 400, 'Match create body containing "referee" returns 400');
+
+      const matchUpdateWithReferee = await fetch8(`/matches/${baselineMatchId}`, {
+        method: 'PATCH',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          referee: fakeRefId,
+        }),
+      });
+      assert(matchUpdateWithReferee.status === 400, 'Match update body containing "referee" returns 400');
+
+      // 3. Match responses (private and public) contain no "referee" key (deep scan)
+      const privMatchRes = await fetch8(`/matches/${baselineMatchId}`, {
+        method: 'GET',
+        headers: orgAAuth,
+      });
+      assert(privMatchRes.status === 200, 'GET /matches/:id returns 200');
+      const privKeys = deepFindKeys(privMatchRes.body, ['referee']);
+      assert(privKeys.length === 0, 'Private match response contains NO "referee" key');
+
+      const pubMatchRes = await fetch8(`/public/tournaments/${baselineTourneyId}/matches`, {
+        method: 'GET',
+      });
+      assert(pubMatchRes.status === 200, 'GET /public/tournaments/:id/matches returns 200');
+      const pubKeys = deepFindKeys(pubMatchRes.body, ['referee']);
+      assert(pubKeys.length === 0, 'Public match list response contains NO "referee" key');
+
+      // 4. Match can still be created, rescheduled, started, scored, and completed
+      await Tournament.updateOne(
+        { _id: new Types.ObjectId(baselineTourneyId) },
+        { $set: { status: 'In Progress' } }
+      );
+      const g8MatchTime = new Date(Date.now() + 200 * 86400000);
+      const createG8Match = await fetch8(`/tournaments/${baselineTourneyId}/matches`, {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          homeTeam: baselineRegId,
+          awayTeam: baselineRegBId,
+          round: 'G8Flow',
+          scheduledAt: g8MatchTime.toISOString(),
+          durationMinutes: 90,
+          venue: baselineVenueId,
+        }),
+      });
+      assert(createG8Match.status === 201, 'Match can still be created without referee (201)');
+      const g8MatchId = (createG8Match.body as { data: { id: string } }).data.id;
+      createdMatchIds.push(new Types.ObjectId(g8MatchId));
+
+      const readyTime = new Date(Date.now() - 5 * 60 * 1000);
+      const reschedG8Match = await fetch8(`/matches/${g8MatchId}`, {
+        method: 'PATCH',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          scheduledAt: readyTime.toISOString(),
+        }),
+      });
+      assert(reschedG8Match.status === 200, 'Match can still be rescheduled (200)');
+
+      // 5. Venue and Team overlap rules still return 409
+      const overlapVenueMatch = await fetch8(`/tournaments/${baselineTourneyId}/matches`, {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({
+          homeTeam: baselineRegId,
+          awayTeam: baselineRegBId,
+          round: 'OverlapTest',
+          scheduledAt: readyTime.toISOString(),
+          durationMinutes: 90,
+          venue: baselineVenueId,
+        }),
+      });
+      assert(overlapVenueMatch.status === 409, 'Venue overlap rule still returns 409');
+
+      // 6. Admin and Owning Organizer can still run live workflow; Coach and Athlete get 403 on live writes
+      const liveStartMatch = await fetch8(`/matches/${g8MatchId}/status`, {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({ status: 'Live' }),
+      });
+      assert(liveStartMatch.status === 200, 'Owning Organizer can transition match to Live (200)');
+
+      const coachLiveWrite = await fetch8(`/matches/${g8MatchId}/events`, {
+        method: 'POST',
+        headers: coachAAuth,
+        body: JSON.stringify({ type: 'Goal', side: 'home', minute: 10 }),
+      });
+      assert(coachLiveWrite.status === 403, 'Coach gets 403 on live write endpoint');
+
+      const athleteLiveWrite = await fetch8(`/matches/${g8MatchId}/events`, {
+        method: 'POST',
+        headers: athleteAAuth,
+        body: JSON.stringify({ type: 'Goal', side: 'home', minute: 10 }),
+      });
+      assert(athleteLiveWrite.status === 403, 'Athlete gets 403 on live write endpoint');
+
+      const adminLiveScore = await fetch8(`/matches/${g8MatchId}/events`, {
+        method: 'POST',
+        headers: adminAuth,
+        body: JSON.stringify({ type: 'Goal', side: 'home', minute: 15 }),
+      });
+      assert(adminLiveScore.status === 201, 'Admin can log live match event (201)');
+      assert(Boolean((adminLiveScore.body as { data: { id: string } }).data?.id), 'Event ID returned');
+
+      const completeLiveMatch = await fetch8(`/matches/${g8MatchId}/status`, {
+        method: 'POST',
+        headers: orgAAuth,
+        body: JSON.stringify({ status: 'Completed' }),
+      });
+      assert(completeLiveMatch.status === 200, 'Match can still be completed via live workflow (200)');
+
+      // 7. Admin, Coach, Athlete, and Organizer chatbot tool lists are unchanged
+      const adminTools = ROLE_TOOLS.Admin;
+      const coachTools = ROLE_TOOLS.Coach;
+      const athleteTools = ROLE_TOOLS.Athlete;
+      const orgTools = ROLE_TOOLS.Organizer;
+
+      const expectedAdminTools = [
+        'getPublicInfo',
+        'getStandings',
+        'getMyNotificationsSummary',
+        'getAcademyOverview',
+        'getPendingRegistrationsCount',
+        'getUnreadContactMessagesCount',
+      ];
+      const expectedOrgTools = [
+        'getPublicInfo',
+        'getStandings',
+        'getMyNotificationsSummary',
+        'getMyTournaments',
+        'getMyRegistrationsSummary',
+        'getMyUpcomingMatches',
+      ];
+
+      assert(JSON.stringify(adminTools) === JSON.stringify(expectedAdminTools), 'Admin chatbot tool list is unchanged');
+      assert(JSON.stringify(orgTools) === JSON.stringify(expectedOrgTools), 'Organizer chatbot tool list is unchanged');
+      assert(coachTools.length === 8, 'Coach chatbot tool list length is unchanged (8 tools)');
+      assert(athleteTools.length === 11, 'Athlete chatbot tool list length is unchanged (11 tools)');
+
+      // 8. Migration dry-run shows 0 matches with a referee
+      const matchesWithRef = await Match.countDocuments({ referee: { $exists: true, $ne: null } });
+      assert(matchesWithRef === 0, 'Database contains 0 matches with a referee field');
+
+      assert(group8.getRequestCount() < 90, `Group 8 request count (${group8.getRequestCount()}) strictly < 90`);
+      groupCounts.push({ name: 'Group 8', count: group8.getRequestCount() });
+    } finally {
+      await group8.close();
+    }
   } finally {
     // ==============================================================
     // CLEANUP: ONLY TEST-CREATED IDS
@@ -1902,10 +1992,8 @@ async function run(): Promise<void> {
     console.log('\n--- CLEANING UP CREATED TEST RESOURCES ---');
 
     if (createdMatchIds.length > 0) {
+      await MatchEvent.deleteMany({ match: { $in: createdMatchIds } });
       await Match.deleteMany({ _id: { $in: createdMatchIds } });
-    }
-    if (createdOfficialIds.length > 0) {
-      await Official.deleteMany({ _id: { $in: createdOfficialIds } });
     }
     if (createdVenueIds.length > 0) {
       await Venue.deleteMany({ _id: { $in: createdVenueIds } });
@@ -1951,7 +2039,6 @@ async function run(): Promise<void> {
       tournaments: await Tournament.countDocuments(),
       tournamentTeams: await TournamentTeam.countDocuments(),
       venues: await Venue.countDocuments(),
-      officials: await Official.countDocuments(),
       matches: await Match.countDocuments(),
       auditLogs: await AuditLog.countDocuments(),
     };
@@ -1973,7 +2060,6 @@ async function run(): Promise<void> {
     assert(finalCounts.tournaments === initialCounts.tournaments, `Tournaments count restored (${finalCounts.tournaments} === ${initialCounts.tournaments})`);
     assert(finalCounts.tournamentTeams === initialCounts.tournamentTeams, `TournamentTeams count restored (${finalCounts.tournamentTeams} === ${initialCounts.tournamentTeams})`);
     assert(finalCounts.venues === initialCounts.venues, `Venues count restored (${finalCounts.venues} === ${initialCounts.venues})`);
-    assert(finalCounts.officials === initialCounts.officials, `Officials count restored (${finalCounts.officials} === ${initialCounts.officials})`);
     assert(finalCounts.matches === initialCounts.matches, `Matches count restored (${finalCounts.matches} === ${initialCounts.matches})`);
     assert(finalCounts.auditLogs === initialCounts.auditLogs, `AuditLogs count restored (${finalCounts.auditLogs} === ${initialCounts.auditLogs})`);
 

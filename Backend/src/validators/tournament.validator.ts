@@ -2,7 +2,6 @@ import { z } from 'zod';
 import {
   TOURNAMENT_FORMATS,
   TOURNAMENT_STATUSES,
-  OFFICIAL_TYPES,
   MATCH_STATUSES,
   MATCH_EVENT_TYPES,
   MATCH_EVENT_SIDES,
@@ -157,24 +156,7 @@ export const updateVenueSchema = z
   })
   .strict();
 
-// 4. Officials
-export const createOfficialSchema = z
-  .object({
-    name: z.string().trim().min(1).max(100),
-    type: z.enum(OFFICIAL_TYPES),
-    active: z.boolean().optional(),
-  })
-  .strict();
-
-export const updateOfficialSchema = z
-  .object({
-    name: z.string().trim().min(1).max(100).optional(),
-    type: z.enum(OFFICIAL_TYPES).optional(),
-    active: z.boolean().optional(),
-  })
-  .strict();
-
-// 5. Matches
+// 4. Matches
 export const createMatchSchema = z
   .object({
     homeTeam: z.string().regex(objectIdRegex, { message: 'Valid homeTeam ObjectId is required' }),
@@ -184,7 +166,6 @@ export const createMatchSchema = z
     scheduledAt: z.string().refine(isValidIsoDate, { message: 'Invalid scheduledAt ISO format' }),
     durationMinutes: z.number().int().min(30).max(240).default(90),
     venue: z.string().regex(objectIdRegex, { message: 'Valid venue ObjectId is required' }),
-    referee: z.string().regex(objectIdRegex, { message: 'Valid referee ObjectId is required' }).optional(),
   })
   .strict()
   .refine((data) => data.homeTeam !== data.awayTeam, {
@@ -199,7 +180,6 @@ export const updateMatchSchema = z
     scheduledAt: z.string().refine(isValidIsoDate).optional(),
     durationMinutes: z.number().int().min(30).max(240).optional(),
     venue: z.string().regex(objectIdRegex).optional(),
-    referee: z.string().regex(objectIdRegex).nullable().optional(),
     status: z.enum(MATCH_STATUSES).optional(),
   })
   .strict();

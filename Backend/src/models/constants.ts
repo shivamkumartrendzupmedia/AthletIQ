@@ -159,9 +159,6 @@ export const AUDIT_ACTIONS = [
   'VENUE_CREATED',
   'VENUE_UPDATED',
   'VENUE_DELETED',
-  'OFFICIAL_CREATED',
-  'OFFICIAL_UPDATED',
-  'OFFICIAL_DELETED',
   'MATCH_CREATED',
   'MATCH_UPDATED',
   'MATCH_STATUS_CHANGED',
@@ -213,9 +210,6 @@ export type TournamentStatus = (typeof TOURNAMENT_STATUSES)[number];
 
 export const TOURNAMENT_TEAM_STATUSES = ['Pending', 'Approved', 'Rejected'] as const;
 export type TournamentTeamStatus = (typeof TOURNAMENT_TEAM_STATUSES)[number];
-
-export const OFFICIAL_TYPES = ['Referee', 'Assistant Referee', 'Scorer'] as const;
-export type OfficialType = (typeof OFFICIAL_TYPES)[number];
 
 export const MATCH_STATUSES = [
   'Scheduled',

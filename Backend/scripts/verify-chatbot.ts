@@ -18,7 +18,6 @@ import {
   Tournament,
   TournamentTeam,
   Venue,
-  Official,
   Match,
   MatchEvent,
   AuditLog,
@@ -171,7 +170,7 @@ async function getDbCounts() {
     tournaments: await Tournament.countDocuments(),
     tournamentTeams: await TournamentTeam.countDocuments(),
     venues: await Venue.countDocuments(),
-    officials: await Official.countDocuments(),
+    officials: await mongoose.connection.collection('officials').countDocuments(),
     matches: await Match.countDocuments(),
     matchEvents: await MatchEvent.countDocuments(),
     auditLogs: await AuditLog.countDocuments(),
@@ -220,7 +219,6 @@ async function run(): Promise<void> {
   const testRegistrationIds: Types.ObjectId[] = [];
   const testMatchIds: Types.ObjectId[] = [];
   const testVenueIds: Types.ObjectId[] = [];
-  const testOfficialIds: Types.ObjectId[] = [];
   const testAnnouncementIds: Types.ObjectId[] = [];
   const testContactIds: Types.ObjectId[] = [];
 
@@ -969,7 +967,6 @@ async function run(): Promise<void> {
     if (testRegistrationIds.length > 0) await TournamentTeam.deleteMany({ _id: { $in: testRegistrationIds } });
     if (testTournamentIds.length > 0) await Tournament.deleteMany({ _id: { $in: testTournamentIds } });
     if (testVenueIds.length > 0) await Venue.deleteMany({ _id: { $in: testVenueIds } });
-    if (testOfficialIds.length > 0) await Official.deleteMany({ _id: { $in: testOfficialIds } });
     if (testAthleteIds.length > 0) await Athlete.deleteMany({ _id: { $in: testAthleteIds } });
     if (testCoachIds.length > 0) await Coach.deleteMany({ _id: { $in: testCoachIds } });
     if (testTeamIds.length > 0) await Team.deleteMany({ _id: { $in: testTeamIds } });

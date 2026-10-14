@@ -13,8 +13,6 @@ import {
   buildReviewRegistrationPayload,
   buildCreateVenuePayload,
   buildUpdateVenuePayload,
-  buildCreateOfficialPayload,
-  buildUpdateOfficialPayload,
   buildCreateMatchPayload,
   buildUpdateMatchPayload,
   buildEnterMatchResultPayload,
@@ -25,8 +23,6 @@ import {
   type ReviewRegistrationInput,
   type CreateVenueInput,
   type UpdateVenueInput,
-  type CreateOfficialInput,
-  type UpdateOfficialInput,
   type CreateMatchInput,
   type UpdateMatchInput,
   type EnterMatchResultInput,
@@ -1228,46 +1224,6 @@ export const academyApi = {
     return normalizeSingleResponse<{ message: string }>(res);
   },
 
-  // ==================== OFFICIALS (STEP 8B) ====================
-  listOfficials: async (
-    query: OfficialQuery = {}
-  ): Promise<PaginatedResult<OfficialItem>> => {
-    const res = await apiClient(
-      `/officials${buildQueryString(query as Record<string, unknown>)}`
-    );
-    return normalizeListResponse<OfficialItem>(res);
-  },
-
-  createOfficial: async (
-    payload: CreateOfficialInput
-  ): Promise<OfficialItem | null> => {
-    const res = await apiClient('/officials', {
-      method: 'POST',
-      body: JSON.stringify(buildCreateOfficialPayload(payload)),
-    });
-    return normalizeSingleResponse<OfficialItem>(res);
-  },
-
-  updateOfficial: async (
-    id: string,
-    payload: UpdateOfficialInput
-  ): Promise<OfficialItem | null> => {
-    const res = await apiClient(`/officials/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(buildUpdateOfficialPayload(payload)),
-    });
-    return normalizeSingleResponse<OfficialItem>(res);
-  },
-
-  deleteOfficial: async (
-    id: string
-  ): Promise<{ message: string } | null> => {
-    const res = await apiClient(`/officials/${id}`, {
-      method: 'DELETE',
-    });
-    return normalizeSingleResponse<{ message: string }>(res);
-  },
-
   // ==================== MATCHES (STEP 8B) ====================
   listMatches: async (
     tournamentId: string,
@@ -1477,10 +1433,13 @@ export const academyApi = {
   deleteContactMessage: async (
     id: string
   ): Promise<{ success: boolean; message: string }> => {
-    const res = await apiClient<{ success: boolean; message: string }>(`/contact-messages/${id}`, {
+    const res = await apiClient<{ success?: boolean; message?: string }>(`/contact-messages/${id}`, {
       method: 'DELETE',
     });
-    return res.data;
+    return {
+      success: res.success ?? true,
+      message: res.message ?? 'Message deleted',
+    };
   },
 
   // ==================== NOTIFICATIONS (STEP 10) ====================
@@ -1930,21 +1889,6 @@ export interface VenueItem {
   updatedAt: string;
 }
 
-export interface OfficialQuery extends PaginationQuery {
-  type?: string;
-  active?: boolean;
-}
-
-export interface OfficialItem {
-  id: string;
-  name: string;
-  type: 'Referee' | 'Assistant Referee' | 'Scorer';
-  createdBy: { id: string; name: string };
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface MatchQuery extends PaginationQuery {
   round?: string;
   status?: string;
@@ -1961,7 +1905,6 @@ export interface MatchItem {
   durationMinutes: number;
   endsAt: string;
   venue: { id: string; name: string; address?: string };
-  referee?: { id: string; name: string; type?: string } | null;
   status: 'Scheduled' | 'Live' | 'HalfTime' | 'Completed' | 'Cancelled';
   liveScore?: { home: number; away: number };
   startedAt?: string;

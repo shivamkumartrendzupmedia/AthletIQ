@@ -58,7 +58,6 @@ const TrainingCalendarPage = React.lazy(() => import('./pages/dashboard/Training
 const TournamentManagementPage = React.lazy(() => import('./pages/dashboard/TournamentManagementPage').then((m) => ({ default: m.TournamentManagementPage })));
 const DashboardTournamentDetailPage = React.lazy(() => import('./pages/dashboard/TournamentDetailPage').then((m) => ({ default: m.TournamentDetailPage })));
 const VenuesPage = React.lazy(() => import('./pages/dashboard/VenuesPage').then((m) => ({ default: m.VenuesPage })));
-const OfficialsPage = React.lazy(() => import('./pages/dashboard/OfficialsPage').then((m) => ({ default: m.OfficialsPage })));
 const UserAccountsPage = React.lazy(() => import('./pages/dashboard/UserAccountsPage').then((m) => ({ default: m.UserAccountsPage })));
 const LiveMatchesConsoleListPage = React.lazy(() => import('./pages/dashboard/LiveMatchesConsoleListPage').then((m) => ({ default: m.LiveMatchesConsoleListPage })));
 const ScorerConsolePage = React.lazy(() => import('./pages/dashboard/ScorerConsolePage').then((m) => ({ default: m.ScorerConsolePage })));
@@ -323,18 +322,6 @@ function App() {
                   <DashboardLayout>
                     <ErrorBoundary>
                       <VenuesPage />
-                    </ErrorBoundary>
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/officials"
-              element={
-                <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
-                  <DashboardLayout>
-                    <ErrorBoundary>
-                      <OfficialsPage />
                     </ErrorBoundary>
                   </DashboardLayout>
                 </ProtectedRoute>
