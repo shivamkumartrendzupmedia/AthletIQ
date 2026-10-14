@@ -156,6 +156,28 @@ export class UserController {
       next(error);
     }
   }
+
+  async deleteUser(
+    req: Request<{ id: string }>,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      await userService.deleteUserAdmin(
+        req.params.id,
+        req.user!,
+        undefined,
+        req.ip,
+        req.get('user-agent')
+      );
+      res.status(200).json({
+        success: true,
+        message: 'User account deleted successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const userController = new UserController();

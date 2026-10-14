@@ -12,6 +12,7 @@ import {
   UserCheck,
   CheckCircle2,
   AlertTriangle,
+  Trash2,
   X,
 } from 'lucide-react';
 import { SafeImage } from '../../components/SafeImage';
@@ -47,6 +48,7 @@ export const UserAccountsPage: React.FC = () => {
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editUser, setEditUser] = useState<AdminUserItem | null>(null);
+  const [deleteUserTarget, setDeleteUserTarget] = useState<AdminUserItem | null>(null);
   const [resetPasswordTarget, setResetPasswordTarget] = useState<AdminUserItem | null>(null);
   const [auditTarget, setAuditTarget] = useState<AdminUserItem | null>(null);
   const [auditLogs, setAuditLogs] = useState<UserAuditItem[]>([]);
@@ -64,6 +66,7 @@ export const UserAccountsPage: React.FC = () => {
     name: '',
     role: 'Athlete' as UserRole,
     isActive: true,
+    dateOfBirth: '',
   });
 
   const [newPasswordValue, setNewPasswordValue] = useState('');
@@ -76,6 +79,7 @@ export const UserAccountsPage: React.FC = () => {
   const createRoleId = useId();
 
   const editNameId = useId();
+  const editDobId = useId();
   const editRoleId = useId();
   const editActiveId = useId();
 
@@ -193,6 +197,7 @@ export const UserAccountsPage: React.FC = () => {
         name: editForm.name.trim(),
         role: isSelf ? undefined : editForm.role,
         isActive: isSelf ? undefined : editForm.isActive,
+        dateOfBirth: editForm.dateOfBirth ? editForm.dateOfBirth : undefined,
       });
       setEditUser(null);
       setSuccessBanner('User account updated successfully.');
@@ -203,6 +208,24 @@ export const UserAccountsPage: React.FC = () => {
         setEditFieldErrors(mapped);
       }
       const msg = err instanceof ApiClientError ? err.message : 'Failed to update user.';
+      setErrorBanner(msg);
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  const handleDeleteUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deleteUserTarget) return;
+    setFormSubmitting(true);
+    setErrorBanner(null);
+    try {
+      await academyApi.deleteUser(deleteUserTarget.id);
+      setSuccessBanner(`User account "${deleteUserTarget.name}" deleted successfully.`);
+      setDeleteUserTarget(null);
+      fetchUsers();
+    } catch (err: unknown) {
+      const msg = err instanceof ApiClientError ? err.message : 'Failed to delete user.';
       setErrorBanner(msg);
     } finally {
       setFormSubmitting(false);
@@ -477,6 +500,7 @@ export const UserAccountsPage: React.FC = () => {
                                 name: u.name,
                                 role: u.role,
                                 isActive: u.isActive,
+                                dateOfBirth: u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '',
                               });
                             }}
                             className="p-1.5 text-[#171044]/70 hover:text-[#171044] hover:bg-[#171044]/10 rounded-lg transition-colors"
@@ -511,7 +535,7 @@ export const UserAccountsPage: React.FC = () => {
                               isSelf
                                 ? 'text-gray-300 cursor-not-allowed'
                                 : u.isActive
-                                ? 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                                ? 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'
                                 : 'text-green-600 hover:text-green-800 hover:bg-green-50'
                             }`}
                             title={
@@ -523,6 +547,19 @@ export const UserAccountsPage: React.FC = () => {
                             }
                           >
                             {u.isActive ? <UserX size={16} /> : <UserCheck size={16} />}
+                          </button>
+
+                          <button
+                            onClick={() => setDeleteUserTarget(u)}
+                            disabled={isSelf}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isSelf
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                            }`}
+                            title={isSelf ? 'Cannot delete your own account' : 'Delete user account'}
+                          >
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>
@@ -727,6 +764,22 @@ export const UserAccountsPage: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label htmlFor={editDobId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                  Date of Birth
+                </label>
+                <input
+                  id={editDobId}
+                  type="date"
+                  value={editForm.dateOfBirth}
+                  onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
+                  className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                />
+                {editFieldErrors.dateOfBirth && (
+                  <p className="mt-1 text-xs text-red-600 font-medium">{editFieldErrors.dateOfBirth}</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor={editRoleId} className="block text-xs font-bold text-[#171044] uppercase mb-1">
@@ -797,7 +850,69 @@ export const UserAccountsPage: React.FC = () => {
         </div>
       )}
 
-      {/* RESET PASSWORD MODAL */}
+      {/* DELETE USER WARNING MODAL */}
+      {deleteUserTarget && (
+        <div className="fixed inset-0 z-50 bg-[#171044]/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <Card variant="standard" className="w-full max-w-md p-6 space-y-6 relative border-2 border-red-500/20 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#171044]/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-red-100 text-red-600">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-display text-red-600">
+                    Warning: Delete User Account
+                  </h3>
+                  <p className="text-xs text-[#171044]/60">Permanent action cannot be undone</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDeleteUserTarget(null)}
+                className="text-[#171044]/60 hover:text-[#171044]"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm text-[#171044]">
+              <p>
+                Are you sure you want to permanently delete the account for{' '}
+                <strong className="font-bold text-[#171044]">{deleteUserTarget.name}</strong> (
+                <span className="font-mono text-xs">{deleteUserTarget.email}</span>)?
+              </p>
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 space-y-1">
+                <p className="font-bold">⚠️ Warning:</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  <li>This user will permanently lose access to the platform.</li>
+                  <li>All active sessions and refresh tokens will be immediately invalidated.</li>
+                  <li>Associated athlete records or coach links will be unlinked/removed.</li>
+                </ul>
+              </div>
+            </div>
+
+            <form onSubmit={handleDeleteUserSubmit} className="pt-4 border-t border-[#171044]/10 flex justify-end gap-3">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => setDeleteUserTarget(null)}
+                disabled={formSubmitting}
+              >
+                Close
+              </Button>
+              <button
+                type="submit"
+                disabled={formSubmitting}
+                className="px-5 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 font-bold text-sm shadow-md transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <Trash2 size={16} />
+                <span>{formSubmitting ? 'Deleting...' : 'Proceed'}</span>
+              </button>
+            </form>
+          </Card>
+        </div>
+      )}
+
       {resetPasswordTarget && (
         <div className="fixed inset-0 z-50 bg-[#171044]/70 backdrop-blur-sm flex items-center justify-center p-4">
           <Card variant="standard" className="w-full max-w-md p-6 space-y-6 relative">

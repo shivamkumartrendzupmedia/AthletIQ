@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { User, type IUser } from '../models/User.js';
 import { Coach } from '../models/Coach.js';
 import { Athlete } from '../models/Athlete.js';
+import { Team } from '../models/Team.js';
 import { AuditLog, type IAuditLog } from '../models/AuditLog.js';
 import { ApiError } from '../utils/ApiError.js';
 import { hashPassword } from '../utils/password.js';
@@ -196,6 +197,9 @@ export class UserService {
     if (input.avatar !== undefined) targetUser.avatar = input.avatar;
     if (input.role !== undefined) targetUser.role = input.role;
     if (input.isActive !== undefined) targetUser.isActive = input.isActive;
+    if (input.dateOfBirth !== undefined) {
+      targetUser.dateOfBirth = input.dateOfBirth ? new Date(input.dateOfBirth) : undefined;
+    }
 
     // Revoke refresh tokens on role change or deactivation
     const roleOrStatusChanged =
@@ -318,6 +322,9 @@ export class UserService {
     if (input.name !== undefined) user.name = input.name;
     if (input.phone !== undefined) user.phone = input.phone;
     if (input.avatar !== undefined) user.avatar = input.avatar;
+    if (input.dateOfBirth !== undefined) {
+      user.dateOfBirth = input.dateOfBirth ? new Date(input.dateOfBirth) : undefined;
+    }
 
     await user.save();
 
@@ -399,6 +406,74 @@ export class UserService {
     });
 
     return this.getUserById(targetObjectId);
+  }
+
+  /**
+   * Admin permanently deletes a user account.
+   * Safety checks:
+   * 1. Cannot delete self (Admin cannot delete their own account)
+   * 2. Cannot delete the last active Administrator
+   * 3. Cannot delete if linked to a Coach profile assigned to teams
+   */
+  async deleteUserAdmin(
+    targetId: string,
+    actorUser: IUser,
+    countActiveAdminsFn: ActiveAdminCounter = defaultActiveAdminCounter,
+    ip?: string,
+    userAgent?: string
+  ): Promise<void> {
+    const targetObjectId = new Types.ObjectId(targetId);
+
+    // Rule 1: Cannot delete self
+    if (actorUser._id.toString() === targetId) {
+      throw new ApiError(400, 'Administrators cannot delete their own account');
+    }
+
+    const targetUser = await User.findById(targetObjectId);
+    if (!targetUser) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    // Rule 2: Cannot delete last active admin
+    if (targetUser.role === 'Admin' && targetUser.isActive) {
+      const remainingAdmins = await countActiveAdminsFn(targetUser._id);
+      if (remainingAdmins <= 1) {
+        throw new ApiError(409, 'Cannot delete the last active Administrator');
+      }
+    }
+
+    // Rule 3: Check Coach profile and team assignments
+    const coach = await Coach.findOne({ user: targetUser._id });
+    if (coach) {
+      const assignedTeams = await Team.countDocuments({ coach: coach._id });
+      if (assignedTeams > 0) {
+        throw new ApiError(
+          409,
+          `Cannot delete user: this coach is currently assigned to ${assignedTeams} team(s). Reassign or unassign teams first.`
+        );
+      }
+      await Coach.findByIdAndDelete(coach._id);
+    }
+
+    // Rule 4: Clean up Athlete profile link if exists
+    await Athlete.deleteMany({ user: targetUser._id });
+
+    // Perform deletion
+    await User.findByIdAndDelete(targetObjectId);
+
+    await auditService.logAudit({
+      actor: actorUser._id,
+      action: 'USER_DELETED',
+      targetType: 'User',
+      targetId: targetObjectId,
+      meta: {
+        deletedUserEmail: targetUser.email,
+        deletedUserName: targetUser.name,
+        deletedUserRole: targetUser.role,
+      },
+      ip,
+      userAgent,
+    });
   }
 }
 

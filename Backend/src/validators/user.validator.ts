@@ -42,6 +42,7 @@ export const updateUserAdminSchema = z
       errorMap: () => ({ message: 'Invalid user role specified' }),
     }).optional(),
     isActive: z.boolean().optional(),
+    dateOfBirth: z.string().trim().optional(),
   })
   .strict();
 
@@ -55,6 +56,7 @@ export const updateUserSelfSchema = z
       .optional(),
     phone: z.string().trim().optional(),
     avatar: z.string().trim().optional(),
+    dateOfBirth: z.string().trim().optional(),
   })
   .strict();
 

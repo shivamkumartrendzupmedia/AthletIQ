@@ -76,6 +76,13 @@ router.post(
   userController.unlockUser
 );
 
+// Admin deletes a user account
+router.delete(
+  '/:id',
+  validateObjectId('id'),
+  userController.deleteUser
+);
+
 // Get paginated audit logs for a specific user
 router.get(
   '/:id/audit',

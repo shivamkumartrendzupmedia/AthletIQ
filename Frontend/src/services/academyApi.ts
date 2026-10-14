@@ -80,6 +80,7 @@ export interface AdminUserItem {
   email: string;
   role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
   avatar?: string;
+  dateOfBirth?: string;
   isActive: boolean;
   isLocked: boolean;
   createdAt: string;
@@ -734,6 +735,7 @@ export const academyApi = {
       email?: string;
       role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
       isActive?: boolean;
+      dateOfBirth?: string;
     }
   ): Promise<AdminUserItem | null> => {
     const res = await apiClient(`/users/${id}`, {
@@ -741,6 +743,13 @@ export const academyApi = {
       body: JSON.stringify(payload),
     });
     return normalizeSingleResponse<AdminUserItem>(res);
+  },
+
+  deleteUser: async (id: string): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/users/${id}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
   },
 
   unlockUser: async (id: string): Promise<AdminUserItem | null> => {
