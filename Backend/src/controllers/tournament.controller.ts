@@ -24,7 +24,12 @@ export class TournamentController {
         id: req.user.id,
         role: req.user.role,
       } : undefined);
-      res.status(200).json(result);
+      res.status(200).json({
+        success: true,
+        data: result.items,
+        items: result.items,
+        pagination: result.pagination,
+      });
     } catch (err) {
       next(err);
     }

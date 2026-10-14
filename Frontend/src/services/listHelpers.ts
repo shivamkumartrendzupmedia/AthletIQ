@@ -52,14 +52,16 @@ export function normalizeListResponse<T>(res: unknown): PaginatedResult<T> {
 
   const raw = res as Record<string, unknown>;
 
-  let itemsSource: unknown = raw.data;
+  let itemsSource: unknown = raw.data ?? raw.items;
   let paginationSource: unknown = raw.pagination;
 
-  // Handle nested wrapper { data: { data: [...], pagination: { ... } } }
+  // Handle nested wrapper { data: { data: [...], items: [...], pagination: { ... } } }
   if (raw.data && typeof raw.data === 'object' && !Array.isArray(raw.data)) {
     const nested = raw.data as Record<string, unknown>;
     if (Array.isArray(nested.data)) {
       itemsSource = nested.data;
+    } else if (Array.isArray(nested.items)) {
+      itemsSource = nested.items;
     }
     if (nested.pagination && typeof nested.pagination === 'object') {
       paginationSource = nested.pagination;
