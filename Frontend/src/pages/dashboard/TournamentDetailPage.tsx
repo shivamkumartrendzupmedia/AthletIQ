@@ -605,7 +605,7 @@ export const TournamentDetailPage: React.FC = () => {
               {matches.map((m) => {
                 const timeInfo = formatSessionTimeRange(m.scheduledAt, m.endsAt);
                 return (
-                  <Card key={m.id} className="p-5 flex flex-col justify-between space-y-4">
+                  <Card key={m.id} className="p-5 flex flex-col justify-between space-y-4 overflow-hidden">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold uppercase tracking-wider text-[#E65100]">
@@ -659,7 +659,7 @@ export const TournamentDetailPage: React.FC = () => {
 
                     {/* Actions */}
                     {(role === 'Admin' || role === 'Organizer') && (
-                      <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#111111]/10">
+                      <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-[#111111]/10">
                         {m.status === 'Scheduled' && (
                           <>
                             <Button

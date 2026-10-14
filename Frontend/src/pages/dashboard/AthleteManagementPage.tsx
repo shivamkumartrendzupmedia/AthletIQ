@@ -77,6 +77,7 @@ export const AthleteManagementPage: React.FC = () => {
   const [editMedicalNotes, setEditMedicalNotes] = useState('');
   const [editVerificationStatus, setEditVerificationStatus] = useState<'Verified' | 'Pending ID' | 'Medical Required'>('Pending ID');
   const [editDOB, setEditDOB] = useState('');
+  const [editSportId, setEditSportId] = useState('');
 
   // Accessible unique IDs
   const createUserIdInput = useId();
@@ -96,6 +97,7 @@ export const AthleteManagementPage: React.FC = () => {
   const editMedicalInput = useId();
   const editVerificationInput = useId();
   const editDOBInput = useId();
+  const editSportIdInput = useId();
 
   const fetchAthletes = useCallback(async () => {
     setLoading(true);
@@ -177,6 +179,7 @@ export const AthleteManagementPage: React.FC = () => {
     setEditMedicalNotes(a.medicalNotes || '');
     setEditVerificationStatus(a.verificationStatus);
     setEditDOB(a.dateOfBirth ? a.dateOfBirth.split('T')[0] : '');
+    setEditSportId(a.sport?.id || (typeof a.sport === 'string' ? a.sport : ''));
     setEditFieldErrors({});
   };
 
@@ -246,6 +249,7 @@ export const AthleteManagementPage: React.FC = () => {
       };
 
       if (isAdmin) {
+        if (editSportId) payload.sport = editSportId;
         if (editJerseyNumber) payload.jerseyNumber = Number(editJerseyNumber);
         if (editMedicalNotes) payload.medicalNotes = editMedicalNotes.trim();
         if (editDOB) payload.dateOfBirth = editDOB;
@@ -916,6 +920,38 @@ export const AthleteManagementPage: React.FC = () => {
 
               {isAdmin && (
                 <>
+                  <div>
+                    <label htmlFor={editSportIdInput} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                      Sport Discipline <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id={editSportIdInput}
+                      value={editSportId}
+                      onChange={(e) => {
+                        setEditSportId(e.target.value);
+                        if (editFieldErrors.sport) setEditFieldErrors((prev) => ({ ...prev, sport: '' }));
+                      }}
+                      className={`w-full px-4 py-2 bg-[#F7F1E8] border rounded-xl text-sm font-semibold outline-none focus:border-[#FF5A00] ${
+                        editFieldErrors.sport ? 'border-red-500' : 'border-[#171044]/20'
+                      }`}
+                    >
+                      <option value="">Select Sport...</option>
+                      {sports.map((sp) => (
+                        <option key={sp.id} value={sp.id}>
+                          {sp.name}
+                        </option>
+                      ))}
+                      {editingAthlete?.sport?.id && !sports.some((sp) => sp.id === editingAthlete.sport.id) && (
+                        <option value={editingAthlete.sport.id}>
+                          {editingAthlete.sport.name}
+                        </option>
+                      )}
+                    </select>
+                    {editFieldErrors.sport && (
+                      <p className="mt-1 text-xs text-red-600 font-medium">{editFieldErrors.sport}</p>
+                    )}
+                  </div>
+
                   <div>
                     <label htmlFor={editDOBInput} className="block text-xs font-bold text-[#171044] uppercase mb-1">
                       Date of Birth

@@ -250,6 +250,14 @@ export class AthleteService {
       const sport = await Sport.findById(input.sport);
       if (!sport) throw new ApiError(404, 'Referenced sport discipline not found');
       athlete.sport = new Types.ObjectId(input.sport);
+
+      if (athlete.team && input.team === undefined) {
+        const currentTeam = await Team.findById(athlete.team);
+        if (currentTeam && currentTeam.sport.toString() !== input.sport.toString()) {
+          athlete.team = undefined;
+          athlete.jerseyNumber = undefined;
+        }
+      }
     }
 
     if (input.team !== undefined) {

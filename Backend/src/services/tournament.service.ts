@@ -937,23 +937,62 @@ export class TournamentService {
         }),
       ]);
 
-      const formatSquad = (tt: unknown): Array<{ id: string; name: string }> => {
-        if (!tt || typeof tt !== 'object' || !('squad' in tt)) return [];
-        const squadArr = (tt as { squad: unknown }).squad;
-        if (!Array.isArray(squadArr)) return [];
-        return squadArr.map((ath) => {
-          const athleteObj = ath as { _id?: Types.ObjectId; user?: { name?: string } };
-          const athId = athleteObj._id ? athleteObj._id.toString() : String(ath);
-          const name =
-            athleteObj.user && typeof athleteObj.user === 'object' && typeof athleteObj.user.name === 'string'
-              ? athleteObj.user.name
-              : 'Athlete';
-          return { id: athId, name };
-        });
+      const buildSquadWithRosterFallback = async (
+        tt: unknown
+      ): Promise<Array<{ id: string; name: string }>> => {
+        if (!tt || typeof tt !== 'object') return [];
+        const ttObj = tt as {
+          team?: Types.ObjectId;
+          squad?: unknown[];
+        };
+
+        const squadMap = new Map<string, { id: string; name: string }>();
+
+        // 1. Snapshot squad from registration
+        if (Array.isArray(ttObj.squad)) {
+          for (const ath of ttObj.squad) {
+            const athleteObj = ath as { _id?: Types.ObjectId; user?: { name?: string } };
+            const athId = athleteObj._id ? athleteObj._id.toString() : String(ath);
+            const name =
+              athleteObj.user && typeof athleteObj.user === 'object' && typeof athleteObj.user.name === 'string'
+                ? athleteObj.user.name
+                : 'Athlete';
+            squadMap.set(athId, { id: athId, name });
+          }
+        }
+
+        // 2. Smart fallback: include active roster players currently belonging to this team
+        if (ttObj.team) {
+          const activeAthletes = await Athlete.find({
+            team: ttObj.team,
+            status: 'Active',
+          })
+            .select('_id user')
+            .populate<{ user?: { _id?: Types.ObjectId; name?: string } }>('user', '_id name')
+            .lean();
+
+          for (const ath of activeAthletes) {
+            const athId = ath._id.toString();
+            if (!squadMap.has(athId)) {
+              const name =
+                ath.user && typeof ath.user === 'object' && typeof ath.user.name === 'string'
+                  ? ath.user.name
+                  : 'Athlete';
+              squadMap.set(athId, { id: athId, name });
+            }
+          }
+        }
+
+        return Array.from(squadMap.values()).sort((a, b) => a.name.localeCompare(b.name));
       };
 
-      matchObj.homeSquad = formatSquad(homeTt);
-      matchObj.awaySquad = formatSquad(awayTt);
+      const [homeSquad, awaySquad] = await Promise.all([
+        buildSquadWithRosterFallback(homeTt),
+        buildSquadWithRosterFallback(awayTt),
+      ]);
+
+      matchObj.homeSquad = homeSquad;
+      matchObj.awaySquad = awaySquad;
     }
 
     return matchObj;
@@ -1555,7 +1594,14 @@ export class TournamentService {
         (id) => id.toString() === data.player
       );
       if (!inSquad) {
-        throw new ApiError(400, 'Specified player is not in the squad for this team');
+        const isTeamMember = await Athlete.exists({
+          _id: new Types.ObjectId(data.player),
+          team: registration.team,
+          status: 'Active',
+        });
+        if (!isTeamMember) {
+          throw new ApiError(400, 'Specified player is not in the squad or active roster for this team');
+        }
       }
     }
 
@@ -1567,7 +1613,14 @@ export class TournamentService {
         (id) => id.toString() === data.relatedPlayer
       );
       if (!inSquad) {
-        throw new ApiError(400, 'Specified relatedPlayer is not in the squad for this team');
+        const isTeamMember = await Athlete.exists({
+          _id: new Types.ObjectId(data.relatedPlayer),
+          team: registration.team,
+          status: 'Active',
+        });
+        if (!isTeamMember) {
+          throw new ApiError(400, 'Specified relatedPlayer is not in the squad or active roster for this team');
+        }
       }
     }
 
