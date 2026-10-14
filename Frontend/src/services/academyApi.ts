@@ -1621,6 +1621,30 @@ export const academyApi = {
     });
     return normalizeSingleResponse<{ message: string }>(res);
   },
+
+  // Step 17: Profile & Password
+  getProfile: async (): Promise<UserProfile | null> => {
+    const res = await apiClient<UserProfile>('/profile');
+    return normalizeSingleResponse<UserProfile>(res);
+  },
+
+  updateProfile: async (
+    payload: UpdateProfilePayload
+  ): Promise<UserProfile | null> => {
+    const res = await apiClient<UserProfile>('/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return normalizeSingleResponse<UserProfile>(res);
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<{ message: string } | null> => {
+    const res = await apiClient<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
+  },
 };
 
 // Announcement & Document Interfaces
@@ -2329,7 +2353,19 @@ export interface AchievementQuery extends PaginationQuery {
   search?: string;
 }
 
+// ==========================================
+// PROFILE API (STEP 17)
+// ==========================================
 
+export interface UserProfile {
+  id: string;
+  name: string;
+  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
+  dateOfBirth: string | null;
+  age: number | null;
+}
 
-
-
+export interface UpdateProfilePayload {
+  name?: string;
+  dateOfBirth?: string;
+}

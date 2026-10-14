@@ -38,8 +38,6 @@ export const CodeOfConductPage: React.FC = () => {
             Standards of integrity, sportsmanship, safeguarding, and professional conduct across the {SITE_CONFIG.ACADEMY_NAME} community.
           </p>
           <div className="mt-6 pt-6 border-t border-white/10 flex flex-wrap gap-6 text-xs text-white/60 print:text-neutral-500">
-            <span>Effective Date: <strong className="text-white print:text-black">{SITE_CONFIG.EFFECTIVE_DATE}</strong></span>
-            <span>Last Updated: <strong className="text-white print:text-black">{SITE_CONFIG.LAST_UPDATED}</strong></span>
             <span>Academy: <strong className="text-white print:text-black">{SITE_CONFIG.ACADEMY_NAME}</strong></span>
           </div>
         </header>

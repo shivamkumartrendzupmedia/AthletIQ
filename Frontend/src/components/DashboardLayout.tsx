@@ -74,6 +74,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Admin':
         return [
           { name: 'Admin Overview', path: '/dashboard/admin', icon: LayoutDashboard },
+          { name: 'My Profile', path: '/dashboard/profile', icon: User },
           { name: 'Analytics', path: '/dashboard/analytics', icon: TrendingUp },
           { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
           { name: 'User Accounts', path: '/dashboard/users', icon: User },
@@ -95,6 +96,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Coach':
         return [
           { name: 'Coach Dashboard', path: '/dashboard/coach', icon: LayoutDashboard },
+          { name: 'My Profile', path: '/dashboard/profile', icon: User },
           { name: 'Analytics', path: '/dashboard/analytics', icon: TrendingUp },
           { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
@@ -107,6 +109,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Athlete':
         return [
           { name: 'Athlete Hub', path: '/dashboard/athlete', icon: LayoutDashboard },
+          { name: 'My Profile', path: '/dashboard/profile', icon: User },
           { name: 'Analytics', path: '/dashboard/analytics', icon: TrendingUp },
           { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
           { name: 'My Profile & Development', path: '/athlete/me', icon: User },
@@ -118,6 +121,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       case 'Organizer':
         return [
           { name: 'Organizer Hub', path: '/dashboard/organizer', icon: LayoutDashboard },
+          { name: 'My Profile', path: '/dashboard/profile', icon: User },
           { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
           { name: 'Live Console', path: '/dashboard/live', icon: Activity },
           { name: 'Tournament Engine', path: '/dashboard/tournaments', icon: Trophy },
@@ -131,6 +135,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
       default:
         return [
           { name: 'Athlete Hub', path: '/dashboard/athlete', icon: LayoutDashboard },
+          { name: 'My Profile', path: '/dashboard/profile', icon: User },
           { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
         ];
     }

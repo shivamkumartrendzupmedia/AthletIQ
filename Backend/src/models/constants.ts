@@ -173,6 +173,7 @@ export const AUDIT_ACTIONS = [
   'ACHIEVEMENT_CREATED',
   'ACHIEVEMENT_UPDATED',
   'ACHIEVEMENT_DELETED',
+  'PROFILE_UPDATED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

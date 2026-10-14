@@ -99,9 +99,6 @@ const requiredPlaceholders: (keyof typeof SITE_CONFIG)[] = [
   'LEGAL_ENTITY_NAME',
   'CONTACT_EMAIL',
   'CONTACT_ADDRESS',
-  'GOVERNING_LAW',
-  'EFFECTIVE_DATE',
-  'LAST_UPDATED',
 ];
 
 for (const key of requiredPlaceholders) {
@@ -111,6 +108,67 @@ for (const key of requiredPlaceholders) {
     `Placeholder "${key}" is non-empty (value: "${val}")`
   );
 }
+
+// 6b. Assert none of GOVERNING_LAW, EFFECTIVE_DATE, LAST_UPDATED appear anywhere in Frontend/src
+function scanDirForPatterns(dir: string, patterns: RegExp[]): string[] {
+  const hits: string[] = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      hits.push(...scanDirForPatterns(fullPath, patterns));
+    } else if (entry.isFile() && /\.(tsx?|jsx?|html|css|json)$/.test(entry.name)) {
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      for (const pattern of patterns) {
+        if (pattern.test(content)) {
+          hits.push(`${path.relative(frontendDir, fullPath)} matched ${pattern}`);
+        }
+      }
+    }
+  }
+  return hits;
+}
+
+const forbiddenHits = scanDirForPatterns(path.join(frontendDir, 'src'), [
+  /\bGOVERNING_LAW\b/,
+  /\bEFFECTIVE_DATE\b/,
+  /\bLAST_UPDATED\b/,
+]);
+assert(
+  forbiddenHits.length === 0,
+  `None of GOVERNING_LAW, EFFECTIVE_DATE, LAST_UPDATED appear anywhere in Frontend/src (found: ${forbiddenHits.length})`
+);
+
+// 6c. Assert Terms has no "Governing law" heading
+assert(
+  !/<h\d[^>]*>[\s\S]*?Governing\s+Law/i.test(termsContent),
+  'Terms of Service page has no "Governing Law" heading'
+);
+
+// 6d. Assert every table-of-contents anchor of Terms, Privacy, CodeOfConduct resolves to a heading id
+function verifyAnchorsResolveToIds(pageName: string, content: string): boolean {
+  const hrefMatches = [...content.matchAll(/<a\s+[^>]*href=["']#([^"']+)["']/g)];
+  for (const m of hrefMatches) {
+    const targetId = m[1];
+    // Check if element with id="targetId" or id={targetId} exists
+    const idRegex = new RegExp(`id=["']${targetId}["']`, 'i');
+    if (!idRegex.test(content)) {
+      console.error(`Anchor #${targetId} in ${pageName} does not resolve to an element id`);
+      return false;
+    }
+  }
+  return true;
+}
+
+const allAnchorsResolve =
+  verifyAnchorsResolveToIds('TermsPage.tsx', termsContent) &&
+  verifyAnchorsResolveToIds('PrivacyPolicyPage.tsx', privacyContent) &&
+  verifyAnchorsResolveToIds('CodeOfConductPage.tsx', cocContent);
+
+assert(
+  allAnchorsResolve,
+  'Every table-of-contents anchor of Terms, Privacy, and Code of Conduct resolves to a heading id'
+);
 
 // 7. Check Footer references LEGAL_LINKS
 const footerContent = fs.readFileSync(path.join(frontendDir, 'src/components/Footer.tsx'), 'utf-8');

@@ -38,8 +38,6 @@ export const PrivacyPolicyPage: React.FC = () => {
             How {SITE_CONFIG.ACADEMY_NAME} collects, protects, isolates, and retains personal data across our athletic management platform.
           </p>
           <div className="mt-6 pt-6 border-t border-white/10 flex flex-wrap gap-6 text-xs text-white/60 print:text-neutral-500">
-            <span>Effective Date: <strong className="text-white print:text-black">{SITE_CONFIG.EFFECTIVE_DATE}</strong></span>
-            <span>Last Updated: <strong className="text-white print:text-black">{SITE_CONFIG.LAST_UPDATED}</strong></span>
             <span>Entity: <strong className="text-white print:text-black">{SITE_CONFIG.LEGAL_ENTITY_NAME}</strong></span>
           </div>
         </header>
@@ -205,7 +203,6 @@ export const PrivacyPolicyPage: React.FC = () => {
               <div><strong>Entity:</strong> {SITE_CONFIG.LEGAL_ENTITY_NAME}</div>
               <div><strong>Email:</strong> <a href={`mailto:${SITE_CONFIG.CONTACT_EMAIL}`} className="text-[#FF5A00] font-bold">{SITE_CONFIG.CONTACT_EMAIL}</a></div>
               <div><strong>Address:</strong> {SITE_CONFIG.CONTACT_ADDRESS}</div>
-              <div><strong>Governing Jurisdiction:</strong> {SITE_CONFIG.GOVERNING_LAW}</div>
             </div>
           </section>
         </div>

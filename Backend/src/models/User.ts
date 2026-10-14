@@ -21,6 +21,7 @@ export interface IUser extends Document {
   role: Role;
   avatar?: string;
   phone?: string;
+  dateOfBirth?: Date;
   isActive: boolean;
   lastLoginAt?: Date;
   failedLoginAttempts: number;
@@ -92,6 +93,9 @@ const userSchema = new Schema<IUser>(
     phone: {
       type: String,
       trim: true,
+    },
+    dateOfBirth: {
+      type: Date,
     },
     isActive: {
       type: Boolean,

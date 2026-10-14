@@ -15,11 +15,12 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-
+  const state = location.state as (LocationState & { message?: string }) | undefined;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage] = useState<string | null>(state?.message || null);
 
   const getRoleDashboard = (targetRole: UserRole): string => {
     switch (targetRole) {
@@ -43,7 +44,6 @@ export const LoginPage: React.FC = () => {
 
     try {
       const loggedInUser = await login(email, password);
-      const state = location.state as LocationState | undefined;
       const destination = state?.from?.pathname || getRoleDashboard(loggedInUser.role);
       navigate(destination, { replace: true });
     } catch (err: unknown) {
@@ -69,6 +69,12 @@ export const LoginPage: React.FC = () => {
           </h1>
           <p className="text-xs text-white/70">Enter your account credentials to access your ATHLETIQ portal.</p>
         </div>
+
+        {infoMessage && (
+          <div className="p-3.5 rounded-2xl bg-[#D8F500]/15 border border-[#D8F500]/30 text-white flex items-start gap-3">
+            <div className="text-xs font-bold leading-relaxed text-[#D8F500]">{infoMessage}</div>
+          </div>
+        )}
 
         {errorMessage && (
           <div className="p-3.5 rounded-2xl bg-[#FF3B30]/15 border border-[#FF3B30]/30 text-white flex items-start gap-3">

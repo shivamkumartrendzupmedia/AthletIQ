@@ -23,6 +23,7 @@ import { notificationRoutes } from './notification.routes.js';
 import { analyticsRoutes } from './analytics.routes.js';
 import chatbotRoutes from './chatbot.routes.js';
 import { achievementRoutes } from './achievement.routes.js';
+import { profileRoutes } from './profile.routes.js';
 
 const router = Router();
 
@@ -34,6 +35,9 @@ router.use('/public', publicRoutes);
 
 // Mount authentication routes under /api/auth
 router.use('/auth', authRoutes);
+
+// Mount profile management routes under /api/profile
+router.use('/profile', profileRoutes);
 
 // Mount user management routes under /api/users
 router.use('/users', userRoutes);

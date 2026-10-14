@@ -38,9 +38,7 @@ export const TermsPage: React.FC = () => {
             Conditions governing access and use of the {SITE_CONFIG.ACADEMY_NAME} athletic platform, portals, and competitive fixtures.
           </p>
           <div className="mt-6 pt-6 border-t border-white/10 flex flex-wrap gap-6 text-xs text-white/60 print:text-neutral-500">
-            <span>Effective Date: <strong className="text-white print:text-black">{SITE_CONFIG.EFFECTIVE_DATE}</strong></span>
-            <span>Last Updated: <strong className="text-white print:text-black">{SITE_CONFIG.LAST_UPDATED}</strong></span>
-            <span>Jurisdiction: <strong className="text-white print:text-black">{SITE_CONFIG.GOVERNING_LAW}</strong></span>
+            <span>Platform: <strong className="text-white print:text-black">{SITE_CONFIG.ACADEMY_NAME}</strong></span>
           </div>
         </header>
 
@@ -60,8 +58,7 @@ export const TermsPage: React.FC = () => {
             <li><a href="#liability" className="hover:text-[#FF5A00] transition-colors">8. Availability &amp; Limitation of Liability</a></li>
             <li><a href="#suspension" className="hover:text-[#FF5A00] transition-colors">9. Account Suspension &amp; Termination</a></li>
             <li><a href="#privacy-link" className="hover:text-[#FF5A00] transition-colors">10. Privacy &amp; Data Protection</a></li>
-            <li><a href="#governing-law" className="hover:text-[#FF5A00] transition-colors">11. Governing Law &amp; Disputes</a></li>
-            <li><a href="#contact" className="hover:text-[#FF5A00] transition-colors">12. Contact Details</a></li>
+            <li><a href="#contact" className="hover:text-[#FF5A00] transition-colors">11. Contact Details</a></li>
           </ol>
         </nav>
 
@@ -175,18 +172,9 @@ export const TermsPage: React.FC = () => {
             </p>
           </section>
 
-          <section id="governing-law" className="scroll-mt-6">
-            <h2 className="text-xl md:text-2xl font-black font-display uppercase tracking-tight text-[#171044] mb-3">
-              11. Governing Law &amp; Disputes
-            </h2>
-            <p>
-              These Terms and any disputes arising from or relating to platform usage shall be governed by and construed in accordance with the laws of {SITE_CONFIG.GOVERNING_LAW}, without regard to conflict of law principles.
-            </p>
-          </section>
-
           <section id="contact" className="scroll-mt-6">
             <h2 className="text-xl md:text-2xl font-black font-display uppercase tracking-tight text-[#171044] mb-3">
-              12. Contact Details
+              11. Contact Details
             </h2>
             <p className="mb-2">
               Questions regarding these Terms of Service should be directed to:
@@ -196,7 +184,6 @@ export const TermsPage: React.FC = () => {
               <div><strong>Entity:</strong> {SITE_CONFIG.LEGAL_ENTITY_NAME}</div>
               <div><strong>Email:</strong> <a href={`mailto:${SITE_CONFIG.CONTACT_EMAIL}`} className="text-[#FF5A00] font-bold">{SITE_CONFIG.CONTACT_EMAIL}</a></div>
               <div><strong>Address:</strong> {SITE_CONFIG.CONTACT_ADDRESS}</div>
-              <div><strong>Governing Jurisdiction:</strong> {SITE_CONFIG.GOVERNING_LAW}</div>
             </div>
           </section>
         </div>

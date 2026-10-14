@@ -28,7 +28,8 @@
     "cleanup:orphans": "tsx scripts/cleanup-test-orphans.ts",
     "export:dashboard-fixtures": "tsx scripts/export-dashboard-fixtures.ts",
     "create:user": "tsx scripts/create-user.ts",
-    "migrate:remove-official-role": "tsx scripts/remove-official-role.ts"
+    "migrate:remove-official-role": "tsx scripts/remove-official-role.ts",
+    "verify:profile": "tsx scripts/verify-profile.ts"
   },
   "keywords": [
     "athletiq",

@@ -166,6 +166,7 @@ const mustBeProtected = [
   '/dashboard/live/:matchId',
   '/dashboard/messages',
   '/dashboard/notifications',
+  '/dashboard/profile',
   '/dashboard/athletes',
   '/dashboard/coaches',
   '/dashboard/teams',
@@ -275,6 +276,7 @@ const routeRoleExpectations: Array<{ route: string; roles: string[] }> = [
   { route: '/dashboard/tournaments', roles: ['Admin', 'Organizer', 'Coach', 'Athlete'] },
   { route: '/dashboard/tournaments/:id', roles: ['Admin', 'Organizer', 'Coach', 'Athlete'] },
   { route: '/dashboard/teams', roles: ['Admin', 'Coach', 'Organizer'] },
+  { route: '/dashboard/profile', roles: ['Admin', 'Coach', 'Athlete', 'Organizer'] },
 ];
 
 for (const { route, roles } of routeRoleExpectations) {
@@ -307,6 +309,28 @@ assertPass(
   !officialAllowedFound,
   'No route in App.tsx includes "Official" in its allowedRoles',
 );
+
+// ─── (i) Assert sidebar config has "My Profile" link for all 4 roles ───────
+
+console.log('\n--- SECTION I: Sidebar My Profile navigation ---');
+
+const layoutSrc = fs.readFileSync(path.resolve(SRC, 'components/DashboardLayout.tsx'), 'utf-8');
+const rolesWithProfile = ['Admin', 'Coach', 'Athlete', 'Organizer'];
+
+for (const r of rolesWithProfile) {
+  // Find case 'Role': block up to next case or break
+  const caseRegex = new RegExp(`case\\s+['"]${r}['"]:[\\s\\S]*?(?:case\\s+['"]|default:)`, 'g');
+  const match = caseRegex.exec(layoutSrc);
+  if (match) {
+    const hasMyProfile = match[0].includes("name: 'My Profile'") && match[0].includes("path: '/dashboard/profile'");
+    assertPass(
+      hasMyProfile,
+      `DashboardLayout sidebar config for role "${r}" includes "My Profile" (/dashboard/profile)`,
+    );
+  } else {
+    fail(`Could not find sidebar config block for role "${r}"`);
+  }
+}
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
 

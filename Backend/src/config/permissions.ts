@@ -22,7 +22,8 @@ export type Resource =
   | 'contactMessages'
   | 'dashboard'
   | 'chatbot'
-  | 'achievements';
+  | 'achievements'
+  | 'profile';
 
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'resetPassword' | 'unlock' | 'manage';
 
@@ -156,6 +157,10 @@ export const PERMISSION_MATRIX: Record<
     read: { roles: ['Admin'], status: 'enforced_now', description: 'Admin lists and views achievements' },
     update: { roles: ['Admin'], status: 'enforced_now', description: 'Admin updates achievement' },
     delete: { roles: ['Admin'], status: 'enforced_now', description: 'Admin deletes achievement' },
+  },
+  profile: {
+    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now', description: 'Authenticated user reads own profile' },
+    update: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now', description: 'Authenticated user updates own profile' },
   },
 };
 
