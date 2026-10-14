@@ -108,7 +108,7 @@ function getAuthHeader(user: { _id: Types.ObjectId; role: string }): {
 } {
   const token = signAccessToken(
     user._id.toString(),
-    user.role as 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official'
+    user.role as 'Admin' | 'Coach' | 'Athlete' | 'Organizer'
   );
   return {
     Authorization: `Bearer ${token}`,
@@ -181,7 +181,7 @@ async function run(): Promise<void> {
   const createdUserIds: Types.ObjectId[] = [];
   const defaultPw = await hashPassword('AthletiqAnalytics2026!');
 
-  async function createTestUser(role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official', name: string) {
+  async function createTestUser(role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer', name: string) {
     const user = await User.create({
       name,
       email: `test-analytics-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@athletiq.test`,
@@ -204,13 +204,9 @@ async function run(): Promise<void> {
   const coachUser = await createTestUser('Coach', 'Analytics Coach');
   const athleteUser = await createTestUser('Athlete', 'Analytics Athlete');
   const organizerUser = await createTestUser('Organizer', 'Analytics Organizer');
-  const officialUser = await createTestUser('Official', 'Analytics Official');
 
   const orgRes = await fetch1('/analytics/overview', { headers: getAuthHeader(organizerUser) });
   assert(orgRes.status === 403, 'Organizer access to GET /api/analytics/overview returns 403 Forbidden');
-
-  const offRes = await fetch1('/analytics/overview', { headers: getAuthHeader(officialUser) });
-  assert(offRes.status === 403, 'Official access to GET /api/analytics/overview returns 403 Forbidden');
 
   const admRes = await fetch1('/analytics/overview', { headers: getAuthHeader(adminUser) });
   assert(admRes.status === 200, 'Admin access to GET /api/analytics/overview returns 200 OK');

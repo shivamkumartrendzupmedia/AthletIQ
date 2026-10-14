@@ -14,7 +14,7 @@ import {
   ApiClientError,
 } from '../lib/apiClient';
 
-export type UserRole = 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
+export type UserRole = 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
 
 export interface User {
   id: string;

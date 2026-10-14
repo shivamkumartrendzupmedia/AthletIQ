@@ -26,31 +26,23 @@ export const LiveMatchesConsoleListPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isOfficial = user?.role === 'Official';
-
   const loadData = async (tourneyId?: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      if (isOfficial) {
-        // Official uses GET /api/matches/assigned
-        const assigned = await academyApi.getAssignedMatches();
-        setMatches(assigned || []);
-      } else {
-        // Admin and Organizer load active tournaments via GET /api/tournaments
-        // and matches via GET /api/tournaments/:id/matches
-        const tourneyRes = await academyApi.listTournaments({ limit: 20 });
-        const tourneyList = tourneyRes.items || [];
-        setTournaments(tourneyList);
+      // Admin and Organizer load active tournaments via GET /api/tournaments
+      // and matches via GET /api/tournaments/:id/matches
+      const tourneyRes = await academyApi.listTournaments({ limit: 20 });
+      const tourneyList = tourneyRes.items || [];
+      setTournaments(tourneyList);
 
-        const targetId = tourneyId || selectedTournamentId || (tourneyList.length > 0 ? tourneyList[0].id : '');
-        if (targetId) {
-          setSelectedTournamentId(targetId);
-          const matchRes = await academyApi.listMatches(targetId, { limit: 50 });
-          setMatches(matchRes.items || []);
-        } else {
-          setMatches([]);
-        }
+      const targetId = tourneyId || selectedTournamentId || (tourneyList.length > 0 ? tourneyList[0].id : '');
+      if (targetId) {
+        setSelectedTournamentId(targetId);
+        const matchRes = await academyApi.listMatches(targetId, { limit: 50 });
+        setMatches(matchRes.items || []);
+      } else {
+        setMatches([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error loading matches for console');
@@ -98,15 +90,10 @@ export const LiveMatchesConsoleListPage: React.FC = () => {
               Live Matches & Dispatch
             </h1>
             <p className="mt-1 text-sm text-neutral-400">
-              {isOfficial
-                ? 'Select an assigned fixture to begin scoring, record match events, and submit results.'
-                : 'Manage live scoring and match events for active tournament fixtures.'}
+              Manage live scoring and match events for active tournament fixtures.
             </p>
             <div className="mt-2 text-xs text-neutral-500 font-mono">
-              Endpoint:{' '}
-              {isOfficial
-                ? 'GET /api/matches/assigned'
-                : 'GET /api/tournaments & GET /api/tournaments/:id/matches'}
+              Endpoint: GET /api/tournaments &amp; GET /api/tournaments/:id/matches
             </div>
           </div>
 
@@ -138,7 +125,7 @@ export const LiveMatchesConsoleListPage: React.FC = () => {
       )}
 
       {/* Admin/Organizer Tournament Filter */}
-      {!isOfficial && tournaments.length > 0 && (
+      {tournaments.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-neutral-900/50 p-4">
           <Filter className="h-4 w-4 text-neutral-400" />
           <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">
@@ -164,7 +151,7 @@ export const LiveMatchesConsoleListPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-emerald-400" />
             <h2 className="text-lg font-bold text-white">
-              {isOfficial ? 'Your Assigned Fixtures' : 'Tournament Matches'}
+              Tournament Matches
             </h2>
             <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-neutral-300">
               {matches.length}
@@ -182,9 +169,7 @@ export const LiveMatchesConsoleListPage: React.FC = () => {
             <Radio className="mx-auto h-10 w-10 text-neutral-600 mb-3" />
             <h3 className="text-base font-semibold text-white">No Matches Available</h3>
             <p className="mt-1 text-xs text-neutral-400 max-w-sm mx-auto">
-              {isOfficial
-                ? 'You do not have any matches assigned to your referee account.'
-                : 'No matches found in the selected tournament.'}
+              No matches found in the selected tournament.
             </p>
             <div className="mt-4">
               <button

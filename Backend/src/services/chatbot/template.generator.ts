@@ -218,18 +218,6 @@ interface UpcomingMatchesResult {
   }>;
 }
 
-interface AssignedMatchesResult {
-  total: number;
-  matches: Array<{
-    tournament: string;
-    homeTeam: string;
-    awayTeam: string;
-    status: string;
-    scheduledAt: string;
-    venue: string;
-  }>;
-}
-
 interface AcademyOverviewResult {
   userCounts: {
     Admin: number;
@@ -555,21 +543,6 @@ export function formatToolResponse(toolName: string, rawData: unknown): string {
       for (const m of data.matches) {
         const timeStr = new Date(m.scheduledAt).toLocaleString();
         parts.push(`- [${m.tournament}] ${m.homeTeam} vs ${m.awayTeam} at ${m.venue} (${timeStr})`);
-      }
-      text = parts.join('\n');
-      break;
-    }
-
-    case 'getMyAssignedMatches': {
-      const data = rawData as AssignedMatchesResult;
-      if (!data.matches || data.matches.length === 0) {
-        text = '--- Official Match Assignments ---\nYou have no assigned matches scheduled.';
-        break;
-      }
-      const parts = [`--- Official Match Assignments (${data.total}) ---`];
-      for (const m of data.matches) {
-        const timeStr = new Date(m.scheduledAt).toLocaleString();
-        parts.push(`- [${m.status}] ${m.homeTeam} vs ${m.awayTeam} | ${m.tournament} | ${m.venue} | ${timeStr}`);
       }
       text = parts.join('\n');
       break;

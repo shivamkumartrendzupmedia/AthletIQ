@@ -206,13 +206,6 @@ const INTENT_PATTERNS: IntentPattern[] = [
     phrases: ['upcoming matches', 'matches in my tournaments', 'tournament fixtures', 'agle matches', 'tournament matches'],
     weight: 1.6,
   },
-  // Official Assigned Matches
-  {
-    tool: 'getMyAssignedMatches',
-    keywords: ['assigned matches', 'my matches', 'mere matches', 'duty', 'officiating'],
-    phrases: ['assigned matches', 'my matches', 'mere matches', 'match assignment', 'matches assigned to me', 'kab match karana hai', 'referee schedule'],
-    weight: 1.8,
-  },
   // Admin Academy Overview
   {
     tool: 'getAcademyOverview',
@@ -286,15 +279,6 @@ export function getRoleHelpMessage(role: Role): string {
         '- Your tournaments ("my tournaments", "mere tournaments")',
         '- Registration numbers ("registrations summary", "pending applications")',
         '- Upcoming tournament matches ("upcoming matches", "tournament fixtures")',
-        '- Public academy details and live matches ("programs", "live matches")',
-        '- Tournament standings ("standings for [tournament name]", "points table")',
-        '- Unread notifications count ("my notifications", "alerts")',
-      ].join('\n');
-
-    case 'Official':
-      return [
-        'Here is what you can ask as an Official:',
-        '- Your assigned matches ("assigned matches", "mere matches")',
         '- Public academy details and live matches ("programs", "live matches")',
         '- Tournament standings ("standings for [tournament name]", "points table")',
         '- Unread notifications count ("my notifications", "alerts")',

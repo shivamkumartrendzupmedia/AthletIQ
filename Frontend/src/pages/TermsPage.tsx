@@ -96,8 +96,7 @@ export const TermsPage: React.FC = () => {
               <li><strong>Admin:</strong> Manages overall academy sports, venues, coaching assignments, rosters, and administrative accounts.</li>
               <li><strong>Coach:</strong> Plans training drills, logs squad attendance, submits skill evaluations, and enters development feedback for assigned rosters.</li>
               <li><strong>Athlete:</strong> Views personal training schedules, match assignments, individual development goals, and evaluations.</li>
-              <li><strong>Organizer:</strong> Oversees tournament fixtures, team registrations, brackets, and venue schedules.</li>
-              <li><strong>Official:</strong> Records in-match events (goals, cards, substitutions), manages match period clocks, and enters official fixture results.</li>
+              <li><strong>Organizer:</strong> Oversees tournament fixtures, referee assignments, team registrations, brackets, and venue schedules.</li>
             </ul>
             <p className="mt-3 text-xs text-[#171044]/70">
               You are responsible for keeping your login credentials confidential and must notify academy administration immediately of any unauthorized account access.

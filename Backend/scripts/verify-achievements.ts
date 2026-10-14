@@ -95,7 +95,7 @@ async function run(): Promise<void> {
   const passwordHash = await hashPassword('Password123!');
 
   // Provision test users across all roles
-  const roles = ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'] as const;
+  const roles = ['Admin', 'Coach', 'Athlete', 'Organizer'] as const;
   const userMap = new Map<string, { id: Types.ObjectId; token: string }>();
 
   for (const role of roles) {

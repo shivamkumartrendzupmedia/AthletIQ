@@ -3,7 +3,7 @@
  * Single source of truth for schema validation and TypeScript types
  */
 
-export const ROLES = ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'] as const;
+export const ROLES = ['Admin', 'Coach', 'Athlete', 'Organizer'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const SPORT_STATUSES = ['Active', 'Inactive'] as const;

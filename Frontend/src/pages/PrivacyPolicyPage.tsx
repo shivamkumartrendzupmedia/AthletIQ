@@ -74,7 +74,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               We collect information necessary to operate training programs, tournament logistics, development tracking, and platform authentication:
             </p>
             <ul className="list-disc pl-6 space-y-2 text-sm text-[#171044]/80">
-              <li><strong>Account Credentials:</strong> Full name, email address, cryptographic password hash (passwords are never stored in plaintext), and assigned platform role (Admin, Coach, Athlete, Organizer, Official).</li>
+              <li><strong>Account Credentials:</strong> Full name, email address, cryptographic password hash (passwords are never stored in plaintext), and assigned platform role (Admin, Coach, Athlete, Organizer).</li>
               <li><strong>Athlete Profiles:</strong> Date of birth, contact phone number, team assignment, jersey number, playing position, primary and secondary sports.</li>
               <li><strong>Guardian &amp; Emergency Records:</strong> Guardian name, relationship, contact email, emergency phone numbers, and emergency contact details for athletes.</li>
               <li><strong>Health &amp; Medical Notes:</strong> Allergies, dietary considerations, and emergency medical notes explicitly provided for athlete welfare during sports activities.</li>
@@ -113,7 +113,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               <li><strong>Coaches:</strong> Access is restricted strictly to athletes rostered on their own assigned teams. Coaches cannot inspect records of teams they do not oversee.</li>
               <li><strong>Medical Notes:</strong> Sensitive medical notes and emergency files are restricted to Academy Administrators. Coaches receive actionable safeguarding indicators only where permitted.</li>
               <li><strong>Athletes:</strong> Can access only their own individual development metrics, attendance logs, and squad announcements.</li>
-              <li><strong>Officials:</strong> View match squad names and IDs necessary to record scores, cautions, and event timestamps without access to athlete personal contact information.</li>
+              <li><strong>Organizers &amp; Administrators:</strong> Manage tournament fixtures, referee assignments, scores, and event timestamps without exposing athlete personal contact information.</li>
             </ul>
           </section>
 

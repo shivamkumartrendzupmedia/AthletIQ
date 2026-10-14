@@ -91,7 +91,7 @@ export type AnalyticsOverviewDto =
 
 export class AnalyticsService {
   async getOverview(user: { id: string; role: string }): Promise<AnalyticsOverviewDto> {
-    if (user.role === 'Organizer' || user.role === 'Official') {
+    if (user.role === 'Organizer') {
       throw ApiError.forbidden('Analytics overview is not available for this role');
     }
 

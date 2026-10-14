@@ -12,7 +12,6 @@ import {
   type IMatch,
   MatchEvent,
   type IMatchEvent,
-  User,
   Sport,
   Team,
   Coach,
@@ -769,41 +768,10 @@ export class TournamentService {
     if (data.type !== undefined) updateDoc.type = data.type;
     if (data.active !== undefined) updateDoc.active = data.active;
 
-    const unsetDoc: Record<string, unknown> = {};
-
-    if (data.user !== undefined) {
-      if (user.role !== 'Admin') {
-        throw new ApiError(403, 'Only Admin can link or unlink official users');
-      }
-      if (data.user === null) {
-        unsetDoc.user = 1;
-      } else {
-        if (!Types.ObjectId.isValid(data.user)) {
-          throw new ApiError(400, 'Invalid user ID');
-        }
-        const targetUser = await User.findById(data.user);
-        if (!targetUser) {
-          throw new ApiError(404, 'Target user not found');
-        }
-        if (targetUser.role !== 'Official') {
-          throw new ApiError(400, 'Target user must have role Official');
-        }
-        const conflict = await Official.findOne({
-          user: new Types.ObjectId(data.user),
-          _id: { $ne: official._id },
-        });
-        if (conflict) {
-          throw new ApiError(409, 'User is already linked to another official');
-        }
-        updateDoc.user = new Types.ObjectId(data.user);
-      }
-    }
-
     const updateQuery: Record<string, unknown> = {};
     if (Object.keys(updateDoc).length > 0) updateQuery.$set = updateDoc;
-    if (Object.keys(unsetDoc).length > 0) updateQuery.$unset = unsetDoc;
 
-    const updated = await Official.findByIdAndUpdate(id, updateQuery, { new: true }).populate('user', 'name');
+    const updated = await Official.findByIdAndUpdate(id, updateQuery, { new: true });
     if (!updated) {
       throw new ApiError(404, 'Official not found');
     }
@@ -1076,26 +1044,12 @@ export class TournamentService {
       throw new ApiError(404, 'Match not found');
     }
 
-    let isAssignedOfficial = false;
-    if (user?.role === 'Official') {
-      if (!match.referee) {
-        throw new ApiError(404, 'Match not found');
-      }
-      const refereeId = (match.referee as { _id?: Types.ObjectId })._id ?? match.referee;
-      const official = await Official.findOne({ user: new Types.ObjectId(user.id) });
-      if (!official || refereeId.toString() !== official._id.toString()) {
-        throw new ApiError(404, 'Match not found');
-      }
-      isAssignedOfficial = true;
-    }
-
     const matchObj: Record<string, unknown> = match.toJSON();
 
     const isPrivileged =
       user &&
       (user.role === 'Admin' ||
-        (user.role === 'Organizer' && tournament.organizer.toString() === user.id) ||
-        (user.role === 'Official' && isAssignedOfficial));
+        (user.role === 'Organizer' && tournament.organizer.toString() === user.id));
 
     if (isPrivileged) {
       const homeTeamDoc = match.homeTeam as unknown as { _id?: Types.ObjectId } | null;
@@ -1561,38 +1515,9 @@ export class TournamentService {
   }
 
   /**
-   * List matches assigned to an Official-role user.
-   */
-  async getAssignedMatches(user: AuthUser): Promise<IMatch[]> {
-    if (user.role !== 'Official') {
-      throw new ApiError(403, 'Only Officials can view assigned matches');
-    }
-    const official = await Official.findOne({ user: new Types.ObjectId(user.id) });
-    if (!official) {
-      return [];
-    }
-    return Match.find({ referee: official._id })
-      .populate('tournament', 'name status format')
-      .populate({
-        path: 'homeTeam',
-        select: 'team status',
-        populate: { path: 'team', select: 'name code logo' },
-      })
-      .populate({
-        path: 'awayTeam',
-        select: 'team status',
-        populate: { path: 'team', select: 'name code logo' },
-      })
-      .populate('venue', 'name address')
-      .populate('referee', 'name type')
-      .sort({ scheduledAt: 1 });
-  }
-
-  /**
    * Scoping assertion helper for live match operations:
    * Admin: any match
    * Organizer: matches belonging to tournaments owned by him
-   * Official: matches where referee is assigned to his user
    * Other roles: 403
    * Non-existing match or unassigned: 404
    */
@@ -1620,17 +1545,6 @@ export class TournamentService {
 
     if (user.role === 'Organizer') {
       if (tournament.organizer.toString() !== user.id) {
-        throw new ApiError(404, 'Match not found');
-      }
-      return { match, tournament };
-    }
-
-    if (user.role === 'Official') {
-      if (!match.referee) {
-        throw new ApiError(404, 'Match not found');
-      }
-      const official = await Official.findById(match.referee);
-      if (!official || !official.user || official.user.toString() !== user.id) {
         throw new ApiError(404, 'Match not found');
       }
       return { match, tournament };
@@ -1750,18 +1664,16 @@ export class TournamentService {
       },
     });
 
-    // Safe notification dispatch for match participants & official
+    // Safe notification dispatch for match participants
     (async () => {
       try {
-        const [homeReg, awayReg, refOff] = await Promise.all([
+        const [homeReg, awayReg] = await Promise.all([
           TournamentTeam.findById(updated.homeTeam).select('registeredBy'),
           TournamentTeam.findById(updated.awayTeam).select('registeredBy'),
-          updated.referee ? Official.findById(updated.referee).select('user') : null,
         ]);
         const recipientIds: Types.ObjectId[] = [];
         if (homeReg?.registeredBy) recipientIds.push(homeReg.registeredBy);
         if (awayReg?.registeredBy) recipientIds.push(awayReg.registeredBy);
-        if (refOff?.user) recipientIds.push(refOff.user);
 
         if (recipientIds.length > 0) {
           await notify(recipientIds, {
@@ -1892,12 +1804,6 @@ export class TournamentService {
     }
     if (tournament.status === 'Draft' && user.role !== 'Admin' && tournament.organizer.toString() !== user.id) {
       throw new ApiError(404, 'Match not found');
-    }
-    if (user.role === 'Official') {
-      const official = await Official.findOne({ user: new Types.ObjectId(user.id) });
-      if (!official || !match.referee || match.referee.toString() !== official._id.toString()) {
-        throw new ApiError(404, 'Match not found');
-      }
     }
 
     return MatchEvent.find({ match: match._id })
@@ -2359,12 +2265,6 @@ export class TournamentService {
     if (!isPublic && user) {
       if (user.role === 'Organizer' && tourney.organizer?.toString() !== user.id) {
         throw new ApiError(404, 'Match not found');
-      }
-      if (user.role === 'Official') {
-        const official = await Official.findOne({ user: new Types.ObjectId(user.id) });
-        if (!official || !match.referee || match.referee.toString() !== official._id.toString()) {
-          throw new ApiError(404, 'Match not found');
-        }
       }
     }
 

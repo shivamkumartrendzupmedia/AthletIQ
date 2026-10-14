@@ -9,7 +9,6 @@ import { Attendance } from '../models/Attendance.js';
 import { Tournament } from '../models/Tournament.js';
 import { TournamentTeam } from '../models/TournamentTeam.js';
 import { Match } from '../models/Match.js';
-import { Official } from '../models/Official.js';
 import { ContactMessage } from '../models/ContactMessage.js';
 import { SkillAssessment } from '../models/SkillAssessment.js';
 import { CoachFeedback } from '../models/CoachFeedback.js';
@@ -105,11 +104,6 @@ export interface OrganizerOverviewResponse {
   nextMatches: MatchOverviewItem[];
 }
 
-export interface OfficialOverviewResponse {
-  role: 'Official';
-  matches: MatchOverviewItem[];
-}
-
 export interface PublicTournamentOverview {
   id: string;
   name: string;
@@ -171,7 +165,7 @@ export class DashboardService {
    * Role is derived solely from authenticated user token.
    */
   async getDashboardOverview(user: { id: string; role: string; name?: string }): Promise<
-    AdminOverviewResponse | CoachOverviewResponse | AthleteOverviewResponse | OrganizerOverviewResponse | OfficialOverviewResponse
+    AdminOverviewResponse | CoachOverviewResponse | AthleteOverviewResponse | OrganizerOverviewResponse
   > {
     const now = new Date();
 
@@ -494,47 +488,6 @@ export class DashboardService {
       homeTeamName: m.homeTeam?.team?.name || 'Home Team',
       awayTeamName: m.awayTeam?.team?.name || 'Away Team',
     }));
-
-    if (user.role === 'Official') {
-      const official = await Official.findOne({ user: user.id });
-      if (!official) {
-        return {
-          role: 'Official',
-          matches: [],
-        };
-      }
-
-      const assignedMatches = await Match.find({
-        referee: official._id,
-        status: { $in: ['Scheduled', 'Live', 'HalfTime'] },
-      })
-        .sort({ scheduledAt: 1 })
-        .populate<{ tournament: { name: string } }>('tournament', 'name')
-        .populate<{ venue: { name: string } }>('venue', 'name')
-        .populate<{ homeTeam: { team: { name: string } } }>({
-          path: 'homeTeam',
-          populate: { path: 'team', select: 'name' },
-        })
-        .populate<{ awayTeam: { team: { name: string } } }>({
-          path: 'awayTeam',
-          populate: { path: 'team', select: 'name' },
-        });
-
-      const matchesData: MatchOverviewItem[] = assignedMatches.map((m) => ({
-        id: m._id.toString(),
-        tournamentName: m.tournament?.name || 'Tournament',
-        round: m.round,
-        scheduledAt: m.scheduledAt,
-        venueName: m.venue?.name || 'Pitch Venue',
-        homeTeamName: m.homeTeam?.team?.name || 'Home Team',
-        awayTeamName: m.awayTeam?.team?.name || 'Away Team',
-      }));
-
-      return {
-        role: 'Official',
-        matches: matchesData,
-      };
-    }
 
     return {
       role: 'Organizer',

@@ -347,7 +347,6 @@ export const UserAccountsPage: React.FC = () => {
             <option value="Coach">Coach</option>
             <option value="Athlete">Athlete</option>
             <option value="Organizer">Organizer</option>
-            <option value="Official">Official</option>
           </select>
 
           <select
@@ -425,8 +424,6 @@ export const UserAccountsPage: React.FC = () => {
                               ? 'lime'
                               : u.role === 'Organizer'
                               ? 'orange'
-                              : u.role === 'Official'
-                              ? 'lime'
                               : 'dark'
                           }
                           size="sm"
@@ -670,7 +667,6 @@ export const UserAccountsPage: React.FC = () => {
                   <option value="Coach">Coach</option>
                   <option value="Athlete">Athlete</option>
                   <option value="Organizer">Organizer</option>
-                  <option value="Official">Official</option>
                 </select>
                 {createFieldErrors.role && (
                   <p className="mt-1 text-xs text-red-600 font-medium">{createFieldErrors.role}</p>
@@ -756,7 +752,6 @@ export const UserAccountsPage: React.FC = () => {
                     <option value="Coach">Coach</option>
                     <option value="Athlete">Athlete</option>
                     <option value="Organizer">Organizer</option>
-                    <option value="Official">Official</option>
                   </select>
                   {editFieldErrors.role && (
                     <p className="mt-1 text-xs text-red-600 font-medium">{editFieldErrors.role}</p>

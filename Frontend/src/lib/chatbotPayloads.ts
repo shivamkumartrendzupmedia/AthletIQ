@@ -14,7 +14,7 @@ export function buildChatbotMessagePayload(
   };
 }
 
-export type Role = 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
+export type Role = 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
 
 export interface PromptChip {
   id: string;
@@ -54,14 +54,6 @@ export const ROLE_SUGGESTION_CHIPS: Record<Role, readonly PromptChip[]> = {
     { id: 'organizer-live', label: 'Live Scores', prompt: 'live matches' },
     { id: 'organizer-standings', label: 'Tournament Standings', prompt: 'tournament standings' },
     { id: 'organizer-notifications', label: 'Notifications', prompt: 'my notifications' },
-  ],
-  Official: [
-    { id: 'official-assigned', label: 'Assigned Matches', prompt: 'my assigned matches' },
-    { id: 'official-live', label: 'Live Matches', prompt: 'live matches' },
-    { id: 'official-programs', label: 'Sports Programs', prompt: 'sports programs' },
-    { id: 'official-standings', label: 'Tournament Standings', prompt: 'tournament standings' },
-    { id: 'official-notifications', label: 'Notifications', prompt: 'my notifications' },
-    { id: 'official-overview', label: 'Academy Overview', prompt: 'academy overview' },
   ],
 } as const;
 

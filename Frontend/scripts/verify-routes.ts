@@ -162,7 +162,6 @@ const mustBeProtected = [
   '/dashboard/coach',
   '/dashboard/athlete',
   '/dashboard/organizer',
-  '/dashboard/official',
   '/dashboard/live',
   '/dashboard/live/:matchId',
   '/dashboard/messages',
@@ -179,6 +178,7 @@ const mustBeProtected = [
   '/dashboard/venues',
   '/dashboard/officials',
   '/dashboard/users',
+  '/dashboard/achievements',
   '/dashboard/analytics',
   '/athlete/:id',
 ];
@@ -240,7 +240,6 @@ const roleTargets: RoleTarget[] = [
   { role: 'Coach', target: '/dashboard/coach', requiredRole: 'Coach' },
   { role: 'Athlete', target: '/dashboard/athlete', requiredRole: 'Athlete' },
   { role: 'Organizer', target: '/dashboard/organizer', requiredRole: 'Organizer' },
-  { role: 'Official', target: '/dashboard/official', requiredRole: 'Official' },
 ];
 
 for (const { role, target, requiredRole } of roleTargets) {
@@ -268,8 +267,9 @@ const routeRoleExpectations: Array<{ route: string; roles: string[] }> = [
   { route: '/dashboard/organizer', roles: ['Organizer', 'Admin'] },
   { route: '/dashboard/officials', roles: ['Admin', 'Organizer'] },
   { route: '/dashboard/venues', roles: ['Admin', 'Organizer'] },
-  { route: '/dashboard/live', roles: ['Official', 'Admin', 'Organizer'] },
-  { route: '/dashboard/live/:matchId', roles: ['Official', 'Admin', 'Organizer'] },
+  { route: '/dashboard/live', roles: ['Admin', 'Organizer'] },
+  { route: '/dashboard/live/:matchId', roles: ['Admin', 'Organizer'] },
+  { route: '/dashboard/achievements', roles: ['Admin'] },
   { route: '/dashboard/documents', roles: ['Admin', 'Coach', 'Athlete', 'Organizer'] },
   { route: '/dashboard/training', roles: ['Admin', 'Coach', 'Athlete', 'Organizer'] },
   { route: '/dashboard/tournaments', roles: ['Admin', 'Organizer', 'Coach', 'Athlete'] },
@@ -291,6 +291,22 @@ for (const { route, roles } of routeRoleExpectations) {
     fail(`Could not find route block for "${route}"`);
   }
 }
+
+// ─── (h) Assert NO route allows 'Official' ────────────────────────────────────
+
+console.log('\n--- SECTION H: Assert no route allows Official role ---');
+
+const allowedRolesMatches = appSrc.match(/allowedRoles=\s*\{[^}]+\}/g) || [];
+let officialAllowedFound = false;
+for (const arm of allowedRolesMatches) {
+  if (arm.includes("'Official'") || arm.includes('"Official"')) {
+    officialAllowedFound = true;
+  }
+}
+assertPass(
+  !officialAllowedFound,
+  'No route in App.tsx includes "Official" in its allowedRoles',
+);
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
 

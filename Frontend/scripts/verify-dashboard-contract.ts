@@ -19,7 +19,6 @@ import {
   mapCoachDashboardCards,
   mapAthleteDashboardCards,
   mapOrganizerDashboardCards,
-  mapOfficialDashboardCards,
   validateOverviewKeys,
 } from '../src/lib/dashboardMappers.js';
 import type {
@@ -27,7 +26,6 @@ import type {
   CoachDashboardOverview,
   AthleteDashboardOverview,
   OrganizerDashboardOverview,
-  OfficialDashboardOverview,
 } from '../src/services/academyApi.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -229,39 +227,15 @@ assert(
 );
 
 // ============================================================================
-// 5. OFFICIAL DASHBOARD CONTRACT
+// 5. CONTRACT SCHEMA & ABSENT KEY VERIFICATION
 // ============================================================================
-console.log('\n--- GROUP 5: OFFICIAL DASHBOARD CONTRACT ---');
-const officialFixture = loadFixture<OfficialDashboardOverview>('dashboard-official.json');
-const officialCards = mapOfficialDashboardCards(officialFixture);
+console.log('\n--- GROUP 5: CONTRACT SCHEMA & ABSENT KEY CHECKS ---');
 
-assert(
-  officialCards.totalAssignedRaw === 1,
-  'Official totalAssigned matches fixture count (1)',
-  `Expected 1, got ${officialCards.totalAssignedRaw}`
-);
-assert(
-  officialCards.upcomingRaw === 1,
-  'Official upcoming matches count matches fixture (1)',
-  `Expected 1, got ${officialCards.upcomingRaw}`
-);
-assert(
-  officialCards.assignedTournamentsRaw === 1,
-  'Official assignedTournaments matches fixture count (1)',
-  `Expected 1, got ${officialCards.assignedTournamentsRaw}`
-);
-
-// ============================================================================
-// 6. CONTRACT SCHEMA & ABSENT KEY VERIFICATION
-// ============================================================================
-console.log('\n--- GROUP 6: CONTRACT SCHEMA & ABSENT KEY CHECKS ---');
-
-const roles: Array<'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official'> = [
+const roles: Array<'Admin' | 'Coach' | 'Athlete' | 'Organizer'> = [
   'Admin',
   'Coach',
   'Athlete',
   'Organizer',
-  'Official',
 ];
 
 for (const r of roles) {
@@ -307,17 +281,6 @@ for (const r of roles) {
     incompleteMapped.upcomingSessions === '-',
     'Admin mapper replaces missing required fields with visible "-" (never masquerades as 0)',
     `Got totalUsers=${incompleteMapped.totalUsers}, athletes=${incompleteMapped.activeAthletes}`
-  );
-}
-
-// Official mapper absent key test: ensure mapper works without absent .status field
-{
-  const fixtureMatches = officialFixture.matches;
-  const matchHasStatus = fixtureMatches.some((m) => 'status' in m);
-  assert(
-    !matchHasStatus,
-    'Official fixture matches contain no absent "status" key (verified contract)',
-    'Fixture should not contain status'
   );
 }
 

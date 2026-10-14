@@ -363,18 +363,6 @@ export class TournamentController {
   // LIVE MATCH CENTER (STEP 9A)
   // ==========================================
 
-  async getAssignedMatches(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const matches = await tournamentService.getAssignedMatches({
-        id: req.user!.id,
-        role: req.user!.role,
-      });
-      res.status(200).json({ data: matches });
-    } catch (err) {
-      next(err);
-    }
-  }
-
   async updateMatchStatus(req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> {
     try {
       const match = await tournamentService.updateMatchStatus(

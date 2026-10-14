@@ -162,7 +162,6 @@ export const createOfficialSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
     type: z.enum(OFFICIAL_TYPES),
-    user: z.string().regex(objectIdRegex).nullable().optional(),
     active: z.boolean().optional(),
   })
   .strict();
@@ -171,7 +170,6 @@ export const updateOfficialSchema = z
   .object({
     name: z.string().trim().min(1).max(100).optional(),
     type: z.enum(OFFICIAL_TYPES).optional(),
-    user: z.string().regex(objectIdRegex).nullable().optional(),
     active: z.boolean().optional(),
   })
   .strict();

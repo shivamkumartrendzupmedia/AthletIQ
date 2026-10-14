@@ -8,7 +8,6 @@ import {
   Tournament,
   TournamentTeam,
   Match,
-  Official,
   ContactMessage,
   Attendance,
   SkillAssessment,
@@ -79,12 +78,6 @@ export const ROLE_TOOLS = {
     'getMyTournaments',
     'getMyRegistrationsSummary',
     'getMyUpcomingMatches',
-  ],
-  Official: [
-    'getPublicInfo',
-    'getStandings',
-    'getMyNotificationsSummary',
-    'getMyAssignedMatches',
   ],
 } as const satisfies Record<Role, readonly string[]>;
 
@@ -788,46 +781,7 @@ const getMyUpcomingMatchesTool: ToolDefinition<Record<string, never>, unknown> =
   },
 };
 
-// 19. getMyAssignedMatches (Official)
-const getMyAssignedMatchesTool: ToolDefinition<Record<string, never>, unknown> = {
-  name: 'getMyAssignedMatches',
-  description: 'Matches assigned to the official.',
-  schema: emptyArgsSchema,
-  execute: async (_args, user) => {
-    const officialDoc = await Official.findOne({ user: new Types.ObjectId(user.id) });
-    if (!officialDoc) {
-      return { status: 'not_available', message: 'Official profile is not available.' };
-    }
 
-    const matches = await Match.find({
-      officials: officialDoc._id,
-    })
-      .sort({ scheduledAt: 1 })
-      .populate('homeTeam', 'name')
-      .populate('awayTeam', 'name')
-      .populate('tournament', 'name')
-      .populate('venue', 'name')
-      .lean();
-
-    return {
-      total: matches.length,
-      matches: matches.map((m) => {
-        const home = m.homeTeam as unknown as { name?: string } | null;
-        const away = m.awayTeam as unknown as { name?: string } | null;
-        const tourney = m.tournament as unknown as { name?: string } | null;
-        const ven = m.venue as unknown as { name?: string } | null;
-        return {
-          tournament: tourney?.name || 'Tournament',
-          homeTeam: home?.name || 'Home',
-          awayTeam: away?.name || 'Away',
-          status: m.status,
-          scheduledAt: m.scheduledAt.toISOString(),
-          venue: ven?.name || 'Pitch 1',
-        };
-      }),
-    };
-  },
-};
 
 // 20. getAcademyOverview (Admin)
 const getAcademyOverviewTool: ToolDefinition<Record<string, never>, unknown> = {
@@ -912,7 +866,6 @@ export const TOOL_REGISTRY: Record<string, AnyExecutableTool> = {
   getMyTournaments: createTool(getMyTournamentsTool),
   getMyRegistrationsSummary: createTool(getMyRegistrationsSummaryTool),
   getMyUpcomingMatches: createTool(getMyUpcomingMatchesTool),
-  getMyAssignedMatches: createTool(getMyAssignedMatchesTool),
   getAcademyOverview: createTool(getAcademyOverviewTool),
   getPendingRegistrationsCount: createTool(getPendingRegistrationsCountTool),
   getUnreadContactMessagesCount: createTool(getUnreadContactMessagesCountTool),

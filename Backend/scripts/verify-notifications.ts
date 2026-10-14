@@ -108,7 +108,7 @@ function getAuthHeader(user: { _id: Types.ObjectId; role: string }): {
 } {
   const token = signAccessToken(
     user._id.toString(),
-    user.role as 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official'
+    user.role as 'Admin' | 'Coach' | 'Athlete' | 'Organizer'
   );
   return {
     Authorization: `Bearer ${token}`,
@@ -167,7 +167,7 @@ async function run(): Promise<void> {
   const createdNotificationIds: Types.ObjectId[] = [];
   const defaultPw = await hashPassword('AthletiqTest2026!');
 
-  async function createTestUser(role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official', name: string) {
+  async function createTestUser(role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer', name: string) {
     const user = await User.create({
       name,
       email: `test-notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@athletiq.test`,

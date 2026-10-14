@@ -128,12 +128,6 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
           { name: 'Documents', path: '/dashboard/documents', icon: FileText },
           { name: 'Announcements', path: '/dashboard/announcements', icon: Bell },
         ];
-      case 'Official':
-        return [
-          { name: 'Official Dashboard', path: '/dashboard/official', icon: LayoutDashboard },
-          { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
-          { name: 'Live Console', path: '/dashboard/live', icon: Activity },
-        ];
       default:
         return [
           { name: 'Athlete Hub', path: '/dashboard/athlete', icon: LayoutDashboard },
@@ -309,8 +303,6 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                       navigate('/dashboard/athlete');
                     else if (newRole === 'Organizer')
                       navigate('/dashboard/organizer');
-                    else if (newRole === 'Official')
-                      navigate('/dashboard/official');
                     else navigate('/dashboard/admin');
                   }}
                   className="bg-transparent text-[#D8F500] font-extrabold outline-none cursor-pointer"
@@ -326,9 +318,6 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
                   </option>
                   <option value="Organizer" className="bg-[#171044] text-white">
                     Organizer
-                  </option>
-                  <option value="Official" className="bg-[#171044] text-white">
-                    Official
                   </option>
                 </select>
               </div>

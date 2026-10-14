@@ -3,7 +3,6 @@ import type {
   CoachDashboardOverview,
   AthleteDashboardOverview,
   OrganizerDashboardOverview,
-  OfficialDashboardOverview,
 } from '../services/academyApi';
 
 /**
@@ -245,55 +244,11 @@ export function mapOrganizerDashboardCards(
   };
 }
 
-export interface OfficialDashboardCards {
-  totalAssigned: string;
-  totalAssignedRaw: number | null;
-  upcoming: string;
-  upcomingRaw: number | null;
-  assignedTournaments: string;
-  assignedTournamentsRaw: number | null;
-}
-
-export function mapOfficialDashboardCards(
-  overview: OfficialDashboardOverview | null | undefined
-): OfficialDashboardCards {
-  if (!overview || !Array.isArray(overview.matches)) {
-    return {
-      totalAssigned: '-',
-      totalAssignedRaw: null,
-      upcoming: '-',
-      upcomingRaw: null,
-      assignedTournaments: '-',
-      assignedTournamentsRaw: null,
-    };
-  }
-
-  const totalAssignedRaw = overview.matches.length;
-  const upcomingRaw = overview.matches.filter((m) => {
-    return typeof m.scheduledAt === 'string' && m.scheduledAt.length > 0;
-  }).length;
-  const tournaments = new Set(
-    overview.matches
-      .map((m) => m.tournamentName)
-      .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
-  );
-  const assignedTournamentsRaw = tournaments.size;
-
-  return {
-    totalAssigned: formatCardMetric(totalAssignedRaw),
-    totalAssignedRaw,
-    upcoming: formatCardMetric(upcomingRaw),
-    upcomingRaw,
-    assignedTournaments: formatCardMetric(assignedTournamentsRaw),
-    assignedTournamentsRaw,
-  };
-}
-
 /**
  * Validates that an overview payload object contains all expected top-level keys for its role.
  */
 export function validateOverviewKeys(
-  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official',
+  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer',
   payload: Record<string, unknown>
 ): { valid: boolean; missingKeys: string[] } {
   const expectedKeysByRole: Record<string, string[]> = {
@@ -321,7 +276,6 @@ export function validateOverviewKeys(
       'nextMatches',
     ],
     Organizer: ['role', 'tournaments', 'pendingRegistrations', 'nextMatches'],
-    Official: ['role', 'matches'],
   };
 
   const expected = expectedKeysByRole[role] || [];

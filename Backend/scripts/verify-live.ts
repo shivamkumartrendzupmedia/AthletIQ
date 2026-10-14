@@ -27,6 +27,8 @@ import {
 } from '../src/models/index.js';
 import { hashPassword } from '../src/utils/password.js';
 import { signAccessToken } from '../src/utils/jwt.js';
+import { ROLES } from '../src/models/constants.js';
+import { ROLE_TOOLS } from '../src/services/chatbot/tools.registry.js';
 import { findOrphans } from './cleanup-test-orphans.js';
 
 let totalPassed = 0;
@@ -219,24 +221,6 @@ async function run() {
   });
   createdUserIds.push(orgOtherUser._id);
 
-  const officialAssignedUser = await User.create({
-    name: 'Official Assigned',
-    email: `off-assigned-${Date.now()}@test.athletiq.internal`,
-    passwordHash: pwHash,
-    role: 'Official',
-    isActive: true,
-  });
-  createdUserIds.push(officialAssignedUser._id);
-
-  const officialOtherUser = await User.create({
-    name: 'Official Other',
-    email: `off-other-${Date.now()}@test.athletiq.internal`,
-    passwordHash: pwHash,
-    role: 'Official',
-    isActive: true,
-  });
-  createdUserIds.push(officialOtherUser._id);
-
   const coachUser = await User.create({
     name: 'Live Coach',
     email: `live-coach-${Date.now()}@test.athletiq.internal`,
@@ -339,7 +323,6 @@ async function run() {
     name: 'Pierluigi Collina',
     type: 'Referee',
     createdBy: orgOwnerUser._id,
-    user: officialAssignedUser._id,
     active: true,
   });
   createdOfficialIds.push(officialAssignedRec._id);
@@ -348,7 +331,6 @@ async function run() {
     name: 'Howard Webb',
     type: 'Referee',
     createdBy: orgOwnerUser._id,
-    user: officialOtherUser._id,
     active: true,
   });
   createdOfficialIds.push(officialOtherRec._id);
@@ -447,15 +429,12 @@ async function run() {
       { name: 'Admin', auth: getAuthHeader(adminUser) },
       { name: 'Org Owner', auth: getAuthHeader(orgOwnerUser) },
       { name: 'Org Other', auth: getAuthHeader(orgOtherUser) },
-      { name: 'Official Assigned', auth: getAuthHeader(officialAssignedUser) },
-      { name: 'Official Other', auth: getAuthHeader(officialOtherUser) },
       { name: 'Coach', auth: getAuthHeader(coachUser) },
       { name: 'Athlete', auth: getAuthHeader(athleteUser) },
       { name: 'Unauthenticated', auth: null },
     ];
 
     const matrix: Record<string, Record<string, number>> = {
-      'GET /matches/assigned': {},
       'POST /matches/:id/status': {},
       'POST /matches/:id/events': {},
       'DELETE /matches/:id/events/:eventId': {},
@@ -479,11 +458,7 @@ async function run() {
     for (const r of rolesConfig) {
       const headers: Record<string, string> = r.auth ? { ...r.auth } : { 'Content-Type': 'application/json' };
 
-      // 1. GET /matches/assigned
-      const resAssigned = await srv1.fetchGroup('/matches/assigned', { headers });
-      matrix['GET /matches/assigned'][r.name] = resAssigned.status;
-
-      // 2. POST /matches/:id/status
+      // 1. POST /matches/:id/status
       const resStatus = await srv1.fetchGroup(`/matches/${match1._id}/status`, {
         method: 'POST',
         headers,
@@ -493,7 +468,7 @@ async function run() {
       // Reset match to Live for next iteration
       await Match.updateOne({ _id: match1._id }, { $set: { status: 'Live' } });
 
-      // 3. POST /matches/:id/events
+      // 2. POST /matches/:id/events
       const resEv = await srv1.fetchGroup(`/matches/${match1._id}/events`, {
         method: 'POST',
         headers,
@@ -511,14 +486,14 @@ async function run() {
         if (evId) createdMatchEventIds.push(new Types.ObjectId(evId));
       }
 
-      // 4. DELETE /matches/:id/events/:eventId
+      // 3. DELETE /matches/:id/events/:eventId
       const resDelEv = await srv1.fetchGroup(`/matches/${match1._id}/events/${dummyEv._id}`, {
         method: 'DELETE',
         headers,
       });
       matrix['DELETE /matches/:id/events/:eventId'][r.name] = resDelEv.status;
 
-      // 5. GET /matches/:id/report
+      // 4. GET /matches/:id/report
       const resReport = await srv1.fetchGroup(`/matches/${match1._id}/report`, { headers });
       matrix['GET /matches/:id/report'][r.name] = resReport.status;
     }
@@ -528,36 +503,25 @@ async function run() {
 
     // Print markdown matrix
     console.log('\n--- REAL PERMISSIONS MATRIX (LIVE RESPONSES) ---');
-    console.log('| Endpoint & Method | Admin | Org Owner | Org Other | Official Assigned | Official Other | Coach | Athlete | Unauthenticated |');
-    console.log('|---|---|---|---|---|---|---|---|---|');
+    console.log('| Endpoint & Method | Admin | Org Owner | Org Other | Coach | Athlete | Unauthenticated |');
+    console.log('|---|---|---|---|---|---|---|');
     for (const [ep, resMap] of Object.entries(matrix)) {
       console.log(
-        `| ${ep.padEnd(35)} | ${resMap['Admin']} | ${resMap['Org Owner']} | ${resMap['Org Other']} | ${resMap['Official Assigned']} | ${resMap['Official Other']} | ${resMap['Coach']} | ${resMap['Athlete']} | ${resMap['Unauthenticated']} |`
+        `| ${ep.padEnd(35)} | ${resMap['Admin']} | ${resMap['Org Owner']} | ${resMap['Org Other']} | ${resMap['Coach']} | ${resMap['Athlete']} | ${resMap['Unauthenticated']} |`
       );
     }
 
     // Asserts
-    assert(matrix['GET /matches/assigned']['Official Assigned'] === 200, 'GET /matches/assigned 200 for assigned Official');
-    g1Pass++;
-    assert(matrix['GET /matches/assigned']['Official Other'] === 200, 'GET /matches/assigned 200 for other Official (empty list)');
-    g1Pass++;
-    assert(matrix['GET /matches/assigned']['Admin'] === 403 && matrix['GET /matches/assigned']['Coach'] === 403, 'GET /matches/assigned 403 for non-officials');
-    g1Pass++;
-    assert(matrix['GET /matches/assigned']['Unauthenticated'] === 401, 'GET /matches/assigned 401 for unauthenticated');
-    g1Pass++;
-
     assert(
       matrix['POST /matches/:id/status']['Admin'] === 200 &&
-      matrix['POST /matches/:id/status']['Org Owner'] === 200 &&
-      matrix['POST /matches/:id/status']['Official Assigned'] === 200,
-      'POST /matches/:id/status allowed for Admin, Owning Organizer, Assigned Official'
+      matrix['POST /matches/:id/status']['Org Owner'] === 200,
+      'POST /matches/:id/status allowed for Admin and Owning Organizer'
     );
     g1Pass++;
 
     assert(
-      matrix['POST /matches/:id/status']['Org Other'] === 404 &&
-      matrix['POST /matches/:id/status']['Official Other'] === 404,
-      'POST /matches/:id/status returns 404 for non-owning Organizer and unassigned Official'
+      matrix['POST /matches/:id/status']['Org Other'] === 404,
+      'POST /matches/:id/status returns 404 for non-owning Organizer'
     );
     g1Pass++;
 
@@ -570,23 +534,20 @@ async function run() {
 
     assert(
       matrix['POST /matches/:id/events']['Admin'] === 201 &&
-      matrix['POST /matches/:id/events']['Org Owner'] === 201 &&
-      matrix['POST /matches/:id/events']['Official Assigned'] === 201,
-      'POST /matches/:id/events allowed (201) for Admin, Owning Org, Assigned Official'
+      matrix['POST /matches/:id/events']['Org Owner'] === 201,
+      'POST /matches/:id/events allowed (201) for Admin and Owning Org'
     );
     g1Pass++;
 
     assert(
-      matrix['POST /matches/:id/events']['Org Other'] === 404 &&
-      matrix['POST /matches/:id/events']['Official Other'] === 404,
-      'POST /matches/:id/events returns 404 for non-owning Org and unassigned Official'
+      matrix['POST /matches/:id/events']['Org Other'] === 404,
+      'POST /matches/:id/events returns 404 for non-owning Org'
     );
     g1Pass++;
 
     assert(
       matrix['GET /matches/:id/report']['Admin'] === 200 &&
       matrix['GET /matches/:id/report']['Org Owner'] === 200 &&
-      matrix['GET /matches/:id/report']['Official Assigned'] === 200 &&
       matrix['GET /matches/:id/report']['Coach'] === 200 &&
       matrix['GET /matches/:id/report']['Athlete'] === 200,
       'GET /matches/:id/report accessible to all authorized roles for non-draft tournament'
@@ -594,9 +555,8 @@ async function run() {
     g1Pass++;
 
     assert(
-      matrix['GET /matches/:id/report']['Org Other'] === 404 &&
-      matrix['GET /matches/:id/report']['Official Other'] === 404,
-      'GET /matches/:id/report returns 404 for unauthorized organizer/official'
+      matrix['GET /matches/:id/report']['Org Other'] === 404,
+      'GET /matches/:id/report returns 404 for unauthorized organizer'
     );
     g1Pass++;
   } finally {
@@ -980,15 +940,15 @@ async function run() {
     );
     g3Pass++;
 
-    // 7. Post-completion correction by Official vs Admin
-    const offAuth = getAuthHeader(officialAssignedUser);
+    // 7. Post-completion correction: Non-owning Organizer cannot delete event on Completed match (403), Admin can (200)
+    const orgOtherAuth = getAuthHeader(orgOtherUser);
     const targetAwayEv = await MatchEvent.findOne({ match: eventMatch._id, side: 'away', type: 'Goal' });
 
-    const resOffDelCompleted = await srv3.fetchGroup(
+    const resOrgDelCompleted = await srv3.fetchGroup(
       `/matches/${eventMatch._id}/events/${targetAwayEv!._id}`,
-      { method: 'DELETE', headers: offAuth }
+      { method: 'DELETE', headers: orgOtherAuth }
     );
-    assert(resOffDelCompleted.status === 403, 'Official cannot delete event after match is Completed (403)');
+    assert(resOrgDelCompleted.status === 403, 'Non-owning Organizer cannot delete event after match is Completed (403)');
     g3Pass++;
 
     const resAdminDelCompleted = await srv3.fetchGroup(
@@ -1021,104 +981,7 @@ async function run() {
   groupRequests.push(srv3.group.getRequestCount());
   assert(srv3.group.getRequestCount() < 90, `Group 3 request count (${srv3.group.getRequestCount()}) < 90`);
 
-  // =========================================================================
-  // GROUP 4: OFFICIAL USER LINKING, SCOPING & DASHBOARD OVERVIEW
-  // =========================================================================
-  console.log('\n--- GROUP 4: OFFICIAL LINKING, SCOPING & DASHBOARD OVERVIEW ---');
-  let g4Pass = 0;
-  const srv4 = startServerGroup();
 
-  try {
-    const adminAuth = getAuthHeader(adminUser);
-    const orgAuth = getAuthHeader(orgOwnerUser);
-
-    // 1. Target user not Official role -> 400
-    const resLinkCoach = await srv4.fetchGroup(`/officials/${officialOtherRec._id}`, {
-      method: 'PATCH',
-      headers: adminAuth,
-      body: JSON.stringify({ user: coachUser._id.toString() }),
-    });
-    assert(resLinkCoach.status === 400, 'Link user with non-Official role returns 400');
-    g4Pass++;
-
-    // 2. Non-Admin tries to link -> 403
-    const resOrgLink = await srv4.fetchGroup(`/officials/${officialOtherRec._id}`, {
-      method: 'PATCH',
-      headers: orgAuth,
-      body: JSON.stringify({ user: officialOtherUser._id.toString() }),
-    });
-    assert(resOrgLink.status === 403, 'Non-Admin linking user returns 403');
-    g4Pass++;
-
-    // 3. User linked to two officials -> 409
-    const resDuplicateLink = await srv4.fetchGroup(`/officials/${officialOtherRec._id}`, {
-      method: 'PATCH',
-      headers: adminAuth,
-      body: JSON.stringify({ user: officialAssignedUser._id.toString() }), // already linked to officialAssignedRec!
-    });
-    assert(resDuplicateLink.status === 409, 'User linked to two officials rejected with 409');
-    g4Pass++;
-
-    // 4. Unlink official (`{ user: null }`)
-    const resUnlink = await srv4.fetchGroup(`/officials/${officialOtherRec._id}`, {
-      method: 'PATCH',
-      headers: adminAuth,
-      body: JSON.stringify({ user: null }),
-    });
-    assert(resUnlink.status === 200, 'Unlinking official with { user: null } returns 200');
-    g4Pass++;
-
-    // 5. Official scoping: GET /api/matches/assigned
-    const offAssignedAuth = getAuthHeader(officialAssignedUser);
-    const resAssignedList = await srv4.fetchGroup('/matches/assigned', { headers: offAssignedAuth });
-    assert(resAssignedList.status === 200, 'Official assigned matches list returns 200');
-    g4Pass++;
-    const assignedBody = resAssignedList.body as { data: Array<{ id: string }> };
-    assert(
-      Array.isArray(assignedBody.data) && assignedBody.data.some((m) => m.id === match1._id.toString()),
-      'Official assigned list contains assigned match1'
-    );
-    g4Pass++;
-
-    // 6. Official GET /api/dashboard/overview
-    const resDashOff = await srv4.fetchGroup('/dashboard/overview', { headers: offAssignedAuth });
-    assert(resDashOff.status === 200, 'Official GET /api/dashboard/overview returns 200');
-    g4Pass++;
-    const dashBody = resDashOff.body as { data: { role: string; matches: unknown[] } };
-    assert(dashBody.data.role === 'Official' && Array.isArray(dashBody.data.matches), 'Dashboard contains role Official and matches array');
-    g4Pass++;
-
-    // 7. Official has 403 on private endpoints of other roles
-    const resTourneyAdmin = await srv4.fetchGroup('/tournaments', {
-      method: 'POST',
-      headers: offAssignedAuth,
-      body: JSON.stringify({
-        name: 'Illegal Tournament',
-        sport: sport._id.toString(),
-        category: 'Elite',
-        ageGroup: 'U16',
-        format: 'League',
-        startDate: '2026-12-01',
-        endDate: '2026-12-30',
-      }),
-    });
-    assert(resTourneyAdmin.status === 403, 'Official creating tournament returns 403');
-    g4Pass++;
-
-    const resVenueAdmin = await srv4.fetchGroup('/venues', {
-      method: 'POST',
-      headers: offAssignedAuth,
-      body: JSON.stringify({ name: 'Illegal Venue', address: 'Nowhere' }),
-    });
-    assert(resVenueAdmin.status === 403, 'Official creating venue returns 403');
-    g4Pass++;
-  } finally {
-    await srv4.group.close();
-  }
-
-  groupPasses.push(g4Pass);
-  groupRequests.push(srv4.group.getRequestCount());
-  assert(srv4.group.getRequestCount() < 90, `Group 4 request count (${srv4.group.getRequestCount()}) < 90`);
 
   // =========================================================================
   // GROUP 5: PUBLIC LIVE ENDPOINTS & PRIVACY SCAN
@@ -1472,229 +1335,409 @@ async function run() {
   assert(srv7.group.getRequestCount() < 90, `Group 7 request count (${srv7.group.getRequestCount()}) < 90`);
 
   // =========================================================================
-  // GROUP 8: OFFICIAL ROLE COMPLETENESS, RBAC & LINKING LIFECYCLE
+  // GROUP 8: OFFICIAL ROLE REMOVAL & OFFICIAL RECORD INTEGRITY VERIFICATION (STEP 15)
   // =========================================================================
-  console.log('\n--- GROUP 8: OFFICIAL ROLE COMPLETENESS & LINKING LIFECYCLE ---');
+  console.log('\n--- GROUP 8: OFFICIAL ROLE REMOVAL & RECORD INTEGRITY (STEP 15) ---');
   let g8Pass = 0;
   const srv8 = startServerGroup();
 
   try {
     const adminAuth = getAuthHeader(adminUser);
-    const newOfficialEmail = `official-api-${Date.now()}@test.athletiq.internal`;
-    const newOfficialPass = 'OfficialPass123!';
+    const orgOwnerAuth = getAuthHeader(orgOwnerUser);
+    const orgOtherAuth = getAuthHeader(orgOtherUser);
+    const coachAuth = getAuthHeader(coachUser);
+    const athleteAuth = getAuthHeader(athleteUser);
 
-    // 1. Admin creates user with role Official via real API = 201
-    const resCreateOffUser = await srv8.fetchGroup('/users', {
+    // 1. Admin creating a user with role "Official" = 400
+    const resCreateOff = await srv8.fetchGroup('/users', {
       method: 'POST',
       headers: adminAuth,
       body: JSON.stringify({
-        name: 'API Created Official',
-        email: newOfficialEmail,
-        password: newOfficialPass,
+        name: 'Rejected Official',
+        email: `rejected-off-${Date.now()}@test.athletiq.internal`,
+        password: 'Password123!',
         role: 'Official',
       }),
     });
-    assert(resCreateOffUser.status === 201, 'Admin creates user with role Official via API (201)');
+    assert(resCreateOff.status === 400, 'Admin creating user with role "Official" returns 400');
     g8Pass++;
 
-    const createBody = resCreateOffUser.body as { data: { id?: string; _id?: string; role: string } };
-    const offUserId = createBody?.data?.id || createBody?.data?._id;
-    assert(!!offUserId && createBody.data.role === 'Official', 'Created user has ID and role Official');
+    // 2. CLI user provisioning rejects "Official" role
+    const cliRoles = ROLES as readonly string[];
+    const cliRejectsOfficial = !cliRoles.includes('Official');
+    assert(cliRejectsOfficial, 'CLI user provisioning script rejects role "Official"');
     g8Pass++;
-    if (offUserId) createdUserIds.push(new Types.ObjectId(offUserId));
 
-    // 2. User logs in and /api/auth/me returns role Official
-    const resOffLogin = await srv8.fetchGroup('/auth/login', {
+    // 3. Public register with role "Official" still yields Athlete
+    const sneakyEmail = `sneaky-reg-${Date.now()}@test.athletiq.internal`;
+    const resPublicReg = await srv8.fetchGroup('/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: newOfficialEmail,
-        password: newOfficialPass,
-      }),
-    });
-    assert(resOffLogin.status === 200, 'Created Official user logs in with 200');
-    g8Pass++;
-
-    const loginBody = resOffLogin.body as { data: { accessToken: string } };
-    const offToken = loginBody?.data?.accessToken;
-    const offAuth = {
-      Authorization: `Bearer ${offToken}`,
-      'Content-Type': 'application/json',
-    };
-
-    const resAuthMe = await srv8.fetchGroup('/auth/me', { headers: offAuth });
-    assert(resAuthMe.status === 200, 'GET /api/auth/me for Official user returns 200');
-    g8Pass++;
-    const meBody = resAuthMe.body as { data: { user?: { role: string }; role?: string } };
-    const meRole = meBody?.data?.user?.role || meBody?.data?.role;
-    assert(meRole === 'Official', 'GET /api/auth/me returns role Official');
-    g8Pass++;
-
-    // 3. Public register with role Official in body still yields Athlete
-    const sneakyEmail = `sneaky-athlete-${Date.now()}@test.athletiq.internal`;
-    const resPublicRegister = await srv8.fetchGroup('/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Sneaky Athlete',
+        name: 'Sneaky Official',
         email: sneakyEmail,
         password: 'Password123!',
         role: 'Official',
       }),
     });
-    assert(resPublicRegister.status === 201, 'Public register returns 201');
+    assert(resPublicReg.status === 201, 'Public register returns 201');
     g8Pass++;
-    const regBody = resPublicRegister.body as { data: { user: { id?: string; _id?: string; role: string } } };
-    const sneakyUser = regBody?.data?.user;
-    assert(sneakyUser?.role === 'Athlete', 'Public register with role Official in body strictly yields Athlete');
+    const regBody = resPublicReg.body as { data: { user: { id?: string; _id?: string; role: string } } };
+    const registeredUser = regBody?.data?.user;
+    assert(registeredUser?.role === 'Athlete', 'Public register with role "Official" still yields Athlete');
     g8Pass++;
-    const sneakyUserId = sneakyUser?.id || sneakyUser?._id;
-    if (sneakyUserId) createdUserIds.push(new Types.ObjectId(sneakyUserId));
+    const regUserId = registeredUser?.id || registeredUser?._id;
+    if (regUserId) createdUserIds.push(new Types.ObjectId(regUserId));
 
-    // 4. Official forbidden endpoints (403): /users, /tournaments POST, /venues POST, /officials POST, /contact-messages
-    const resOffUsers = await srv8.fetchGroup('/users', { headers: offAuth });
-    assert(resOffUsers.status === 403, 'Official GET /api/users returns 403');
+    // 4. GET /api/matches/assigned = 404
+    const resAssigned404Admin = await srv8.fetchGroup('/matches/assigned', { headers: adminAuth });
+    assert(resAssigned404Admin.status === 404, 'GET /api/matches/assigned returns 404 for Admin');
     g8Pass++;
 
-    const resOffTournPost = await srv8.fetchGroup('/tournaments', {
-      method: 'POST',
-      headers: offAuth,
-      body: JSON.stringify({ name: 'Hacked Tourney' }),
+    const resAssigned404Org = await srv8.fetchGroup('/matches/assigned', { headers: orgOwnerAuth });
+    assert(resAssigned404Org.status === 404, 'GET /api/matches/assigned returns 404 for Organizer');
+    g8Pass++;
+
+    // 5. PATCH /api/officials/:id with { user } = 400
+    const resPatchUser = await srv8.fetchGroup(`/officials/${officialAssignedRec._id}`, {
+      method: 'PATCH',
+      headers: adminAuth,
+      body: JSON.stringify({ user: adminUser._id.toString() }),
     });
-    assert(resOffTournPost.status === 403, 'Official POST /api/tournaments returns 403');
+    assert(resPatchUser.status === 400, 'PATCH /api/officials/:id with { user } returns 400');
     g8Pass++;
 
-    const resOffVenuePost = await srv8.fetchGroup('/venues', {
+    // 6. Official RECORD create/update/delete works for Admin and Organizer (403 for Coach and Athlete)
+    // 6a. Admin creates Official RECORD (201)
+    const resAdminCreateOff = await srv8.fetchGroup('/officials', {
       method: 'POST',
-      headers: offAuth,
-      body: JSON.stringify({ name: 'Hacked Venue' }),
+      headers: adminAuth,
+      body: JSON.stringify({
+        name: `Admin Ref ${Date.now()}`,
+        type: 'Referee',
+      }),
     });
-    assert(resOffVenuePost.status === 403, 'Official POST /api/venues returns 403');
+    assert(resAdminCreateOff.status === 201, 'Official RECORD create works for Admin (201)');
     g8Pass++;
+    const adminCreatedOff = (resAdminCreateOff.body as { data: { id: string } }).data;
+    createdOfficialIds.push(new Types.ObjectId(adminCreatedOff.id));
 
-    const resOffOfficialPost = await srv8.fetchGroup('/officials', {
+    // 6b. Organizer creates Official RECORD (201)
+    const resOrgCreateOff = await srv8.fetchGroup('/officials', {
       method: 'POST',
-      headers: offAuth,
-      body: JSON.stringify({ name: 'Hacked Official' }),
+      headers: orgOwnerAuth,
+      body: JSON.stringify({
+        name: `Org Ref ${Date.now()}`,
+        type: 'Assistant Referee',
+      }),
     });
-    assert(resOffOfficialPost.status === 403, 'Official POST /api/officials returns 403');
+    assert(resOrgCreateOff.status === 201, 'Official RECORD create works for Organizer (201)');
+    g8Pass++;
+    const orgCreatedOff = (resOrgCreateOff.body as { data: { id: string } }).data;
+    createdOfficialIds.push(new Types.ObjectId(orgCreatedOff.id));
+
+    // 6c. Coach and Athlete get 403 on Official create
+    const resCoachCreateOff = await srv8.fetchGroup('/officials', {
+      method: 'POST',
+      headers: coachAuth,
+      body: JSON.stringify({ name: 'Hacked Ref', type: 'Referee' }),
+    });
+    assert(resCoachCreateOff.status === 403, 'Official RECORD create returns 403 for Coach');
     g8Pass++;
 
-    const resOffContactMsgs = await srv8.fetchGroup('/contact-messages', { headers: offAuth });
-    assert(resOffContactMsgs.status === 403, 'Official GET /api/contact-messages returns 403');
+    const resAthleteCreateOff = await srv8.fetchGroup('/officials', {
+      method: 'POST',
+      headers: athleteAuth,
+      body: JSON.stringify({ name: 'Hacked Ref', type: 'Referee' }),
+    });
+    assert(resAthleteCreateOff.status === 403, 'Official RECORD create returns 403 for Athlete');
     g8Pass++;
 
-    // 5. Official permitted endpoints (200): GET /dashboard/overview, GET /matches/assigned
-    const resOffDash = await srv8.fetchGroup('/dashboard/overview', { headers: offAuth });
-    assert(resOffDash.status === 200, 'Official GET /api/dashboard/overview returns 200');
+    // 6d. Update works for Admin and owning Organizer (403 for Coach and Athlete)
+    const resAdminUpdateOff = await srv8.fetchGroup(`/officials/${adminCreatedOff.id}`, {
+      method: 'PATCH',
+      headers: adminAuth,
+      body: JSON.stringify({ name: 'Admin Ref Renamed' }),
+    });
+    assert(resAdminUpdateOff.status === 200, 'Official RECORD update works for Admin (200)');
     g8Pass++;
 
-    const resOffAssigned = await srv8.fetchGroup('/matches/assigned', { headers: offAuth });
-    assert(resOffAssigned.status === 200, 'Official GET /api/matches/assigned returns 200');
+    const resOrgUpdateOff = await srv8.fetchGroup(`/officials/${orgCreatedOff.id}`, {
+      method: 'PATCH',
+      headers: orgOwnerAuth,
+      body: JSON.stringify({ name: 'Org Ref Renamed' }),
+    });
+    assert(resOrgUpdateOff.status === 200, 'Official RECORD update works for owning Organizer (200)');
     g8Pass++;
 
-    // 6. Admin links Official record to user via PATCH /api/officials/:id { user } = 200
-    const testOffRec1 = await Official.create({
-      name: `Ref Link 1 ${Date.now()}`,
+    const resCoachUpdateOff = await srv8.fetchGroup(`/officials/${adminCreatedOff.id}`, {
+      method: 'PATCH',
+      headers: coachAuth,
+      body: JSON.stringify({ name: 'Coach Renamed' }),
+    });
+    assert(resCoachUpdateOff.status === 403, 'Official RECORD update returns 403 for Coach');
+    g8Pass++;
+
+    const resAthleteUpdateOff = await srv8.fetchGroup(`/officials/${adminCreatedOff.id}`, {
+      method: 'PATCH',
+      headers: athleteAuth,
+      body: JSON.stringify({ name: 'Athlete Renamed' }),
+    });
+    assert(resAthleteUpdateOff.status === 403, 'Official RECORD update returns 403 for Athlete');
+    g8Pass++;
+
+    // 6e. Delete works for Admin and owning Organizer
+    const resAdminDelOff = await srv8.fetchGroup(`/officials/${adminCreatedOff.id}`, {
+      method: 'DELETE',
+      headers: adminAuth,
+    });
+    assert(resAdminDelOff.status === 200, 'Official RECORD delete works for Admin (200)');
+    g8Pass++;
+
+    const resOrgDelOff = await srv8.fetchGroup(`/officials/${orgCreatedOff.id}`, {
+      method: 'DELETE',
+      headers: orgOwnerAuth,
+    });
+    assert(resOrgDelOff.status === 200, 'Official RECORD delete works for owning Organizer (200)');
+    g8Pass++;
+
+    // 7. Assigning a referee to a match works and the referee overlap still returns 409
+    const testOffRecAssign = await Official.create({
+      name: `Referee Overlap Test ${Date.now()}`,
       type: 'Referee',
       createdBy: orgOwnerUser._id,
       active: true,
     });
-    const testOffRec2 = await Official.create({
-      name: `Ref Link 2 ${Date.now()}`,
-      type: 'Referee',
+    createdOfficialIds.push(testOffRecAssign._id);
+
+    const mOverlap1 = await Match.create({
+      tournament: tourney1._id,
+      homeTeam: regA._id,
+      awayTeam: regB._id,
+      round: 'Round 10',
+      scheduledAt: new Date(Date.now() + 5 * 60 * 60 * 1000),
+      durationMinutes: 90,
+      endsAt: new Date(Date.now() + 6.5 * 60 * 60 * 1000),
+      venue: venue1._id,
+      referee: testOffRecAssign._id,
+      status: 'Scheduled',
+    });
+    createdMatchIds.push(mOverlap1._id);
+    assert(mOverlap1.referee?.toString() === testOffRecAssign._id.toString(), 'Assigning referee to match works');
+    g8Pass++;
+
+    // Overlapping match creation via API returns 409
+    const venue2 = await Venue.create({
+      name: `Pitch 2 ${Date.now()}`,
+      address: 'Other Way 2',
+      capacity: 10000,
       createdBy: orgOwnerUser._id,
       active: true,
     });
-    createdOfficialIds.push(testOffRec1._id, testOffRec2._id);
+    createdVenueIds.push(venue2._id);
 
-    const resLinkValid = await srv8.fetchGroup(`/officials/${testOffRec1._id}`, {
-      method: 'PATCH',
+    const resOverlapMatch = await srv8.fetchGroup(`/tournaments/${tourney1._id}/matches`, {
+      method: 'POST',
+      headers: orgOwnerAuth,
+      body: JSON.stringify({
+        homeTeam: regA._id.toString(),
+        awayTeam: regB._id.toString(),
+        round: 'Round 11',
+        scheduledAt: new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString(),
+        venue: venue2._id.toString(),
+        referee: testOffRecAssign._id.toString(),
+      }),
+    });
+    assert(resOverlapMatch.status === 409, 'Assigning overlapping referee returns 409 conflict');
+    g8Pass++;
+
+    // 8. Live workflow works for Admin and the owning Organizer, 404 for another Organizer, 403 for Coach and Athlete on every live write endpoint
+    const liveTestMatch = await Match.create({
+      tournament: tourney1._id,
+      homeTeam: regA._id,
+      awayTeam: regB._id,
+      round: 'Round 12',
+      scheduledAt: new Date(Date.now() - 10 * 60 * 1000),
+      durationMinutes: 90,
+      endsAt: new Date(Date.now() + 80 * 60 * 1000),
+      venue: venue1._id,
+      referee: testOffRecAssign._id,
+      status: 'Live',
+      startedAt: new Date(),
+    });
+    createdMatchIds.push(liveTestMatch._id);
+
+    // 8a. POST /status: Admin = 200, Owning Org = 200, Other Org = 404, Coach = 403, Athlete = 403
+    const resStatusAdmin = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/status`, {
+      method: 'POST',
       headers: adminAuth,
-      body: JSON.stringify({ user: offUserId }),
+      body: JSON.stringify({ status: 'HalfTime' }),
     });
-    assert(resLinkValid.status === 200, 'Admin links Official record to Official user returns 200');
+    assert(resStatusAdmin.status === 200, 'Live workflow POST status works for Admin (200)');
     g8Pass++;
 
-    // 7. Linking a non-Official user = 400
-    const resLinkNonOfficial = await srv8.fetchGroup(`/officials/${testOffRec2._id}`, {
-      method: 'PATCH',
+    const resStatusOrgOwner = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/status`, {
+      method: 'POST',
+      headers: orgOwnerAuth,
+      body: JSON.stringify({ status: 'Live' }),
+    });
+    assert(resStatusOrgOwner.status === 200, 'Live workflow POST status works for owning Organizer (200)');
+    g8Pass++;
+
+    const resStatusOrgOther = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/status`, {
+      method: 'POST',
+      headers: orgOtherAuth,
+      body: JSON.stringify({ status: 'HalfTime' }),
+    });
+    assert(resStatusOrgOther.status === 404, 'Live workflow POST status returns 404 for non-owning Organizer');
+    g8Pass++;
+
+    const resStatusCoach = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/status`, {
+      method: 'POST',
+      headers: coachAuth,
+      body: JSON.stringify({ status: 'HalfTime' }),
+    });
+    assert(resStatusCoach.status === 403, 'Live workflow POST status returns 403 for Coach');
+    g8Pass++;
+
+    const resStatusAthlete = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/status`, {
+      method: 'POST',
+      headers: athleteAuth,
+      body: JSON.stringify({ status: 'HalfTime' }),
+    });
+    assert(resStatusAthlete.status === 403, 'Live workflow POST status returns 403 for Athlete');
+    g8Pass++;
+
+    // 8b. POST /events: Admin = 201, Owning Org = 201, Other Org = 404, Coach = 403, Athlete = 403
+    const resEventAdmin = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events`, {
+      method: 'POST',
       headers: adminAuth,
-      body: JSON.stringify({ user: sneakyUserId }),
+      body: JSON.stringify({
+        type: 'Goal',
+        side: 'home',
+        minute: 25,
+        player: athA1._id.toString(),
+      }),
     });
-    assert(resLinkNonOfficial.status === 400, 'Linking non-Official user to Official record returns 400');
+    assert(resEventAdmin.status === 201, 'Live workflow POST event works for Admin (201)');
+    g8Pass++;
+    const evAdminId = (resEventAdmin.body as { data: { id: string } }).data.id;
+    createdMatchEventIds.push(new Types.ObjectId(evAdminId));
+
+    const resEventOrgOwner = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events`, {
+      method: 'POST',
+      headers: orgOwnerAuth,
+      body: JSON.stringify({
+        type: 'Goal',
+        side: 'away',
+        minute: 30,
+        player: athB1._id.toString(),
+      }),
+    });
+    assert(resEventOrgOwner.status === 201, 'Live workflow POST event works for owning Organizer (201)');
+    g8Pass++;
+    const evOrgId = (resEventOrgOwner.body as { data: { id: string } }).data.id;
+    createdMatchEventIds.push(new Types.ObjectId(evOrgId));
+
+    const resEventOrgOther = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events`, {
+      method: 'POST',
+      headers: orgOtherAuth,
+      body: JSON.stringify({
+        type: 'YellowCard',
+        side: 'home',
+        minute: 35,
+        player: athA1._id.toString(),
+      }),
+    });
+    assert(resEventOrgOther.status === 404, 'Live workflow POST event returns 404 for non-owning Organizer');
     g8Pass++;
 
-    // 8. Linking one user to two Officials = 409
-    const resLinkDuplicate = await srv8.fetchGroup(`/officials/${testOffRec2._id}`, {
-      method: 'PATCH',
+    const resEventCoach = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events`, {
+      method: 'POST',
+      headers: coachAuth,
+      body: JSON.stringify({
+        type: 'Goal',
+        side: 'home',
+        minute: 40,
+        player: athA1._id.toString(),
+      }),
+    });
+    assert(resEventCoach.status === 403, 'Live workflow POST event returns 403 for Coach');
+    g8Pass++;
+
+    const resEventAthlete = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events`, {
+      method: 'POST',
+      headers: athleteAuth,
+      body: JSON.stringify({
+        type: 'Goal',
+        side: 'home',
+        minute: 40,
+        player: athA1._id.toString(),
+      }),
+    });
+    assert(resEventAthlete.status === 403, 'Live workflow POST event returns 403 for Athlete');
+    g8Pass++;
+
+    // 8c. DELETE /events/:id: Admin = 200, Owning Org = 200, Other Org = 404, Coach = 403, Athlete = 403
+    const resDelCoach = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events/${evAdminId}`, {
+      method: 'DELETE',
+      headers: coachAuth,
+    });
+    assert(resDelCoach.status === 403, 'Live workflow DELETE event returns 403 for Coach');
+    g8Pass++;
+
+    const resDelAthlete = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events/${evAdminId}`, {
+      method: 'DELETE',
+      headers: athleteAuth,
+    });
+    assert(resDelAthlete.status === 403, 'Live workflow DELETE event returns 403 for Athlete');
+    g8Pass++;
+
+    const resDelOrgOther = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events/${evAdminId}`, {
+      method: 'DELETE',
+      headers: orgOtherAuth,
+    });
+    assert(resDelOrgOther.status === 404, 'Live workflow DELETE event returns 404 for non-owning Organizer');
+    g8Pass++;
+
+    const resDelOrgOwner = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events/${evOrgId}`, {
+      method: 'DELETE',
+      headers: orgOwnerAuth,
+    });
+    assert(resDelOrgOwner.status === 200, 'Live workflow DELETE event works for owning Organizer (200)');
+    g8Pass++;
+
+    const resDelAdmin = await srv8.fetchGroup(`/matches/${liveTestMatch._id}/events/${evAdminId}`, {
+      method: 'DELETE',
       headers: adminAuth,
-      body: JSON.stringify({ user: offUserId }),
     });
-    assert(resLinkDuplicate.status === 409, 'Linking one user to two Officials returns 409 conflict');
+    assert(resDelAdmin.status === 200, 'Live workflow DELETE event works for Admin (200)');
     g8Pass++;
 
-    // 9. Assigned Official sees both squads with exactly keys id and name
-    const assignedOffAuth = getAuthHeader(officialAssignedUser);
-    const resAssignedMatch = await srv8.fetchGroup(`/matches/${match1._id}`, { headers: assignedOffAuth });
-    assert(resAssignedMatch.status === 200, 'Assigned Official GET /matches/:id returns 200');
+    // 9. Admin and Organizer chatbot tool lists are unchanged
+    const adminTools = ROLE_TOOLS.Admin;
+    const orgTools = ROLE_TOOLS.Organizer;
+    const expectedAdminTools = [
+      'getPublicInfo',
+      'getStandings',
+      'getMyNotificationsSummary',
+      'getAcademyOverview',
+      'getPendingRegistrationsCount',
+      'getUnreadContactMessagesCount',
+    ];
+    const expectedOrgTools = [
+      'getPublicInfo',
+      'getStandings',
+      'getMyNotificationsSummary',
+      'getMyTournaments',
+      'getMyRegistrationsSummary',
+      'getMyUpcomingMatches',
+    ];
+    const adminToolsMatch = JSON.stringify(adminTools) === JSON.stringify(expectedAdminTools);
+    const orgToolsMatch = JSON.stringify(orgTools) === JSON.stringify(expectedOrgTools);
+    assert(adminToolsMatch, 'Admin chatbot tool list is unchanged');
     g8Pass++;
-
-    const matchBody = resAssignedMatch.body as {
-      data?: {
-        homeSquad?: Array<Record<string, unknown>>;
-        awaySquad?: Array<Record<string, unknown>>;
-      };
-    };
-    const homeSquad = matchBody.data?.homeSquad;
-    const awaySquad = matchBody.data?.awaySquad;
-    assert(Array.isArray(homeSquad) && homeSquad.length >= 1, 'Assigned Official response contains homeSquad array');
-    g8Pass++;
-    assert(Array.isArray(awaySquad) && awaySquad.length >= 1, 'Assigned Official response contains awaySquad array');
-    g8Pass++;
-
-    const allHomeKeysMatch = (homeSquad || []).every((ath) => {
-      const keys = Object.keys(ath).sort().join(',');
-      return keys === 'id,name';
-    });
-    const allAwayKeysMatch = (awaySquad || []).every((ath) => {
-      const keys = Object.keys(ath).sort().join(',');
-      return keys === 'id,name';
-    });
-    assert(allHomeKeysMatch && allAwayKeysMatch, 'All squad items contain exactly the keys id and name');
-    g8Pass++;
-
-    // 10. Unassigned Official gets 404
-    const unassignedOffAuth = getAuthHeader(officialOtherUser);
-    const resUnassignedMatch = await srv8.fetchGroup(`/matches/${match1._id}`, { headers: unassignedOffAuth });
-    assert(resUnassignedMatch.status === 404, 'Unassigned Official GET /matches/:id returns 404');
-    g8Pass++;
-
-    // 11. Coach / Athlete responses contain no squad arrays
-    const resCoachMatch = await srv8.fetchGroup(`/matches/${match1._id}`, { headers: getAuthHeader(coachUser) });
-    assert(resCoachMatch.status === 200, 'Coach GET /matches/:id returns 200');
-    g8Pass++;
-    const coachMatchBody = resCoachMatch.body as { data?: Record<string, unknown> };
-    assert(
-      !('homeSquad' in (coachMatchBody.data || {})) && !('awaySquad' in (coachMatchBody.data || {})),
-      'Coach response contains no squad arrays'
-    );
-    g8Pass++;
-
-    const resAthleteMatch = await srv8.fetchGroup(`/matches/${match1._id}`, { headers: getAuthHeader(athleteUser) });
-    assert(resAthleteMatch.status === 200, 'Athlete GET /matches/:id returns 200');
-    g8Pass++;
-    const athleteMatchBody = resAthleteMatch.body as { data?: Record<string, unknown> };
-    assert(
-      !('homeSquad' in (athleteMatchBody.data || {})) && !('awaySquad' in (athleteMatchBody.data || {})),
-      'Athlete response contains no squad arrays'
-    );
-    g8Pass++;
-
-    // 12. Deep scan finds no email/phone/medicalNotes/guardian
-    const squadJson = JSON.stringify({ homeSquad, awaySquad });
-    const hasSensitiveSquadData = /email|phone|medicalNotes|guardian|passwordHash/i.test(squadJson);
-    assert(!hasSensitiveSquadData, 'Deep scan finds no email/phone/medicalNotes/guardian in squads');
+    assert(orgToolsMatch, 'Organizer chatbot tool list is unchanged');
     g8Pass++;
   } finally {
     await srv8.group.close();

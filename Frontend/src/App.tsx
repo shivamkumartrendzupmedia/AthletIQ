@@ -60,7 +60,6 @@ const DashboardTournamentDetailPage = React.lazy(() => import('./pages/dashboard
 const VenuesPage = React.lazy(() => import('./pages/dashboard/VenuesPage').then((m) => ({ default: m.VenuesPage })));
 const OfficialsPage = React.lazy(() => import('./pages/dashboard/OfficialsPage').then((m) => ({ default: m.OfficialsPage })));
 const UserAccountsPage = React.lazy(() => import('./pages/dashboard/UserAccountsPage').then((m) => ({ default: m.UserAccountsPage })));
-const OfficialDashboardPage = React.lazy(() => import('./pages/dashboard/OfficialDashboardPage').then((m) => ({ default: m.OfficialDashboardPage })));
 const LiveMatchesConsoleListPage = React.lazy(() => import('./pages/dashboard/LiveMatchesConsoleListPage').then((m) => ({ default: m.LiveMatchesConsoleListPage })));
 const ScorerConsolePage = React.lazy(() => import('./pages/dashboard/ScorerConsolePage').then((m) => ({ default: m.ScorerConsolePage })));
 const DashboardAchievementsPage = React.lazy(() => import('./pages/dashboard/AchievementsPage').then((m) => ({ default: m.AchievementsPage })));
@@ -137,21 +136,9 @@ function App() {
               }
             />
             <Route
-              path="/dashboard/official"
-              element={
-                <ProtectedRoute allowedRoles={['Official']}>
-                  <DashboardLayout>
-                    <ErrorBoundary>
-                      <OfficialDashboardPage />
-                    </ErrorBoundary>
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/dashboard/live"
               element={
-                <ProtectedRoute allowedRoles={['Official', 'Admin', 'Organizer']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <LiveMatchesConsoleListPage />
@@ -163,7 +150,7 @@ function App() {
             <Route
               path="/dashboard/live/:matchId"
               element={
-                <ProtectedRoute allowedRoles={['Official', 'Admin', 'Organizer']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <ScorerConsolePage />
@@ -175,7 +162,7 @@ function App() {
             <Route
               path="/dashboard/matches/:id/score"
               element={
-                <ProtectedRoute allowedRoles={['Official', 'Admin', 'Organizer']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <ScorerConsolePage />
@@ -187,7 +174,7 @@ function App() {
             <Route
               path="/dashboard/notifications"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer', 'Official']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <NotificationsPage />
@@ -271,7 +258,7 @@ function App() {
             <Route
               path="/dashboard/announcements"
               element={
-                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer', 'Official']}>
+                <ProtectedRoute allowedRoles={['Admin', 'Coach', 'Athlete', 'Organizer']}>
                   <DashboardLayout>
                     <ErrorBoundary>
                       <AnnouncementsPage />

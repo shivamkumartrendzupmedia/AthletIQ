@@ -78,7 +78,7 @@ export interface AdminUserItem {
   id: string;
   name: string;
   email: string;
-  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
+  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
   avatar?: string;
   isActive: boolean;
   isLocked: boolean;
@@ -474,7 +474,7 @@ export interface CreateUserInput {
   name: string;
   email: string;
   password: string;
-  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
+  role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
   phone?: string;
   avatar?: string;
 }
@@ -483,7 +483,7 @@ export interface UpdateUserInput {
   name?: string;
   phone?: string;
   avatar?: string;
-  role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
+  role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
   isActive?: boolean;
 }
 
@@ -718,7 +718,7 @@ export const academyApi = {
     name: string;
     email: string;
     password: string;
-    role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
+    role: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
     isActive?: boolean;
   }): Promise<AdminUserItem | null> => {
     const res = await apiClient('/users', {
@@ -732,7 +732,7 @@ export const academyApi = {
     payload: {
       name?: string;
       email?: string;
-      role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer' | 'Official';
+      role?: 'Admin' | 'Coach' | 'Athlete' | 'Organizer';
       isActive?: boolean;
     }
   ): Promise<AdminUserItem | null> => {
@@ -1318,11 +1318,6 @@ export const academyApi = {
   },
 
   // ==================== LIVE MATCH CENTER (STEP 9A & 9B) ====================
-  getAssignedMatches: async (): Promise<MatchItem[]> => {
-    const res = await apiClient('/matches/assigned');
-    return normalizeListResponse<MatchItem>(res).items;
-  },
-
   updateMatchStatus: async (
     matchId: string,
     payload: BuildMatchStatusInput | string
@@ -1902,7 +1897,6 @@ export interface OfficialItem {
   name: string;
   type: 'Referee' | 'Assistant Referee' | 'Scorer';
   createdBy: { id: string; name: string };
-  user?: { id: string; name: string } | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -2056,25 +2050,11 @@ export interface OrganizerDashboardOverview {
   }>;
 }
 
-export interface OfficialDashboardOverview {
-  role: 'Official';
-  matches: Array<{
-    id: string;
-    tournamentName: string;
-    round: string;
-    scheduledAt: string;
-    venueName: string;
-    homeTeamName: string;
-    awayTeamName: string;
-  }>;
-}
-
 export type DashboardOverviewResult =
   | AdminDashboardOverview
   | CoachDashboardOverview
   | AthleteDashboardOverview
-  | OrganizerDashboardOverview
-  | OfficialDashboardOverview;
+  | OrganizerDashboardOverview;
 
 export interface PublicOverviewResult {
   activeAthletes: number;

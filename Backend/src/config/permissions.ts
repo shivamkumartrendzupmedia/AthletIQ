@@ -129,8 +129,8 @@ export const PERMISSION_MATRIX: Record<
   },
   matches: {
     create: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or owning Organizer schedules match' },
-    read: { roles: ['Admin', 'Organizer', 'Coach', 'Athlete', 'Official'], status: 'enforced_now', description: 'View matches' },
-    update: { roles: ['Admin', 'Organizer', 'Official'], status: 'enforced_now', description: 'Admin or owning Organizer updates match or enters result; Official live workflow' },
+    read: { roles: ['Admin', 'Organizer', 'Coach', 'Athlete'], status: 'enforced_now', description: 'View matches' },
+    update: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or owning Organizer updates match or enters result; live workflow' },
     delete: { roles: ['Admin', 'Organizer'], status: 'enforced_now', description: 'Admin or owning Organizer deletes match' },
   },
   reports: {
@@ -144,12 +144,12 @@ export const PERMISSION_MATRIX: Record<
     update: { roles: ['Admin'], status: 'enforced_now', description: 'Admin updates contact message status' },
   },
   dashboard: {
-    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role reads overview' },
+    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now', description: 'Authenticated role reads overview' },
   },
   chatbot: {
-    create: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role interacts with chatbot' },
-    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role reads own conversation history' },
-    delete: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'], status: 'enforced_now', description: 'Authenticated role clears own conversation history' },
+    create: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now', description: 'Authenticated role interacts with chatbot' },
+    read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now', description: 'Authenticated role reads own conversation history' },
+    delete: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now', description: 'Authenticated role clears own conversation history' },
   },
   achievements: {
     create: { roles: ['Admin'], status: 'enforced_now', description: 'Admin creates achievement' },

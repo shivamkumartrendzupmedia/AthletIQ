@@ -153,12 +153,11 @@ async function run() {
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const tomorrowEnd = new Date(tomorrow.getTime() + 90 * 60 * 1000);
 
-    // 1. Users for all 5 roles
+    // 1. Users for all 4 roles
     const adminUser = await createTestUser('Admin', 'adm');
     const coachUser = await createTestUser('Coach', 'cch');
     const athleteUser = await createTestUser('Athlete', 'ath');
     const organizerUser = await createTestUser('Organizer', 'org');
-    const officialUser = await createTestUser('Official', 'off');
 
     // 2. Sport
     const sport = await Sport.create({
@@ -352,7 +351,6 @@ async function run() {
       name: 'Certified Referee',
       type: 'Referee',
       createdBy: adminUser._id,
-      user: officialUser._id,
       active: true,
     });
     testOfficialIds.push(officialProfile._id);
@@ -391,7 +389,6 @@ async function run() {
       { role: 'Coach', user: coachUser, file: 'dashboard-coach.json' },
       { role: 'Athlete', user: athleteUser, file: 'dashboard-athlete.json' },
       { role: 'Organizer', user: organizerUser, file: 'dashboard-organizer.json' },
-      { role: 'Official', user: officialUser, file: 'dashboard-official.json' },
     ];
 
     for (const r of roles) {

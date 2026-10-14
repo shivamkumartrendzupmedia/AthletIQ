@@ -124,7 +124,7 @@ This ensures direct URLs (such as `/dashboard/admin`, `/privacy`, `/matches/live
    ```bash
    npx tsx scripts/promote-admin.ts --email admin@athletiq.app
    ```
-3. Once promoted, the user can log in at `/login` and access the full `/dashboard/admin` management console. From that console, the Admin can create additional staff, coaches, and officials directly via the User Accounts management interface.
+3. Once promoted, the user can log in at `/login` and access the full `/dashboard/admin` management console. From that console, the Admin can create additional staff, coaches, and organizers directly via the User Accounts management interface (match officials are managed as tournament records under Officials management).
 
 ---
 

@@ -291,15 +291,9 @@ async function run(): Promise<void> {
         'getMyRegistrationsSummary',
         'getMyUpcomingMatches',
       ],
-      Official: [
-        'getPublicInfo',
-        'getStandings',
-        'getMyNotificationsSummary',
-        'getMyAssignedMatches',
-      ],
     };
 
-    const rolesList: Role[] = ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'];
+    const rolesList: Role[] = ['Admin', 'Coach', 'Athlete', 'Organizer'];
     for (const r of rolesList) {
       const actualTools = ROLE_TOOLS[r];
       const expected = expectedRoleTools[r];
@@ -344,17 +338,6 @@ async function run(): Promise<void> {
     assert(athleteBlockedAdmin, 'Athlete calling Admin tool "getAcademyOverview" refused with 403 before execution');
     group1Passes++;
 
-    let coachBlockedOfficial = false;
-    try {
-      await executeTool('getMyAssignedMatches', {}, { id: new Types.ObjectId().toString(), role: 'Coach' });
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'statusCode' in err && (err as { statusCode: number }).statusCode === 403) {
-        coachBlockedOfficial = true;
-      }
-    }
-    assert(coachBlockedOfficial, 'Coach calling Official tool "getMyAssignedMatches" refused with 403 before execution');
-    group1Passes++;
-
     console.log(`Group 1 Summary: ${group1Passes} passed (0 HTTP requests)`);
 
     // =========================================================================
@@ -381,13 +364,12 @@ async function run(): Promise<void> {
     assert(unauthDel.status === 401, 'Unauthenticated DELETE /chatbot/history returns 401');
     group2Passes++;
 
-    // 2. Each of the 5 roles can interact with /chatbot
+    // 2. Each of the 4 roles can interact with /chatbot
     const matrixUsers: Record<Role, { _id: Types.ObjectId; role: string }> = {
       Admin: await createTestUser('Admin', 'matrix'),
       Coach: await createTestUser('Coach', 'matrix'),
       Athlete: await createTestUser('Athlete', 'matrix'),
       Organizer: await createTestUser('Organizer', 'matrix'),
-      Official: await createTestUser('Official', 'matrix'),
     };
 
     for (const r of rolesList) {
@@ -685,17 +667,6 @@ async function run(): Promise<void> {
     }
 
     const organizerUser = await createTestUser('Organizer', 'eval');
-    const officialUser = await createTestUser('Official', 'eval');
-
-    // Link official user to Official document
-    const officialDoc = await Official.create({
-      name: 'Official Referee',
-      type: 'Referee',
-      createdBy: coachUser._id,
-      user: officialUser._id,
-      active: true,
-    });
-    testOfficialIds.push(officialDoc._id);
 
     const evalQuestions: EvalTestCase[] = [
       // Athlete (11 questions, English + Hinglish + typos)
@@ -736,18 +707,6 @@ async function run(): Promise<void> {
       { role: 'Organizer', user: organizerUser, question: `points table for ${tournamentName}`, expectedTool: 'getStandings', expectedKeyword: 'Standings' },
       { role: 'Organizer', user: organizerUser, question: 'any new notifications', expectedTool: 'getMyNotificationsSummary', expectedKeyword: 'notifications' },
       { role: 'Organizer', user: organizerUser, question: 'koi notification hai kya', expectedTool: 'getMyNotificationsSummary', expectedKeyword: 'notifications' },
-
-      // Official (10 questions, English + Hinglish + typos)
-      { role: 'Official', user: officialUser, question: 'my assigned matches', expectedTool: 'getMyAssignedMatches', expectedKeyword: 'Official Match Assignments' },
-      { role: 'Official', user: officialUser, question: 'mere matches kab hai', expectedTool: 'getMyAssignedMatches', expectedKeyword: 'Official Match Assignments' },
-      { role: 'Official', user: officialUser, question: 'referee match assignment schedule', expectedTool: 'getMyAssignedMatches', expectedKeyword: 'Official Match Assignments' },
-      { role: 'Official', user: officialUser, question: 'live matches score', expectedTool: 'getPublicInfo', expectedKeyword: 'Athletiq' },
-      { role: 'Official', user: officialUser, question: 'academy sports programs', expectedTool: 'getPublicInfo', expectedKeyword: 'Athletiq' },
-      { role: 'Official', user: officialUser, question: `tournament standings for ${tournamentName}`, expectedTool: 'getStandings', expectedKeyword: 'Standings' },
-      { role: 'Official', user: officialUser, question: 'points table dikhao', expectedTool: 'getStandings', expectedKeyword: 'Standings' },
-      { role: 'Official', user: officialUser, question: 'unread notifications alerts', expectedTool: 'getMyNotificationsSummary', expectedKeyword: 'notifications' },
-      { role: 'Official', user: officialUser, question: 'koi unread notification hai', expectedTool: 'getMyNotificationsSummary', expectedKeyword: 'notifications' },
-      { role: 'Official', user: officialUser, question: 'what can i ask', expectedTool: null, expectedKeyword: 'Official' },
 
       // Admin (10 questions, English + Hinglish + typos)
       { role: 'Admin', user: adminUser, question: 'academy overview summary', expectedTool: 'getAcademyOverview', expectedKeyword: 'Academy Management Overview' },

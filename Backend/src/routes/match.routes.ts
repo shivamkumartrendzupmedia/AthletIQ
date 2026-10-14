@@ -17,26 +17,19 @@ const router = Router();
 router.use(requireAuth);
 router.use(sanitizeInput);
 
-// 1. Official assigned matches (MUST be declared before /:id)
-router.get(
-  '/assigned',
-  requireRole('Official'),
-  tournamentController.getAssignedMatches
-);
-
-// 2. Status transitions (State Machine)
+// 1. Status transitions (State Machine)
 router.post(
   '/:id/status',
-  requireRole('Admin', 'Organizer', 'Official'),
+  requireRole('Admin', 'Organizer'),
   validateObjectId('id'),
   validate(matchStatusTransitionSchema),
   tournamentController.updateMatchStatus
 );
 
-// 3. Match events
+// 2. Match events
 router.post(
   '/:id/events',
-  requireRole('Admin', 'Organizer', 'Official'),
+  requireRole('Admin', 'Organizer'),
   validateObjectId('id'),
   validate(createMatchEventSchema),
   tournamentController.createMatchEvent
@@ -50,7 +43,7 @@ router.get(
 
 router.delete(
   '/:id/events/:eventId',
-  requireRole('Admin', 'Organizer', 'Official'),
+  requireRole('Admin', 'Organizer'),
   validateObjectId('id'),
   validateObjectId('eventId'),
   tournamentController.deleteMatchEvent
@@ -64,7 +57,7 @@ router.get(
 );
 
 // 5. Existing match endpoints
-router.get('/:id', validateObjectId('id'), tournamentController.getMatchById);
+router.get('/:id([0-9a-fA-F]{24})', validateObjectId('id'), tournamentController.getMatchById);
 
 router.patch(
   '/:id/result',

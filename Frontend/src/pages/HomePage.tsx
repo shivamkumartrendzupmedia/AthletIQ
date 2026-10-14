@@ -12,8 +12,6 @@ import {
   ChevronLeft,
   Send,
   Calendar,
-  Trophy,
-  Award,
   AlertCircle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';

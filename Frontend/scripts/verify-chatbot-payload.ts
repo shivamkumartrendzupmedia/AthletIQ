@@ -57,8 +57,8 @@ const payloadExtra = { ...payload1, extraProperty: 'malicious' };
 const parseExtra = chatbotMessageSchema.safeParse(payloadExtra);
 assert(!parseExtra.success, 'Unknown properties are strictly rejected by Backend schema');
 
-// 7. Exactly 6 suggestion chips per role across all 5 roles
-const roles: Role[] = ['Admin', 'Coach', 'Athlete', 'Organizer', 'Official'];
+// 7. Exactly 6 suggestion chips per role across all 4 roles
+const roles: Role[] = ['Admin', 'Coach', 'Athlete', 'Organizer'];
 let allHave6Chips = true;
 for (const r of roles) {
   const chips = ROLE_SUGGESTION_CHIPS[r];
@@ -66,7 +66,7 @@ for (const r of roles) {
     allHave6Chips = false;
   }
 }
-assert(allHave6Chips, 'All 5 roles have exactly 6 distinct prompt suggestion chips');
+assert(allHave6Chips, 'All 4 roles have exactly 6 distinct prompt suggestion chips');
 
 // 8. Every single prompt chip across all roles passes the REAL Zod schema
 let allPromptsPassZod = true;

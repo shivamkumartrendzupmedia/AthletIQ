@@ -18,8 +18,6 @@ const getRoleDashboard = (role: UserRole): string => {
       return '/dashboard/athlete';
     case 'Organizer':
       return '/dashboard/organizer';
-    case 'Official':
-      return '/dashboard/official';
     default:
       return '/dashboard/athlete';
   }
