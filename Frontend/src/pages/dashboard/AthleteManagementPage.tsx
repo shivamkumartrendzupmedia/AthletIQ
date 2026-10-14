@@ -76,6 +76,7 @@ export const AthleteManagementPage: React.FC = () => {
   const [editStatus, setEditStatus] = useState<'Active' | 'Injured' | 'Trial' | 'Inactive'>('Active');
   const [editMedicalNotes, setEditMedicalNotes] = useState('');
   const [editVerificationStatus, setEditVerificationStatus] = useState<'Verified' | 'Pending ID' | 'Medical Required'>('Pending ID');
+  const [editDOB, setEditDOB] = useState('');
 
   // Accessible unique IDs
   const createUserIdInput = useId();
@@ -94,6 +95,7 @@ export const AthleteManagementPage: React.FC = () => {
   const editStatusInput = useId();
   const editMedicalInput = useId();
   const editVerificationInput = useId();
+  const editDOBInput = useId();
 
   const fetchAthletes = useCallback(async () => {
     setLoading(true);
@@ -174,6 +176,7 @@ export const AthleteManagementPage: React.FC = () => {
     setEditStatus(a.status);
     setEditMedicalNotes(a.medicalNotes || '');
     setEditVerificationStatus(a.verificationStatus);
+    setEditDOB(a.dateOfBirth ? a.dateOfBirth.split('T')[0] : '');
     setEditFieldErrors({});
   };
 
@@ -245,6 +248,7 @@ export const AthleteManagementPage: React.FC = () => {
       if (isAdmin) {
         if (editJerseyNumber) payload.jerseyNumber = Number(editJerseyNumber);
         if (editMedicalNotes) payload.medicalNotes = editMedicalNotes.trim();
+        if (editDOB) payload.dateOfBirth = editDOB;
         payload.verificationStatus = editVerificationStatus;
       }
 
@@ -912,6 +916,22 @@ export const AthleteManagementPage: React.FC = () => {
 
               {isAdmin && (
                 <>
+                  <div>
+                    <label htmlFor={editDOBInput} className="block text-xs font-bold text-[#171044] uppercase mb-1">
+                      Date of Birth
+                    </label>
+                    <input
+                      id={editDOBInput}
+                      type="date"
+                      value={editDOB}
+                      onChange={(e) => setEditDOB(e.target.value)}
+                      className="w-full px-4 py-2 bg-[#F7F1E8] border border-[#171044]/20 rounded-xl text-sm outline-none focus:border-[#FF5A00]"
+                    />
+                    {editFieldErrors.dateOfBirth && (
+                      <p className="mt-1 text-xs text-red-600 font-medium">{editFieldErrors.dateOfBirth}</p>
+                    )}
+                  </div>
+
                   <div>
                     <label htmlFor={editJerseyInput} className="block text-xs font-bold text-[#171044] uppercase mb-1">
                       Jersey Number

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, CrossAccent } from '../design-system';
-import { User, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2, Calendar } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiClientError } from '../lib/apiClient';
 
@@ -14,6 +14,8 @@ export const RegisterPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [sport, setSport] = useState('Football'); // Visual only for UI continuity; not submitted to backend auth API
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -29,6 +31,15 @@ export const RegisterPage: React.FC = () => {
     e.preventDefault();
     setGeneralError(null);
     setFieldErrors({});
+
+    if (!dateOfBirth) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        dateOfBirth: 'Date of birth is required.',
+      }));
+      setGeneralError('Please enter your date of birth.');
+      return;
+    }
 
     if (!hasMinLength || !hasUpper || !hasLower || !hasNumber) {
       setGeneralError('Please ensure your password meets all complexity requirements.');
@@ -122,6 +133,32 @@ export const RegisterPage: React.FC = () => {
             </div>
             {fieldErrors.email && (
               <p className="text-[11px] font-bold text-[#FF3B30] mt-1.5">{fieldErrors.email}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-white/80 mb-2">
+              Date of Birth <span className="text-[#FF3B30]">*</span>
+            </label>
+            <div className="relative">
+              <Calendar size={18} className="absolute left-4 top-3.5 text-white/40" />
+              <input
+                type="date"
+                required
+                max={todayStr}
+                disabled={isSubmitting}
+                value={dateOfBirth}
+                onChange={(e) => {
+                  setDateOfBirth(e.target.value);
+                  if (fieldErrors.dateOfBirth) {
+                    setFieldErrors((prev) => ({ ...prev, dateOfBirth: '' }));
+                  }
+                }}
+                className="w-full bg-white/10 border border-white/20 rounded-2xl pl-12 pr-5 py-3 text-white text-sm focus:outline-none focus:border-[#D8F500] disabled:opacity-50"
+              />
+            </div>
+            {fieldErrors.dateOfBirth && (
+              <p className="text-[11px] font-bold text-[#FF3B30] mt-1.5">{fieldErrors.dateOfBirth}</p>
             )}
           </div>
 
