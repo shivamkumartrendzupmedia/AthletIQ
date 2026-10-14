@@ -57,6 +57,7 @@ export const TournamentManagementPage: React.FC = () => {
   const [editingTournament, setEditingTournament] = useState<TournamentItem | null>(null);
   const [tournamentSubmitting, setTournamentSubmitting] = useState(false);
   const [tournamentFieldErrors, setTournamentFieldErrors] = useState<Record<string, string>>({});
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Tournament Form fields
   const [formName, setFormName] = useState('');
@@ -133,13 +134,19 @@ export const TournamentManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [role, formSport]);
+  }, [role]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadData();
-    }, 0);
-    return () => clearTimeout(timer);
+    let active = true;
+    const init = async () => {
+      if (active) {
+        await loadData();
+      }
+    };
+    void init();
+    return () => {
+      active = false;
+    };
   }, [loadData]);
 
   // When coach selects a team to register, load athletes from team roster (1 request)
@@ -188,6 +195,7 @@ export const TournamentManagementPage: React.FC = () => {
     setFormRules('');
     setFormMaxTeams('16');
     setTournamentFieldErrors({});
+    setModalError(null);
     setShowTournamentModal(true);
   };
 
@@ -204,6 +212,7 @@ export const TournamentManagementPage: React.FC = () => {
     setFormRules(t.rules || '');
     setFormMaxTeams(t.maxTeams !== undefined ? String(t.maxTeams) : '');
     setTournamentFieldErrors({});
+    setModalError(null);
     setShowTournamentModal(true);
   };
 
@@ -212,6 +221,7 @@ export const TournamentManagementPage: React.FC = () => {
     e.preventDefault();
     setTournamentSubmitting(true);
     setTournamentFieldErrors({});
+    setModalError(null);
     setErrorBanner(null);
 
     const startIso = fromDatetimeLocalString(formStartDate);
@@ -246,10 +256,12 @@ export const TournamentManagementPage: React.FC = () => {
         setSuccessBanner('Tournament created successfully.');
       }
       setShowTournamentModal(false);
-      loadData();
+      await loadData();
     } catch (err: unknown) {
       const mapped = mapFieldErrors(err);
       setTournamentFieldErrors(mapped);
+      const msg = err instanceof Error ? err.message : 'Failed to save tournament.';
+      setModalError(msg);
       if (err instanceof ApiClientError && !Object.keys(mapped).length) {
         setErrorBanner(err.message);
       }
@@ -645,6 +657,13 @@ export const TournamentManagementPage: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {modalError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs text-red-800">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1 font-medium">{modalError}</div>
+              </div>
+            )}
 
             {Object.keys(tournamentFieldErrors).length > 0 && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1 text-xs text-red-800">
