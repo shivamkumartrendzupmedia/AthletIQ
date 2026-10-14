@@ -1474,6 +1474,15 @@ export const academyApi = {
     return normalizeSingleResponse<ContactMessageItem>(res);
   },
 
+  deleteContactMessage: async (
+    id: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient<{ success: boolean; message: string }>(`/contact-messages/${id}`, {
+      method: 'DELETE',
+    });
+    return res.data;
+  },
+
   // ==================== NOTIFICATIONS (STEP 10) ====================
   getNotifications: async (
     query: NotificationQuery = {}
@@ -1674,6 +1683,7 @@ export interface AnnouncementItem {
   pinned: boolean;
   publishedAt: string;
   createdBy: { id: string; name: string } | null;
+  canManage?: boolean;
   createdAt: string;
   updatedAt: string;
 }

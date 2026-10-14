@@ -14,6 +14,7 @@ import {
   AlertCircle,
   User,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 
 export const ContactMessagesPage: React.FC = () => {
@@ -30,6 +31,24 @@ export const ContactMessagesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<ContactMessageItem | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  const handleDeleteMessage = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm('Delete this message permanently? This cannot be undone.')) return;
+    setActionLoadingId(id);
+    setError(null);
+    try {
+      await academyApi.deleteContactMessage(id);
+      if (selectedMessage?.id === id) {
+        setSelectedMessage(null);
+      }
+      await fetchMessages(pagination.page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete contact message.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   const fetchMessages = useCallback(async (pageToLoad = 1) => {
     setIsLoading(true);
@@ -250,12 +269,22 @@ export const ContactMessagesPage: React.FC = () => {
                       {item.email}
                     </div>
                   </div>
-                  <span className="text-[11px] text-[#171044]/50 whitespace-nowrap">
-                    {new Date(item.createdAt).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-[#171044]/50 whitespace-nowrap">
+                      {new Date(item.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                    <button
+                      onClick={(e) => handleDeleteMessage(item.id, e)}
+                      disabled={actionLoadingId === item.id}
+                      className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
+                      title="Delete message permanently"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-2 text-xs font-bold text-[#171044] truncate">
@@ -381,6 +410,14 @@ export const ContactMessagesPage: React.FC = () => {
                       Archive
                     </button>
                   )}
+                  <button
+                    onClick={() => handleDeleteMessage(selectedMessage.id)}
+                    disabled={actionLoadingId === selectedMessage.id}
+                    className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-xs font-display font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>

@@ -2,18 +2,18 @@
   "role": "Coach",
   "teams": [
     {
-      "id": "6acdb6fb0f2301a0cbfc07a8",
-      "name": "Panthers FC 1791866619152",
+      "id": "6acf5d6958905ef1018bd06d",
+      "name": "Panthers FC 1791974761103",
       "athleteCount": 1
     }
   ],
   "nextSessions": [
     {
-      "id": "6acdb6fb0f2301a0cbfc07ae",
-      "teamName": "Panthers FC 1791866619152",
+      "id": "6acf5d6958905ef1018bd073",
+      "teamName": "Panthers FC 1791974761103",
       "venue": "Main Field North",
-      "scheduledAt": "2026-10-14T04:43:38.842Z",
-      "endsAt": "2026-10-14T06:13:38.842Z",
+      "scheduledAt": "2026-10-15T10:46:00.873Z",
+      "endsAt": "2026-10-15T12:16:00.873Z",
       "type": "Training"
     }
   ],

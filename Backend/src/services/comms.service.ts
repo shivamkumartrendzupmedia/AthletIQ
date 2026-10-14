@@ -108,6 +108,7 @@ export interface AnnouncementDto {
   pinned: boolean;
   publishedAt: string;
   createdBy: { id: string; name: string } | null;
+  canManage: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -359,6 +360,11 @@ export class CommsService {
       const teamObj = a.team as unknown as { _id?: Types.ObjectId; id?: string; name?: string } | null;
       const creatorObj = a.createdBy as unknown as { _id?: Types.ObjectId; id?: string; name?: string } | null;
 
+      const creatorIdStr = creatorObj ? String(creatorObj._id || creatorObj.id) : null;
+      const canManage =
+        user.role === 'Admin' ||
+        (user.role === 'Coach' && creatorIdStr !== null && creatorIdStr === user.id);
+
       return {
         id: a.id,
         title: a.title,
@@ -368,6 +374,7 @@ export class CommsService {
         pinned: a.pinned,
         publishedAt: a.publishedAt.toISOString(),
         createdBy: creatorObj ? { id: String(creatorObj.id || creatorObj._id), name: creatorObj.name || '' } : null,
+        canManage,
         createdAt: a.createdAt.toISOString(),
         updatedAt: a.updatedAt.toISOString(),
       };
@@ -437,6 +444,11 @@ export class CommsService {
     const teamObj = ann.team as unknown as { _id?: Types.ObjectId; id?: string; name?: string } | null;
     const creatorObj = ann.createdBy as unknown as { _id?: Types.ObjectId; id?: string; name?: string } | null;
 
+    const creatorIdStr = creatorObj ? String(creatorObj._id || creatorObj.id) : null;
+    const canManage =
+      user.role === 'Admin' ||
+      (user.role === 'Coach' && creatorIdStr !== null && creatorIdStr === user.id);
+
     return {
       id: ann.id,
       title: ann.title,
@@ -446,6 +458,7 @@ export class CommsService {
       pinned: ann.pinned,
       publishedAt: ann.publishedAt.toISOString(),
       createdBy: creatorObj ? { id: String(creatorObj.id || creatorObj._id), name: creatorObj.name || '' } : null,
+      canManage,
       createdAt: ann.createdAt.toISOString(),
       updatedAt: ann.updatedAt.toISOString(),
     };

@@ -1,0 +1,113 @@
+{
+  "athlete": {
+    "id": "6acf5d6958905ef1018bd071",
+    "name": "Fixture Athlete ath",
+    "jerseyNumber": 10,
+    "position": "Forward",
+    "teamName": "Panthers FC 1791974761103",
+    "sportName": "Fixture Soccer 1791974761032"
+  },
+  "latestAssessment": {
+    "id": "6acf5d6958905ef1018bd079",
+    "athlete": "6acf5d6958905ef1018bd071",
+    "assessedBy": {
+      "id": "6acf5d6858905ef1018bd063",
+      "name": "Fixture Coach cch"
+    },
+    "date": "2026-10-14T10:46:01.328Z",
+    "pace": 8,
+    "shooting": 9,
+    "passing": 8,
+    "dribbling": 8,
+    "defending": 7,
+    "stamina": 8,
+    "agility": 8,
+    "decisionMaking": 8,
+    "leadership": 7,
+    "workRate": 9,
+    "categories": {
+      "technical": 8.5,
+      "physical": 8,
+      "tactical": 8,
+      "mental": 8
+    },
+    "overall": 8.2,
+    "createdAt": "2026-10-14T10:46:01.330Z",
+    "updatedAt": "2026-10-14T10:46:01.330Z"
+  },
+  "skillCategoryAverages": {
+    "technical": 8.5,
+    "physical": 8,
+    "tactical": 8,
+    "mental": 8,
+    "overall": 8.2
+  },
+  "attendanceRate": 100,
+  "assessmentHistory": [
+    {
+      "id": "6acf5d6958905ef1018bd079",
+      "athlete": "6acf5d6958905ef1018bd071",
+      "assessedBy": {
+        "id": "6acf5d6858905ef1018bd063",
+        "name": "Fixture Coach cch"
+      },
+      "date": "2026-10-14T10:46:01.328Z",
+      "pace": 8,
+      "shooting": 9,
+      "passing": 8,
+      "dribbling": 8,
+      "defending": 7,
+      "stamina": 8,
+      "agility": 8,
+      "decisionMaking": 8,
+      "leadership": 7,
+      "workRate": 9,
+      "categories": {
+        "technical": 8.5,
+        "physical": 8,
+        "tactical": 8,
+        "mental": 8
+      },
+      "overall": 8.2,
+      "createdAt": "2026-10-14T10:46:01.330Z",
+      "updatedAt": "2026-10-14T10:46:01.330Z"
+    }
+  ],
+  "feedback": [
+    {
+      "id": "6acf5d6958905ef1018bd07f",
+      "athlete": "6acf5d6958905ef1018bd071",
+      "coach": {
+        "id": "6acf5d6958905ef1018bd06b",
+        "name": "Fixture Coach cch"
+      },
+      "text": "Exceptional movement off the ball in training",
+      "type": "General",
+      "acknowledgedAt": null,
+      "createdAt": "2026-10-14T10:46:01.495Z",
+      "updatedAt": "2026-10-14T10:46:01.495Z"
+    }
+  ],
+  "goals": [
+    {
+      "id": "6acf5d6958905ef1018bd07b",
+      "athlete": "6acf5d6958905ef1018bd071",
+      "title": "Score 15 goals in youth cup",
+      "targetDate": "2026-11-13T10:46:00.873Z",
+      "status": "Active",
+      "progress": 60,
+      "createdAt": "2026-10-14T10:46:01.373Z",
+      "updatedAt": "2026-10-14T10:46:01.373Z"
+    },
+    {
+      "id": "6acf5d6958905ef1018bd07d",
+      "athlete": "6acf5d6958905ef1018bd071",
+      "title": "Improve weak-foot shooting",
+      "targetDate": "2026-11-28T10:46:00.873Z",
+      "status": "Active",
+      "progress": 40,
+      "createdAt": "2026-10-14T10:46:01.408Z",
+      "updatedAt": "2026-10-14T10:46:01.408Z"
+    }
+  ]
+}

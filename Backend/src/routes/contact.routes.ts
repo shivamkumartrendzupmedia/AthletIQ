@@ -30,4 +30,11 @@ router.patch(
   contactController.updateStatus
 );
 
+router.delete(
+  '/:id',
+  requireRole('Admin'),
+  validateObjectId('id'),
+  contactController.deleteMessage
+);
+
 export const contactRoutes = router;

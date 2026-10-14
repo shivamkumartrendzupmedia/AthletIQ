@@ -1208,7 +1208,29 @@ async function run(): Promise<void> {
     });
     assert(patchAnnUnauth.status === 401, 'Unauthenticated PATCH announcement returns 401');
 
+    // Assertions for server-computed canManage boolean
+    const adminAnnList = (getAnnAdmin.body as { data?: Array<{ id: string; canManage: boolean }> })?.data || [];
+    const coachAnnList = (getAnnCoach.body as { data?: Array<{ id: string; canManage: boolean }> })?.data || [];
+    const athAnnList = (getAnnAth.body as { data?: Array<{ id: string; canManage: boolean }> })?.data || [];
+    assert(adminAnnList.length > 0 && adminAnnList.every((a) => a.canManage === true), 'Admin sees canManage === true for all announcements');
+    assert(
+      coachAnnList.some((a) => a.id === coach7AnnId && a.canManage === true),
+      'Coach sees canManage === true for own announcement'
+    );
+    assert(
+      coachAnnList.some((a) => a.id === admin7AnnId && a.canManage === false),
+      'Coach sees canManage === false for announcements created by others'
+    );
+    assert(athAnnList.every((a) => a.canManage === false), 'Athlete sees canManage === false for all announcements');
+
     // --- Row 6: DELETE /announcements/:id ---
+    // Coach deletes another coach's/admin's announcement -> 404
+    const delAnnCoachOther = await f7(`/announcements/${admin7AnnId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${coachAToken}` },
+    });
+    assert(delAnnCoachOther.status === 404, 'Coach DELETE of another announcement returns 404');
+
     const delAnnAth = await f7(`/announcements/${admin7AnnId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${athleteAToken}` },
@@ -1231,6 +1253,12 @@ async function run(): Promise<void> {
       headers: { Authorization: `Bearer ${coachAToken}` },
     });
     assert(delAnnCoach.status === 200, 'Coach DELETE of OWN announcement returns 200');
+
+    // Deleted announcement returns 404 afterwards
+    const getDeletedAnn = await f7(`/announcements/${coach7AnnId}`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    assert(getDeletedAnn.status === 404, 'Deleted announcement gives 404 afterwards');
 
     const delAnnAdmin = await f7(`/announcements/${admin7AnnId}`, {
       method: 'DELETE',

@@ -1,14 +1,14 @@
 {
   "role": "Athlete",
   "displayName": "Fixture Athlete ath",
-  "teamName": "Panthers FC 1791866619152",
+  "teamName": "Panthers FC 1791974761103",
   "attendanceRate": 100,
   "nextSessions": [
     {
-      "id": "6acdb6fb0f2301a0cbfc07ae",
+      "id": "6acf5d6958905ef1018bd073",
       "venue": "Main Field North",
-      "scheduledAt": "2026-10-14T04:43:38.842Z",
-      "endsAt": "2026-10-14T06:13:38.842Z",
+      "scheduledAt": "2026-10-15T10:46:00.873Z",
+      "endsAt": "2026-10-15T12:16:00.873Z",
       "type": "Training"
     }
   ],
@@ -17,13 +17,13 @@
   "unacknowledgedFeedbackCount": 1,
   "nextMatches": [
     {
-      "id": "6acdb6fb0f2301a0cbfc07ca",
-      "tournamentName": "Premier Cup 1791866619583",
+      "id": "6acf5d6958905ef1018bd08f",
+      "tournamentName": "Premier Cup 1791974761529",
       "round": "Semi Final",
-      "scheduledAt": "2026-10-14T04:43:38.842Z",
+      "scheduledAt": "2026-10-15T10:46:00.873Z",
       "venueName": "Olympic Stadium Court 1",
-      "homeTeamName": "Panthers FC 1791866619152",
-      "awayTeamName": "Vipers FC 1791866619201"
+      "homeTeamName": "Panthers FC 1791974761103",
+      "awayTeamName": "Vipers FC 1791974761136"
     }
   ]
 }

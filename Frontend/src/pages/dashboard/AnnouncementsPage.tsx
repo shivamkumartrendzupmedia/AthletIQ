@@ -38,13 +38,16 @@ export const AnnouncementsPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [loadAnnouncements]);
 
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+    if (!window.confirm('Delete this announcement? This cannot be undone.')) return;
+    setErrorMessage(null);
     try {
       await academyApi.deleteAnnouncement(id);
-      loadAnnouncements();
+      await loadAnnouncements();
     } catch (err) {
-      alert((err as Error).message || 'Failed to delete announcement');
+      setErrorMessage((err as Error).message || 'Failed to delete announcement');
     }
   };
 
@@ -84,6 +87,18 @@ export const AnnouncementsPage: React.FC = () => {
           </Button>
         )}
       </div>
+
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold flex items-center justify-between">
+          <span>{errorMessage}</span>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-xs uppercase font-bold tracking-wider text-red-500 hover:text-red-700 underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Proof Table */}
       <Card variant="standard" className="p-4 bg-white/60">
@@ -171,7 +186,7 @@ export const AnnouncementsPage: React.FC = () => {
                     {new Date(a.publishedAt).toLocaleDateString()} • By {a.createdBy?.name || 'Academy'}
                   </span>
 
-                  {(role === 'Admin' || role === 'Coach') && (
+                  {a.canManage && (
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleEdit(a)}

@@ -2,13 +2,13 @@
   "role": "Admin",
   "userCounts": {
     "Admin": 3,
-    "Coach": 4,
-    "Athlete": 4,
+    "Coach": 2,
+    "Athlete": 2,
     "Organizer": 2
   },
   "activeAthletes": 1,
   "teams": 3,
-  "coaches": 3,
+  "coaches": 1,
   "upcomingSessions": 1,
   "tournaments": {
     "Draft": 0,

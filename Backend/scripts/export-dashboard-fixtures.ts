@@ -406,7 +406,23 @@ async function run() {
       console.log(`✓ Exported ${r.role} fixture -> ${filePath}`);
     }
 
-    console.log('All 5 dashboard fixtures exported successfully.');
+    // Export Athlete development-view fixture (GET /api/athletes/me/development)
+    const athleteToken = signAccessToken(athleteUser._id.toString(), 'Athlete');
+    const devRes = await httpFetch(`${baseUrl}/api/athletes/me/development`, {
+      Authorization: `Bearer ${athleteToken}`,
+    });
+
+    if (devRes.status !== 200 || !devRes.body) {
+      throw new Error(`Failed to fetch development view for athlete (status ${devRes.status}): ${JSON.stringify(devRes.body)}`);
+    }
+
+    const rawDev = devRes.body as Record<string, unknown>;
+    const devBody = rawDev.data !== undefined ? rawDev.data : rawDev;
+    const devFilePath = path.join(fixturesDir, 'development-athlete.json');
+    await fs.writeFile(devFilePath, JSON.stringify(devBody, null, 2), 'utf-8');
+    console.log(`✓ Exported Athlete development fixture -> ${devFilePath}`);
+
+    console.log('All dashboard and development fixtures exported successfully.');
   } finally {
     server.close();
 

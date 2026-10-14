@@ -19,6 +19,7 @@ import {
   mapCoachDashboardCards,
   mapAthleteDashboardCards,
   mapOrganizerDashboardCards,
+  mapAthleteDevelopmentTabCounts,
   validateOverviewKeys,
 } from '../src/lib/dashboardMappers.js';
 import type {
@@ -63,14 +64,15 @@ const adminFixture = loadFixture<AdminDashboardOverview>('dashboard-admin.json')
 const adminCards = mapAdminDashboardCards(adminFixture);
 
 // Non-zero card assertions (>= 3 per role)
+const expectedTotalUsers = Object.values(adminFixture.userCounts).reduce((a, b) => a + b, 0);
 assert(
-  adminCards.totalUsersRaw === 13,
-  'Admin totalUsers matches fixture sum (13)',
-  `Expected 13, got ${adminCards.totalUsersRaw}`
+  adminCards.totalUsersRaw === expectedTotalUsers,
+  `Admin totalUsers matches fixture sum (${expectedTotalUsers})`,
+  `Expected ${expectedTotalUsers}, got ${adminCards.totalUsersRaw}`
 );
 assert(
-  adminCards.totalUsers === '13',
-  'Admin totalUsers card renders "13"',
+  adminCards.totalUsers === String(expectedTotalUsers),
+  `Admin totalUsers card renders "${expectedTotalUsers}"`,
   `Got "${adminCards.totalUsers}"`
 );
 assert(
@@ -109,8 +111,8 @@ assert(
   `Expected > 0, got ${adminCards.activeCoachesRaw}`
 );
 assert(
-  adminCards.activeCoaches === '3',
-  'Admin activeCoaches card renders "3"',
+  adminCards.activeCoaches === String(adminFixture.coaches),
+  `Admin activeCoaches card renders "${adminFixture.coaches}"`,
   `Got "${adminCards.activeCoaches}"`
 );
 
@@ -281,6 +283,84 @@ for (const r of roles) {
     incompleteMapped.upcomingSessions === '-',
     'Admin mapper replaces missing required fields with visible "-" (never masquerades as 0)',
     `Got totalUsers=${incompleteMapped.totalUsers}, athletes=${incompleteMapped.activeAthletes}`
+  );
+}
+
+// 6. ATHLETE DEVELOPMENT TAB COUNTS & FIXTURE ASSERTIONS
+// ============================================================================
+console.log('\n--- GROUP 6: ATHLETE DEVELOPMENT TAB COUNTS CONTRACT ---');
+
+interface DevAthleteFixture {
+  athlete: { id: string; name: string };
+  assessmentHistory: unknown[];
+  feedback: unknown[];
+  goals: unknown[];
+}
+
+const devFixture = loadFixture<DevAthleteFixture>('development-athlete.json');
+
+assert(
+  Array.isArray(devFixture.assessmentHistory) && devFixture.assessmentHistory.length > 0,
+  'development-athlete.json fixture contains non-empty assessmentHistory (> 0)'
+);
+
+assert(
+  Array.isArray(devFixture.feedback) && devFixture.feedback.length > 0,
+  'development-athlete.json fixture contains non-empty feedback (> 0)'
+);
+
+assert(
+  Array.isArray(devFixture.goals) && devFixture.goals.length > 0,
+  'development-athlete.json fixture contains non-empty goals (> 0)'
+);
+
+const dummyPerf = [{ tournamentId: 'tourn-1', tournamentName: 'Cup', matchesPlayed: 2, goals: 1, assists: 0, yellowCards: 0, redCards: 0 }];
+
+const mappedDevTabs = mapAthleteDevelopmentTabCounts(devFixture, dummyPerf);
+
+assert(
+  mappedDevTabs.skillHistory === String(devFixture.assessmentHistory.length) && (mappedDevTabs.skillHistoryRaw ?? 0) > 0,
+  `Skill History tab count computed from fixture is > 0 (${mappedDevTabs.skillHistory})`
+);
+
+assert(
+  mappedDevTabs.coachFeedback === String(devFixture.feedback.length) && (mappedDevTabs.coachFeedbackRaw ?? 0) > 0,
+  `Coach Feedback tab count computed from fixture is > 0 (${mappedDevTabs.coachFeedback})`
+);
+
+assert(
+  mappedDevTabs.goals === String(devFixture.goals.length) && (mappedDevTabs.goalsRaw ?? 0) > 0,
+  `Milestones & Goals tab count computed from fixture is > 0 (${mappedDevTabs.goals})`
+);
+
+assert(
+  mappedDevTabs.tournamentPerformance === '1' && (mappedDevTabs.tournamentPerformanceRaw ?? 0) > 0,
+  `Tournament Performance tab count computed from performance list is > 0 (${mappedDevTabs.tournamentPerformance})`
+);
+
+// Verify '-' is returned when keys are missing or deleted
+{
+  const missingKeysFixture = { ...devFixture } as Partial<DevAthleteFixture>;
+  delete missingKeysFixture.assessmentHistory;
+  delete missingKeysFixture.feedback;
+  delete missingKeysFixture.goals;
+
+  const incompleteTabs = mapAthleteDevelopmentTabCounts(missingKeysFixture, null);
+  assert(
+    incompleteTabs.skillHistory === '-',
+    'Skill history tab count displays "-" when assessmentHistory is omitted/deleted'
+  );
+  assert(
+    incompleteTabs.coachFeedback === '-',
+    'Coach feedback tab count displays "-" when feedback is omitted/deleted'
+  );
+  assert(
+    incompleteTabs.goals === '-',
+    'Goals tab count displays "-" when goals is omitted/deleted'
+  );
+  assert(
+    incompleteTabs.tournamentPerformance === '-',
+    'Tournament performance tab count displays "-" when performance is omitted/null'
   );
 }
 

@@ -103,6 +103,39 @@ export class ContactService {
 
     return message;
   }
+
+  /**
+   * Admin only: Permanently delete a contact message with AuditLog.
+   * No PII (name, email, text) is ever written to audit log.
+   */
+  async deleteMessage(
+    id: string,
+    actorId: string | Types.ObjectId
+  ): Promise<{ success: boolean; message: string }> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new ApiError(400, 'Invalid contact message identifier');
+    }
+
+    const message = await ContactMessage.findById(id);
+    if (!message) {
+      throw new ApiError(404, 'Contact message not found');
+    }
+
+    await ContactMessage.findByIdAndDelete(id);
+
+    await auditService.logAudit({
+      actor: actorId,
+      action: 'CONTACT_MESSAGE_DELETED',
+      targetType: 'ContactMessage',
+      targetId: message._id as Types.ObjectId,
+      meta: {},
+    });
+
+    return {
+      success: true,
+      message: 'Contact message deleted successfully',
+    };
+  }
 }
 
 export const contactService = new ContactService();

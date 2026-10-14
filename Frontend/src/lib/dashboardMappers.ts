@@ -285,3 +285,43 @@ export function validateOverviewKeys(
     missingKeys,
   };
 }
+
+export interface AthleteDevelopmentTabCounts {
+  skillHistory: string;
+  skillHistoryRaw: number | null;
+  coachFeedback: string;
+  coachFeedbackRaw: number | null;
+  goals: string;
+  goalsRaw: number | null;
+  tournamentPerformance: string;
+  tournamentPerformanceRaw: number | null;
+}
+
+/**
+ * Pure mapper for Athlete Profile & Development tab counts.
+ * Returns exact array lengths when keys are present, or '-' when keys are missing/undefined.
+ */
+export function mapAthleteDevelopmentTabCounts(
+  dev: {
+    assessmentHistory?: unknown[];
+    feedback?: unknown[];
+    goals?: unknown[];
+  } | null | undefined,
+  perf: unknown[] | null | undefined
+): AthleteDevelopmentTabCounts {
+  const skillHistoryRaw = dev && Array.isArray(dev.assessmentHistory) ? dev.assessmentHistory.length : null;
+  const coachFeedbackRaw = dev && Array.isArray(dev.feedback) ? dev.feedback.length : null;
+  const goalsRaw = dev && Array.isArray(dev.goals) ? dev.goals.length : null;
+  const tournamentPerformanceRaw = Array.isArray(perf) ? perf.length : null;
+
+  return {
+    skillHistory: formatCardMetric(skillHistoryRaw),
+    skillHistoryRaw,
+    coachFeedback: formatCardMetric(coachFeedbackRaw),
+    coachFeedbackRaw,
+    goals: formatCardMetric(goalsRaw),
+    goalsRaw,
+    tournamentPerformance: formatCardMetric(tournamentPerformanceRaw),
+    tournamentPerformanceRaw,
+  };
+}

@@ -771,6 +771,136 @@ async function runVerification() {
       }
     }
 
+    // --- DELETE /api/contact-messages/:id TESTS ---
+    // Create an unread (New) contact message and a read contact message to test deletion and unread count delta
+    const unreadMsg = await ContactMessage.create({
+      name: 'Unread User',
+      email: 'unread-test@example.com',
+      message: 'Unread inquiry for delete test',
+      status: 'New',
+    });
+    createdContactIds.push(unreadMsg._id);
+
+    const readMsg = await ContactMessage.create({
+      name: 'Read User',
+      email: 'read-test@example.com',
+      message: 'Read inquiry for delete test',
+      status: 'Read',
+    });
+    createdContactIds.push(readMsg._id);
+
+    // Initial overview unreadInquiries
+    const preDelOverviewRes = await httpFetch(`${srv4.baseUrl}/api/dashboard/overview`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g4Requests++;
+    const preUnread = (preDelOverviewRes.body as { data: { unreadContactMessages: number } }).data.unreadContactMessages;
+
+    // 1. Forbidden roles & unauthenticated delete tests
+    const delCoachRes = await httpFetch(`${srv4.baseUrl}/api/contact-messages/${unreadMsg._id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${coachAToken}` },
+    });
+    g4Requests++;
+    assert(delCoachRes.status === 403, 'Coach DELETE /contact-messages/:id returns 403');
+
+    const delAthRes = await httpFetch(`${srv4.baseUrl}/api/contact-messages/${unreadMsg._id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${athleteAToken}` },
+    });
+    g4Requests++;
+    assert(delAthRes.status === 403, 'Athlete DELETE /contact-messages/:id returns 403');
+
+    const delOrgRes = await httpFetch(`${srv4.baseUrl}/api/contact-messages/${unreadMsg._id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${organizerToken}` },
+    });
+    g4Requests++;
+    assert(delOrgRes.status === 403, 'Organizer DELETE /contact-messages/:id returns 403');
+
+    const delUnauthRes = await httpFetch(`${srv4.baseUrl}/api/contact-messages/${unreadMsg._id}`, {
+      method: 'DELETE',
+    });
+    g4Requests++;
+    assert(delUnauthRes.status === 401, 'Unauthenticated DELETE /contact-messages/:id returns 401');
+
+    // 2. Malformed ID returns 400
+    const delMalformedRes = await httpFetch(`${srv4.baseUrl}/api/contact-messages/invalid-object-id`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g4Requests++;
+    assert(delMalformedRes.status === 400, 'Malformed contact message id returns 400');
+
+    // 3. Admin deletes UNREAD message -> 200
+    const delAdminUnreadRes = await httpFetch(`${srv4.baseUrl}/api/contact-messages/${unreadMsg._id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g4Requests++;
+    assert(delAdminUnreadRes.status === 200, 'Admin DELETE unread contact message returns 200');
+
+    // Message is gone from list and GET/DB
+    const checkDeletedFromDb = await ContactMessage.findById(unreadMsg._id);
+    assert(checkDeletedFromDb === null, 'Deleted contact message is completely removed from DB');
+
+    // Second delete returns 404
+    const delSecondRes = await httpFetch(`${srv4.baseUrl}/api/contact-messages/${unreadMsg._id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g4Requests++;
+    assert(delSecondRes.status === 404, 'Second delete on same message returns 404');
+
+    // Overview unreadContactMessages drops by exactly 1
+    const postUnreadDelOverviewRes = await httpFetch(`${srv4.baseUrl}/api/dashboard/overview`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g4Requests++;
+    const postUnreadCount = (postUnreadDelOverviewRes.body as { data: { unreadContactMessages: number } }).data.unreadContactMessages;
+    assert(
+      postUnreadCount === preUnread - 1,
+      `Unread inquiries in Admin overview drops by exactly 1 (${postUnreadCount} === ${preUnread - 1})`
+    );
+
+    // 4. Admin deletes READ message -> 200, overview unreadContactMessages does NOT change
+    const delAdminReadRes = await httpFetch(`${srv4.baseUrl}/api/contact-messages/${readMsg._id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g4Requests++;
+    assert(delAdminReadRes.status === 200, 'Admin DELETE read contact message returns 200');
+
+    const postReadDelOverviewRes = await httpFetch(`${srv4.baseUrl}/api/dashboard/overview`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    g4Requests++;
+    const postReadCount = (postReadDelOverviewRes.body as { data: { unreadContactMessages: number } }).data.unreadContactMessages;
+    assert(
+      postReadCount === postUnreadCount,
+      `Unread inquiries does not change when deleting a Read message (${postReadCount} === ${postUnreadCount})`
+    );
+
+    // AuditLog entry exists without personal data
+    const delAudit = await AuditLog.findOne({
+      targetId: unreadMsg._id,
+      action: 'CONTACT_MESSAGE_DELETED',
+    });
+    assert(delAudit !== null, 'AuditLog entry created for CONTACT_MESSAGE_DELETED');
+    if (delAudit) {
+      createdAuditLogIds.push(delAudit._id);
+      const auditKeys = Object.keys(delAudit.meta || {});
+      assert(!auditKeys.includes('name') && !auditKeys.includes('email') && !auditKeys.includes('message'), 'AuditLog meta contains no personal data (no name, email, message)');
+    }
+
+    const delAuditRead = await AuditLog.findOne({
+      targetId: readMsg._id,
+      action: 'CONTACT_MESSAGE_DELETED',
+    });
+    if (delAuditRead) {
+      createdAuditLogIds.push(delAuditRead._id);
+    }
+
     // 8. Rate Limiter Trigger (5 per hour per IP; 6th request triggers 429)
     // Note: We already made 1 successful submission (jane.doe). We now make 4 more to reach 5, then the 6th must return 429.
     for (let i = 1; i <= 4; i++) {

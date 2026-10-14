@@ -44,6 +44,18 @@ export class ContactController {
       next(err);
     }
   }
+
+  /**
+   * Admin only: Hard delete contact message.
+   */
+  async deleteMessage(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await contactService.deleteMessage(req.params.id, req.user!.id);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const contactController = new ContactController();

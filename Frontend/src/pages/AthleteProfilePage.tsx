@@ -30,6 +30,7 @@ import { AssessmentModal } from '../components/development/AssessmentModal';
 import { FeedbackModal } from '../components/development/FeedbackModal';
 import { GoalModal } from '../components/development/GoalModal';
 import { ApiClientError } from '../lib/apiClient';
+import { mapAthleteDevelopmentTabCounts } from '../lib/dashboardMappers';
 
 export const AthleteProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +45,8 @@ export const AthleteProfilePage: React.FC = () => {
 
   // Active Tab State
   const [activeTab, setActiveTab] = useState<'development' | 'assessments' | 'feedback' | 'goals' | 'tournaments'>('development');
+
+  const tabCounts = mapAthleteDevelopmentTabCounts(devData, tournamentPerf);
 
   // Modals
   const [showAssessmentModal, setShowAssessmentModal] = useState<boolean>(false);
@@ -214,43 +217,43 @@ export const AthleteProfilePage: React.FC = () => {
             )}
           </div>
 
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pt-4 border-t border-white/10">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FF5A00] to-[#FFA000] flex items-center justify-center text-white font-bold text-2xl font-display shadow-lg shadow-[#FF5A00]/20">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pt-4 border-t border-white/10">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-16 h-16 shrink-0 rounded-2xl bg-gradient-to-tr from-[#FF5A00] to-[#FFA000] flex items-center justify-center text-white font-bold text-2xl font-display shadow-lg shadow-[#FF5A00]/20">
                 {athlete.jerseyNumber ? `#${athlete.jerseyNumber}` : <UserIcon size={32} />}
               </div>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl lg:text-3xl font-bold font-display tracking-tight text-white">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-2xl lg:text-3xl font-bold font-display tracking-tight text-white truncate max-w-[240px] sm:max-w-md">
                     {athlete.name}
                   </h1>
                   {athlete.position && (
-                    <AthleticBadge variant="white" className="bg-white/10 text-white text-xs">
+                    <AthleticBadge variant="white" className="bg-white/10 text-white text-xs shrink-0">
                       {athlete.position}
                     </AthleticBadge>
                   )}
                 </div>
-                <p className="text-xs text-white/70 mt-1">
+                <p className="text-xs text-white/70 mt-1 truncate">
                   {athlete.teamName || 'Unassigned Squad'} • {athlete.sportName || 'Academy Discipline'}
                 </p>
               </div>
             </div>
 
             {/* Quick Stats Badges */}
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center min-w-[90px]">
+            <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+              <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center min-w-[85px] sm:min-w-[90px] shrink-0">
                 <span className="text-[10px] uppercase font-bold text-white/60 block">Overall</span>
                 <span className="text-xl font-bold font-display text-[#D8F500]">
                   {skillCategoryAverages ? skillCategoryAverages.overall : '—'}
                 </span>
               </div>
-              <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center min-w-[90px]">
+              <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center min-w-[85px] sm:min-w-[90px] shrink-0">
                 <span className="text-[10px] uppercase font-bold text-white/60 block">Attendance</span>
                 <span className="text-xl font-bold font-display text-white">
                   {attendanceRate !== null ? `${attendanceRate}%` : '—'}
                 </span>
               </div>
-              <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center min-w-[90px]">
+              <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center min-w-[85px] sm:min-w-[90px] shrink-0">
                 <span className="text-[10px] uppercase font-bold text-white/60 block">Active Goals</span>
                 <span className="text-xl font-bold font-display text-[#FF5A00]">
                   {goals.filter((g) => g.status === 'Active').length}
@@ -262,62 +265,106 @@ export const AthleteProfilePage: React.FC = () => {
       </div>
 
       {/* Tabs Bar */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-12 -mt-4">
-        <div className="bg-white rounded-xl shadow-sm border border-[#171044]/10 p-1 flex gap-2 overflow-x-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 mt-4 sm:mt-6">
+        <div
+          role="tablist"
+          aria-label="Athlete Profile Navigation Tabs"
+          className="bg-white rounded-xl shadow-sm border border-[#171044]/10 p-1.5 flex gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar"
+        >
           <button
-            onClick={() => setActiveTab('development')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+            role="tab"
+            aria-selected={activeTab === 'development'}
+            id="tab-development"
+            aria-controls="panel-development"
+            tabIndex={activeTab === 'development' ? 0 : -1}
+            onClick={(e) => {
+              setActiveTab('development');
+              e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+            }}
+            className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 snap-start flex items-center gap-2 ${
               activeTab === 'development'
                 ? 'bg-[#171044] text-white shadow-sm'
-                : 'text-[#171044]/70 hover:text-[#171044]'
+                : 'text-[#171044]/70 hover:text-[#171044] hover:bg-[#171044]/5'
             }`}
           >
-            <TrendingUp size={14} />
+            <TrendingUp size={14} className="shrink-0" />
             <span>Development Overview</span>
           </button>
           <button
-            onClick={() => setActiveTab('assessments')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+            role="tab"
+            aria-selected={activeTab === 'assessments'}
+            id="tab-assessments"
+            aria-controls="panel-assessments"
+            tabIndex={activeTab === 'assessments' ? 0 : -1}
+            onClick={(e) => {
+              setActiveTab('assessments');
+              e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+            }}
+            className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 snap-start flex items-center gap-2 ${
               activeTab === 'assessments'
                 ? 'bg-[#171044] text-white shadow-sm'
-                : 'text-[#171044]/70 hover:text-[#171044]'
+                : 'text-[#171044]/70 hover:text-[#171044] hover:bg-[#171044]/5'
             }`}
           >
-            <Zap size={14} />
-            <span>Skill History ({assessmentHistory.length})</span>
+            <Zap size={14} className="shrink-0" />
+            <span>Skill History ({tabCounts.skillHistory})</span>
           </button>
           <button
-            onClick={() => setActiveTab('feedback')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+            role="tab"
+            aria-selected={activeTab === 'feedback'}
+            id="tab-feedback"
+            aria-controls="panel-feedback"
+            tabIndex={activeTab === 'feedback' ? 0 : -1}
+            onClick={(e) => {
+              setActiveTab('feedback');
+              e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+            }}
+            className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 snap-start flex items-center gap-2 ${
               activeTab === 'feedback'
                 ? 'bg-[#171044] text-white shadow-sm'
-                : 'text-[#171044]/70 hover:text-[#171044]'
+                : 'text-[#171044]/70 hover:text-[#171044] hover:bg-[#171044]/5'
             }`}
           >
-            <MessageSquare size={14} />
-            <span>Coach Feedback ({feedback.length})</span>
+            <MessageSquare size={14} className="shrink-0" />
+            <span>Coach Feedback ({tabCounts.coachFeedback})</span>
           </button>
           <button
-            onClick={() => setActiveTab('goals')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+            role="tab"
+            aria-selected={activeTab === 'goals'}
+            id="tab-goals"
+            aria-controls="panel-goals"
+            tabIndex={activeTab === 'goals' ? 0 : -1}
+            onClick={(e) => {
+              setActiveTab('goals');
+              e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+            }}
+            className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 snap-start flex items-center gap-2 ${
               activeTab === 'goals'
                 ? 'bg-[#171044] text-white shadow-sm'
-                : 'text-[#171044]/70 hover:text-[#171044]'
+                : 'text-[#171044]/70 hover:text-[#171044] hover:bg-[#171044]/5'
             }`}
           >
-            <Target size={14} />
-            <span>Milestones & Goals ({goals.length})</span>
+            <Target size={14} className="shrink-0" />
+            <span>Milestones & Goals ({tabCounts.goals})</span>
           </button>
           <button
-            onClick={() => setActiveTab('tournaments')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-2 ${
+            role="tab"
+            aria-selected={activeTab === 'tournaments'}
+            id="tab-tournaments"
+            aria-controls="panel-tournaments"
+            tabIndex={activeTab === 'tournaments' ? 0 : -1}
+            onClick={(e) => {
+              setActiveTab('tournaments');
+              e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+            }}
+            className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 snap-start flex items-center gap-2 ${
               activeTab === 'tournaments'
                 ? 'bg-[#171044] text-white shadow-sm'
-                : 'text-[#171044]/70 hover:text-[#171044]'
+                : 'text-[#171044]/70 hover:text-[#171044] hover:bg-[#171044]/5'
             }`}
           >
-            <Trophy size={14} />
-            <span>Tournament Performance ({tournamentPerf.length})</span>
+            <Trophy size={14} className="shrink-0" />
+            <span>Tournament Performance ({tabCounts.tournamentPerformance})</span>
           </button>
         </div>
       </div>
@@ -348,11 +395,13 @@ export const AthleteProfilePage: React.FC = () => {
 
                 {skillCategoryAverages ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                    <div className="flex justify-center p-2 bg-[#171044] rounded-2xl">
-                      <AthletiqRadarChart metrics={radarMetrics} size={280} colorScheme="orange" />
+                    <div className="flex justify-center p-3 bg-[#171044] rounded-2xl overflow-hidden max-w-full">
+                      <div className="w-full max-w-[280px] aspect-square flex items-center justify-center">
+                        <AthletiqRadarChart metrics={radarMetrics} size={260} colorScheme="orange" />
+                      </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       <div className="p-3 bg-[#FAF8F5] rounded-xl flex justify-between items-center">
                         <span className="text-xs font-bold text-[#171044]">Technical Pillar</span>
                         <span className="font-bold text-sm text-[#FF5A00] font-display">
@@ -546,12 +595,12 @@ export const AthleteProfilePage: React.FC = () => {
             <div className="divide-y divide-[#171044]/10">
               {assessmentHistory.map((ass) => (
                 <div key={ass.id} className="py-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-[#171044]">
                         {new Date(ass.date).toLocaleDateString()}
                       </span>
-                      <AthleticBadge variant="dark" className="text-xs">
+                      <AthleticBadge variant="dark" className="text-xs shrink-0">
                         By: {ass.assessedBy.name}
                       </AthleticBadge>
                     </div>
@@ -559,7 +608,7 @@ export const AthleteProfilePage: React.FC = () => {
                       {ass.overall} / 10
                     </span>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 text-xs text-[#171044]/80">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-[#171044]/80">
                     <div className="p-2 bg-[#FAF8F5] rounded-lg">Tech: {ass.categories.technical}</div>
                     <div className="p-2 bg-[#FAF8F5] rounded-lg">Phys: {ass.categories.physical}</div>
                     <div className="p-2 bg-[#FAF8F5] rounded-lg">Tact: {ass.categories.tactical}</div>

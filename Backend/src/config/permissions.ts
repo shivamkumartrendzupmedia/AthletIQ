@@ -143,6 +143,7 @@ export const PERMISSION_MATRIX: Record<
   contactMessages: {
     read: { roles: ['Admin'], status: 'enforced_now', description: 'Admin lists and views contact messages' },
     update: { roles: ['Admin'], status: 'enforced_now', description: 'Admin updates contact message status' },
+    delete: { roles: ['Admin'], status: 'enforced_now', description: 'Admin deletes contact message' },
   },
   dashboard: {
     read: { roles: ['Admin', 'Coach', 'Athlete', 'Organizer'], status: 'enforced_now', description: 'Authenticated role reads overview' },
