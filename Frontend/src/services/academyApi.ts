@@ -47,8 +47,24 @@ import {
   buildChatbotMessagePayload,
   type BuildChatbotMessageInput,
 } from '../lib/chatbotPayloads';
+import {
+  buildCreateAchievementPayload,
+  buildUpdateAchievementPayload,
+  type CreateAchievementInput,
+  type UpdateAchievementInput,
+  type AchievementCategory,
+} from '../lib/achievementPayloads';
 
-export type { CreateContactInput, UpdateContactStatusInput, BuildMatchStatusInput, BuildMatchEventInput, BuildChatbotMessageInput };
+export type {
+  CreateContactInput,
+  UpdateContactStatusInput,
+  BuildMatchStatusInput,
+  BuildMatchEventInput,
+  BuildChatbotMessageInput,
+  CreateAchievementInput,
+  UpdateAchievementInput,
+  AchievementCategory,
+};
 
 export type { PaginationMeta, PaginatedResult };
 
@@ -1547,6 +1563,69 @@ export const academyApi = {
       message: res.message || 'History cleared',
     };
   },
+
+  // ==================== ACHIEVEMENTS (STEP 14) ====================
+  getPublicAchievements: async (
+    query: AchievementQuery = {}
+  ): Promise<PaginatedResult<AchievementItem>> => {
+    const res = await apiClient(
+      `/public/achievements${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<AchievementItem>(res);
+  },
+
+  getPublicAchievement: async (
+    id: string
+  ): Promise<AchievementItem | null> => {
+    const res = await apiClient(`/public/achievements/${id}`);
+    return normalizeSingleResponse<AchievementItem>(res);
+  },
+
+  listAchievements: async (
+    query: AchievementQuery = {}
+  ): Promise<PaginatedResult<AchievementItem>> => {
+    const res = await apiClient(
+      `/achievements${buildQueryString(query as Record<string, unknown>)}`
+    );
+    return normalizeListResponse<AchievementItem>(res);
+  },
+
+  getAchievement: async (
+    id: string
+  ): Promise<AchievementItem | null> => {
+    const res = await apiClient(`/achievements/${id}`);
+    return normalizeSingleResponse<AchievementItem>(res);
+  },
+
+  createAchievement: async (
+    payload: CreateAchievementInput
+  ): Promise<AchievementItem | null> => {
+    const res = await apiClient('/achievements', {
+      method: 'POST',
+      body: JSON.stringify(buildCreateAchievementPayload(payload)),
+    });
+    return normalizeSingleResponse<AchievementItem>(res);
+  },
+
+  updateAchievement: async (
+    id: string,
+    payload: UpdateAchievementInput
+  ): Promise<AchievementItem | null> => {
+    const res = await apiClient(`/achievements/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(buildUpdateAchievementPayload(payload)),
+    });
+    return normalizeSingleResponse<AchievementItem>(res);
+  },
+
+  deleteAchievement: async (
+    id: string
+  ): Promise<{ message: string } | null> => {
+    const res = await apiClient(`/achievements/${id}`, {
+      method: 'DELETE',
+    });
+    return normalizeSingleResponse<{ message: string }>(res);
+  },
 };
 
 // Announcement & Document Interfaces
@@ -2250,6 +2329,26 @@ export type AnalyticsOverviewData =
   | AdminAnalyticsData
   | CoachAnalyticsData
   | AthleteAnalyticsData;
+
+export interface AchievementItem {
+  id: string;
+  title: string;
+  description: string;
+  category: AchievementCategory;
+  achievedOn: string;
+  imageUrl?: string;
+  featured: boolean;
+  createdBy?: { id: string; name: string } | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AchievementQuery extends PaginationQuery {
+  category?: AchievementCategory;
+  featured?: boolean | string;
+  search?: string;
+}
+
 
 
 

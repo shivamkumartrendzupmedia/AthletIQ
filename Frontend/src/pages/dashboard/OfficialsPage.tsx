@@ -350,7 +350,7 @@ export const OfficialsPage: React.FC = () => {
                   required
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g. John Doe"
+                  placeholder="e.g. Official Full Name"
                   className="w-full px-3 py-2 border border-[#111111]/20 rounded-lg text-sm focus:outline-none focus:border-[#E65100]"
                 />
               </div>

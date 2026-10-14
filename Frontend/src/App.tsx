@@ -63,6 +63,7 @@ const UserAccountsPage = React.lazy(() => import('./pages/dashboard/UserAccounts
 const OfficialDashboardPage = React.lazy(() => import('./pages/dashboard/OfficialDashboardPage').then((m) => ({ default: m.OfficialDashboardPage })));
 const LiveMatchesConsoleListPage = React.lazy(() => import('./pages/dashboard/LiveMatchesConsoleListPage').then((m) => ({ default: m.LiveMatchesConsoleListPage })));
 const ScorerConsolePage = React.lazy(() => import('./pages/dashboard/ScorerConsolePage').then((m) => ({ default: m.ScorerConsolePage })));
+const DashboardAchievementsPage = React.lazy(() => import('./pages/dashboard/AchievementsPage').then((m) => ({ default: m.AchievementsPage })));
 
 const PageLoadingFallback: React.FC = () => (
   <div
@@ -370,6 +371,18 @@ function App() {
                   <DashboardLayout>
                     <ErrorBoundary>
                       <ContactMessagesPage />
+                    </ErrorBoundary>
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/achievements"
+              element={
+                <ProtectedRoute allowedRoles={['Admin']}>
+                  <DashboardLayout>
+                    <ErrorBoundary>
+                      <DashboardAchievementsPage />
                     </ErrorBoundary>
                   </DashboardLayout>
                 </ProtectedRoute>

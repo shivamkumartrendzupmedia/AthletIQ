@@ -63,27 +63,27 @@ export const AboutPage: React.FC = () => {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="relative rounded-3xl overflow-hidden h-80 group">
-            <img
-              src="https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800&auto=format&fit=crop"
-              alt="Pitches"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#171044] via-transparent to-transparent p-6 flex flex-col justify-end">
-              <h4 className="text-2xl font-bold text-white font-display">FIFA & FIBA Regulation Pitches</h4>
-              <p className="text-xs text-white/80 mt-1">Natural grass, floodlit synthetic turf, and sprung hardwood courts.</p>
+          <div className="relative rounded-3xl overflow-hidden h-80 group bg-gradient-to-br from-[#171044] to-[#281c66] p-8 flex flex-col justify-between border border-[#171044]/15 shadow-xl">
+            <div className="w-16 h-16 rounded-2xl bg-[#D8F500]/20 text-[#D8F500] flex items-center justify-center font-bold text-3xl">
+              🏟️
+            </div>
+            <div>
+              <h4 className="text-2xl font-bold text-white font-display">Regulation Championship Pitches</h4>
+              <p className="text-xs text-white/80 mt-2 leading-relaxed">
+                Natural grass match grounds, floodlit synthetic turf, and sprung hardwood multi-sport arena courts.
+              </p>
             </div>
           </div>
 
-          <div className="relative rounded-3xl overflow-hidden h-80 group">
-            <img
-              src="https://images.unsplash.com/photo-1530549387789-4c1017266635?q=80&w=800&auto=format&fit=crop"
-              alt="Pool & Performance Lab"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#171044] via-transparent to-transparent p-6 flex flex-col justify-end">
-              <h4 className="text-2xl font-bold text-white font-display">Aquatics & Biometrics Center</h4>
-              <p className="text-xs text-white/80 mt-1">50m Olympic pool, underwater camera analysis, and GPS tracking lab.</p>
+          <div className="relative rounded-3xl overflow-hidden h-80 group bg-gradient-to-br from-[#171044] to-[#4B2A9B] p-8 flex flex-col justify-between border border-[#171044]/15 shadow-xl">
+            <div className="w-16 h-16 rounded-2xl bg-[#FF5A00]/20 text-[#FF5A00] flex items-center justify-center font-bold text-3xl">
+              ⚡
+            </div>
+            <div>
+              <h4 className="text-2xl font-bold text-white font-display">Aquatics & Performance Lab</h4>
+              <p className="text-xs text-white/80 mt-2 leading-relaxed">
+                50m Olympic competition pool, camera stroke analysis, biomechanics velocity tracking, and recovery suites.
+              </p>
             </div>
           </div>
         </div>

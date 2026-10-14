@@ -8,7 +8,6 @@ import {
   MapPin,
   Layers,
   Users,
-  CheckCircle2,
   Clock,
 } from 'lucide-react';
 import { StateContainer } from '../components/StateContainer';

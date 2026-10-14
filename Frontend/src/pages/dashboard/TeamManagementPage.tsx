@@ -369,7 +369,7 @@ export const TeamManagementPage: React.FC = () => {
                 <input
                   id={createNameId}
                   type="text"
-                  placeholder="e.g. U16 Strikers Football"
+                  placeholder="e.g. Academy Squad Name"
                   value={formName}
                   onChange={(e) => {
                     setFormName(e.target.value);

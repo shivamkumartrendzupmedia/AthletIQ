@@ -1,102 +1,120 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Button,
   SectionHeader,
   CrossAccent,
   AthleticBadge,
-  RadialScoreMeter,
 } from '../design-system';
 import {
   ArrowRight,
-  MapPin,
   ChevronRight,
   ChevronLeft,
   Send,
-  Clock,
+  Calendar,
+  Trophy,
+  Award,
+  AlertCircle,
 } from 'lucide-react';
-import { coachesData } from '../data/coachesData';
 import { motion } from 'framer-motion';
 
-// High-resolution local image assets
+// High-resolution local image assets (generic decorative brand assets)
 import heroAthleteImg from '../assets/hero_athlete.jpg';
 import trophySpotlightImg from '../assets/trophy_spotlight.jpg';
-import u16TeamImg from '../assets/u16_strikers_team.jpg';
-import alexMorganPortraitImg from '../assets/alex_morgan_portrait.jpg';
-import { academyApi, type PublicOverviewResult } from '../services/academyApi';
+import {
+  academyApi,
+  type PublicOverviewResult,
+  type AchievementItem,
+  type PublicCoachItem,
+} from '../services/academyApi';
+import { SafeImage } from '../components/SafeImage';
+import { SITE_CONFIG } from '../lib/siteConfig';
 
 export const HomePage: React.FC = () => {
-  const [selectedDay, setSelectedDay] = useState<number>(21);
-  const [contactSubmitted, setContactSubmitted] = useState(false);
-  const [coachIndex, setCoachIndex] = useState(0);
   const [publicOverview, setPublicOverview] = useState<PublicOverviewResult | null>(null);
+  const [achievements, setAchievements] = useState<AchievementItem[]>([]);
+  const [coaches, setCoaches] = useState<PublicCoachItem[]>([]);
+  const [coachIndex, setCoachIndex] = useState(0);
 
-  React.useEffect(() => {
-    academyApi.getPublicOverview()
+  // Contact form state
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactSubmitted, setContactSubmitted] = useState(false);
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 1. Fetch public overview
+    academyApi
+      .getPublicOverview()
       .then((data) => {
         if (data) setPublicOverview(data);
       })
       .catch((err) => console.error('Failed to load public overview:', err));
+
+    // 2. Fetch public achievements (featured first, fallback to latest)
+    academyApi
+      .getPublicAchievements({ featured: true, limit: 6 })
+      .then((res) => {
+        if (res.items.length > 0) {
+          setAchievements(res.items);
+        } else {
+          // If no featured, get latest 6 overall
+          academyApi
+            .getPublicAchievements({ limit: 6 })
+            .then((allRes) => setAchievements(allRes.items))
+            .catch(() => setAchievements([]));
+        }
+      })
+      .catch(() => setAchievements([]));
+
+    // 3. Fetch public coaches
+    academyApi
+      .getPublicCoaches({ limit: 12 })
+      .then((res) => setCoaches(res.items))
+      .catch(() => setCoaches([]));
   }, []);
 
-  const days = [
-    { day: 'Mon', date: 20 },
-    { day: 'Tue', date: 21 },
-    { day: 'Wed', date: 22 },
-    { day: 'Thu', date: 23 },
-    { day: 'Fri', date: 24 },
-    { day: 'Sat', date: 25 },
-    { day: 'Sun', date: 26 },
-  ];
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setContactSubmitting(true);
+    setContactError(null);
+    try {
+      await academyApi.submitContactMessage({
+        name: contactName,
+        email: contactEmail,
+        message: contactMessage,
+      });
+      setContactSubmitted(true);
+      setContactName('');
+      setContactEmail('');
+      setContactMessage('');
+    } catch {
+      setContactError('Failed to send message. Please verify your input and try again.');
+    } finally {
+      setContactSubmitting(false);
+    }
+  };
 
-  const trainingSessions = [
-    {
-      time: '06:00 - 07:30 PM',
-      title: 'Speed & Agility',
-      field: 'Field A',
-      coach: 'Coach David',
-      icon: '⚡',
-      sport: 'Soccer',
-    },
-    {
-      time: '07:00 - 08:30 PM',
-      title: 'Ball Control & Dribbling',
-      field: 'Field B',
-      coach: 'Coach Mike',
-      icon: '⚽',
-      sport: 'Soccer',
-    },
-    {
-      time: '08:00 - 09:30 PM',
-      title: 'Team Tactics & Scrimmage',
-      field: 'Field A',
-      coach: 'Coach Emily',
-      icon: '🏆',
-      sport: 'Soccer',
-    },
-  ];
-
-  const galleryImages = [
-    { id: '1', title: 'Championship Final Sprint', cat: 'Matches', img: heroAthleteImg, size: 'large' },
-    { id: '2', title: 'U16 Strikers Trophy Celebration', cat: 'Events', img: trophySpotlightImg, size: 'normal' },
-    { id: '3', title: 'Team Squad Tactical Huddle', cat: 'Training', img: u16TeamImg, size: 'normal' },
-    { id: '4', title: 'Alex Morgan Individual Drills', cat: 'Training', img: alexMorganPortraitImg, size: 'normal' },
-  ];
-
-  // Coach Carousel Slice (Exactly 3 coaches visible on desktop)
   const nextCoaches = () => {
-    setCoachIndex((prev) => (prev + 1) % coachesData.length);
+    if (coaches.length === 0) return;
+    setCoachIndex((prev) => (prev + 1) % coaches.length);
   };
 
   const prevCoaches = () => {
-    setCoachIndex((prev) => (prev - 1 + coachesData.length) % coachesData.length);
+    if (coaches.length === 0) return;
+    setCoachIndex((prev) => (prev - 1 + coaches.length) % coaches.length);
   };
 
-  const visibleCoaches = [
-    coachesData[coachIndex % coachesData.length],
-    coachesData[(coachIndex + 1) % coachesData.length],
-    coachesData[(coachIndex + 2) % coachesData.length],
-  ];
+  const visibleCoaches =
+    coaches.length > 0
+      ? [
+          coaches[coachIndex % coaches.length],
+          coaches[(coachIndex + 1) % coaches.length],
+          coaches[(coachIndex + 2) % coaches.length],
+        ].filter(Boolean)
+      : [];
 
   return (
     <div className="bg-[#F7F1E8] text-[#111111] font-sans antialiased space-y-24 pb-24 overflow-x-hidden">
@@ -105,7 +123,6 @@ export const HomePage: React.FC = () => {
          ================================================== */}
       <section className="relative pt-6 pb-16 md:pt-10 md:pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          
           {/* Left Column: Oversized Editorial Headline & CTAs */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
@@ -130,16 +147,18 @@ export const HomePage: React.FC = () => {
                   <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </button>
               </Link>
-              <button className="group px-6 py-4 bg-[#111111] text-white font-display font-bold text-sm md:text-base rounded-full flex items-center gap-2.5 shadow-md hover:bg-[#FF5A00] transition-all duration-300 hover:scale-105">
-                <span className="w-7 h-7 rounded-full bg-white text-[#111111] flex items-center justify-center text-xs font-black group-hover:scale-110 transition-transform">
-                  ▶
-                </span>
-                <span>Watch Video</span>
-              </button>
+              <Link to="/tournaments">
+                <button className="group px-6 py-4 bg-[#111111] text-white font-display font-bold text-sm md:text-base rounded-full flex items-center gap-2.5 shadow-md hover:bg-[#FF5A00] transition-all duration-300 hover:scale-105">
+                  <span className="w-7 h-7 rounded-full bg-white text-[#111111] flex items-center justify-center text-xs font-black group-hover:scale-110 transition-transform">
+                    🏆
+                  </span>
+                  <span>View Tournaments</span>
+                </button>
+              </Link>
             </div>
           </motion.div>
 
-          {/* Center Column: Art-Directed Sports Campaign Composition (Un-carded & Layered) */}
+          {/* Center Column: Art-Directed Sports Campaign Composition */}
           <motion.div
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -156,17 +175,45 @@ export const HomePage: React.FC = () => {
             <div className="absolute -bottom-10 -right-10 w-52 h-52 bg-[#FF5A00] rounded-full filter blur-2xl opacity-70 pointer-events-none" />
 
             {/* Dynamic Curved SVG Brush Strokes bursting behind athlete */}
-            <svg className="absolute -top-12 -right-8 w-64 h-64 pointer-events-none opacity-90 z-10" viewBox="0 0 200 200" fill="none">
-              <path d="M 20 180 C 60 100, 140 40, 180 20" stroke="#D8F500" strokeWidth="20" strokeLinecap="round" />
-              <path d="M 40 190 C 80 120, 150 60, 190 30" stroke="#FF5A00" strokeWidth="14" strokeLinecap="round" />
+            <svg
+              className="absolute -top-12 -right-8 w-64 h-64 pointer-events-none opacity-90 z-10"
+              viewBox="0 0 200 200"
+              fill="none"
+            >
+              <path
+                d="M 20 180 C 60 100, 140 40, 180 20"
+                stroke="#D8F500"
+                strokeWidth="20"
+                strokeLinecap="round"
+              />
+              <path
+                d="M 40 190 C 80 120, 150 60, 190 30"
+                stroke="#FF5A00"
+                strokeWidth="14"
+                strokeLinecap="round"
+              />
             </svg>
 
-            <svg className="absolute -bottom-10 -left-10 w-60 h-60 pointer-events-none opacity-85 z-10" viewBox="0 0 200 200" fill="none">
-              <path d="M 10 30 C 70 90, 130 150, 190 170" stroke="#FF5A00" strokeWidth="24" strokeLinecap="round" />
-              <path d="M 30 10 C 90 70, 150 130, 180 190" stroke="#D8F500" strokeWidth="12" strokeLinecap="round" />
+            <svg
+              className="absolute -bottom-10 -left-10 w-60 h-60 pointer-events-none opacity-85 z-10"
+              viewBox="0 0 200 200"
+              fill="none"
+            >
+              <path
+                d="M 10 30 C 70 90, 130 150, 190 170"
+                stroke="#FF5A00"
+                strokeWidth="24"
+                strokeLinecap="round"
+              />
+              <path
+                d="M 30 10 C 90 70, 150 130, 180 190"
+                stroke="#D8F500"
+                strokeWidth="12"
+                strokeLinecap="round"
+              />
             </svg>
 
-            {/* LAYER 3: Un-carded Dynamic Athlete Image (Bursting through graphic layers with organic clip polygon) */}
+            {/* LAYER 3: Un-carded Dynamic Athlete Image */}
             <div className="relative z-20 w-full max-w-md h-[440px] sm:h-[500px] pointer-events-none group">
               <img
                 src={heroAthleteImg}
@@ -183,7 +230,7 @@ export const HomePage: React.FC = () => {
               ✦
             </div>
 
-            {/* Floating Editorial Badge (No card border) */}
+            {/* Floating Editorial Badge */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -195,7 +242,7 @@ export const HomePage: React.FC = () => {
             </motion.div>
           </motion.div>
 
-          {/* Right Column: Hero Right-Side Journey (TRAIN -> DEVELOP -> COMPETE -> WIN) */}
+          {/* Right Column: Hero Right-Side Journey */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -214,7 +261,9 @@ export const HomePage: React.FC = () => {
                 >
                   {step.label}
                 </span>
-                <span className="text-[#FF5A00] font-black text-sm group-hover:rotate-45 transition-transform">{step.icon}</span>
+                <span className="text-[#FF5A00] font-black text-sm group-hover:rotate-45 transition-transform">
+                  {step.icon}
+                </span>
               </div>
             ))}
           </motion.div>
@@ -222,7 +271,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* ==================================================
-          LIVE STATS & ANNOUNCEMENT BANNER (REAL DATA)
+          2. LIVE STATS & ANNOUNCEMENT BANNER (REAL DATA)
          ================================================== */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {publicOverview?.latestAnnouncements && publicOverview.latestAnnouncements.length > 0 && (
@@ -242,7 +291,7 @@ export const HomePage: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white p-6 md:p-8 rounded-[2rem] border border-[#171044]/10 shadow-lg text-center">
           <div className="space-y-1">
             <div className="text-3xl md:text-4xl font-black font-display text-[#171044]">
-              {publicOverview ? publicOverview.activeAthletes : '500+'}
+              {publicOverview ? publicOverview.activeAthletes : '-'}
             </div>
             <div className="text-xs font-extrabold uppercase text-[#171044]/60 tracking-wider">
               Enrolled Athletes
@@ -250,7 +299,7 @@ export const HomePage: React.FC = () => {
           </div>
           <div className="space-y-1">
             <div className="text-3xl md:text-4xl font-black font-display text-[#FF5A00]">
-              {publicOverview ? publicOverview.activeCoaches : '25+'}
+              {publicOverview ? publicOverview.activeCoaches : '-'}
             </div>
             <div className="text-xs font-extrabold uppercase text-[#171044]/60 tracking-wider">
               Licensed Coaches
@@ -258,7 +307,7 @@ export const HomePage: React.FC = () => {
           </div>
           <div className="space-y-1">
             <div className="text-3xl md:text-4xl font-black font-display text-[#171044]">
-              {publicOverview ? publicOverview.activeTeams : '12+'}
+              {publicOverview ? publicOverview.activeTeams : '-'}
             </div>
             <div className="text-xs font-extrabold uppercase text-[#171044]/60 tracking-wider">
               Active Squads
@@ -266,7 +315,7 @@ export const HomePage: React.FC = () => {
           </div>
           <div className="space-y-1">
             <div className="text-3xl md:text-4xl font-black font-display text-[#4B2A9B]">
-              {publicOverview ? publicOverview.sportsCount : '6'}
+              {publicOverview ? publicOverview.sportsCount : '-'}
             </div>
             <div className="text-xs font-extrabold uppercase text-[#171044]/60 tracking-wider">
               Sports Programs
@@ -276,7 +325,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* ==================================================
-          2. OUR + PROGRAMS SECTION (WITH ANIMATIONS)
+          3. OUR PROGRAMS SECTION
          ================================================== */}
       <motion.section
         initial={{ opacity: 0, y: 30 }}
@@ -298,433 +347,245 @@ export const HomePage: React.FC = () => {
           }
         />
 
-        {/* 6 Color-Coded Sport Cards matching Reference Board */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Soccer - Deep Purple */}
-          <div className="bg-[#171044] text-white p-8 rounded-[2rem] shadow-xl flex flex-col justify-between group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 relative overflow-hidden min-h-[320px]">
-            <span className="absolute -right-4 -bottom-4 text-8xl opacity-10 pointer-events-none select-none group-hover:scale-110 transition-transform duration-500">⚽</span>
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#D8F500]/20 text-[#D8F500] flex items-center justify-center font-bold text-3xl group-hover:rotate-12 transition-transform">
-                ⚽
-              </div>
-              <h3 className="text-3xl font-black font-display uppercase tracking-tight">Soccer</h3>
-              <p className="text-sm text-white/80 leading-relaxed font-medium">
-                Tactical periodization, position intelligence, and match exposure under UEFA-licensed coaches.
-              </p>
-            </div>
-            <div className="pt-6">
-              <Link to="/programs">
-                <button className="px-6 py-2.5 bg-[#D8F500] text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-[#c4e000] transition-all group/btn">
-                  <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                </button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Basketball - Athletic Orange */}
-          <div className="bg-[#FF5A00] text-white p-8 rounded-[2rem] shadow-xl flex flex-col justify-between group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 relative overflow-hidden min-h-[320px]">
-            <span className="absolute -right-4 -bottom-4 text-8xl opacity-10 pointer-events-none select-none group-hover:scale-110 transition-transform duration-500">🏀</span>
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center font-bold text-3xl group-hover:rotate-12 transition-transform">
-                🏀
-              </div>
-              <h3 className="text-3xl font-black font-display uppercase tracking-tight">Basketball</h3>
-              <p className="text-sm text-white/90 leading-relaxed font-medium">
-                Precision shooting, court vision, vertical power development, and competitive league play.
-              </p>
-            </div>
-            <div className="pt-6">
-              <Link to="/programs">
-                <button className="px-6 py-2.5 bg-white text-[#FF5A00] font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-white/90 transition-all group/btn">
-                  <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                </button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Tennis - Electric Lime */}
-          <div className="bg-[#D8F500] text-[#171044] p-8 rounded-[2rem] shadow-xl flex flex-col justify-between group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 relative overflow-hidden min-h-[320px]">
-            <span className="absolute -right-4 -bottom-4 text-8xl opacity-10 pointer-events-none select-none group-hover:scale-110 transition-transform duration-500">🎾</span>
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#171044]/15 text-[#171044] flex items-center justify-center font-bold text-3xl group-hover:rotate-12 transition-transform">
-                🎾
-              </div>
-              <h3 className="text-3xl font-black font-display uppercase tracking-tight">Tennis</h3>
-              <p className="text-sm text-[#171044]/80 leading-relaxed font-medium">
-                Serve mechanics, clay & hard court strategy, footwork drills, and junior tournament preparation.
-              </p>
-            </div>
-            <div className="pt-6">
-              <Link to="/programs">
-                <button className="px-6 py-2.5 bg-[#171044] text-white font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-[#281c66] transition-all group/btn">
-                  <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                </button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Swimming - Ocean Purple */}
-          <div className="bg-[#4B2A9B] text-white p-8 rounded-[2rem] shadow-xl flex flex-col justify-between group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 relative overflow-hidden min-h-[320px]">
-            <span className="absolute -right-4 -bottom-4 text-8xl opacity-10 pointer-events-none select-none group-hover:scale-110 transition-transform duration-500">🏊‍♂️</span>
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center font-bold text-3xl group-hover:rotate-12 transition-transform">
-                🏊‍♂️
-              </div>
-              <h3 className="text-3xl font-black font-display uppercase tracking-tight">Swimming</h3>
-              <p className="text-sm text-white/80 leading-relaxed font-medium">
-                Hydrodynamic stroke perfection, flip-turn velocity, and endurance conditioning in Olympic pools.
-              </p>
-            </div>
-            <div className="pt-6">
-              <Link to="/programs">
-                <button className="px-6 py-2.5 bg-[#D8F500] text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-[#c4e000] transition-all group/btn">
-                  <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                </button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Athletics - Vibrant Orange */}
-          <div className="bg-gradient-to-br from-[#FF5A00] to-[#171044] text-white p-8 rounded-[2rem] shadow-xl flex flex-col justify-between group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 relative overflow-hidden min-h-[320px]">
-            <span className="absolute -right-4 -bottom-4 text-8xl opacity-10 pointer-events-none select-none group-hover:scale-110 transition-transform duration-500">🏃‍♂️</span>
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center font-bold text-3xl group-hover:rotate-12 transition-transform">
-                🏃‍♂️
-              </div>
-              <h3 className="text-3xl font-black font-display uppercase tracking-tight">Athletics</h3>
-              <p className="text-sm text-white/80 leading-relaxed font-medium">
-                Sprint biomechanics, explosive starting block power, middle-distance pacing, and field events.
-              </p>
-            </div>
-            <div className="pt-6">
-              <Link to="/programs">
-                <button className="px-6 py-2.5 bg-white text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-white/90 transition-all group/btn">
-                  <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                </button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Volleyball - Deep Purple */}
-          <div className="bg-[#171044] text-white p-8 rounded-[2rem] shadow-xl flex flex-col justify-between group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 relative overflow-hidden min-h-[320px]">
-            <span className="absolute -right-4 -bottom-4 text-8xl opacity-10 pointer-events-none select-none group-hover:scale-110 transition-transform duration-500">🏐</span>
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#FF5A00]/20 text-[#FF5A00] flex items-center justify-center font-bold text-3xl group-hover:rotate-12 transition-transform">
-                🏐
-              </div>
-              <h3 className="text-3xl font-black font-display uppercase tracking-tight">Volleyball</h3>
-              <p className="text-sm text-white/80 leading-relaxed font-medium">
-                Spike elevation, rotational defensive coverage, setting precision, and team communication.
-              </p>
-            </div>
-            <div className="pt-6">
-              <Link to="/programs">
-                <button className="px-6 py-2.5 bg-[#FF5A00] text-white font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 hover:bg-[#e04f00] transition-all group/btn">
-                  <span>Explore</span> <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* ==================================================
-          3. TRAINING SCHEDULE + SECTION
-         ================================================== */}
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-      >
-        <SectionHeader
-          title="Training Schedule +"
-          subtitle="May 20 - May 26 • Live Field Allocations"
-          crossColor="orange"
-        />
-
-        <div className="bg-white rounded-[2rem] p-6 md:p-8 shadow-xl border border-[#171044]/10 space-y-8">
-          {/* Day Selector Pill Bar */}
-          <div className="flex items-center justify-between overflow-x-auto pb-2 gap-3">
-            {days.map((d) => (
-              <button
-                key={d.date}
-                onClick={() => setSelectedDay(d.date)}
-                className={`flex flex-col items-center justify-center min-w-[70px] py-3.5 px-4 rounded-2xl transition-all duration-200 ${
-                  selectedDay === d.date
-                    ? 'bg-[#171044] text-[#D8F500] shadow-lg scale-105 font-black'
-                    : 'bg-[#F7F1E8] text-[#171044]/70 hover:bg-[#171044]/10'
-                }`}
-              >
-                <span className="text-xs font-display font-bold uppercase">{d.day}</span>
-                <span className="text-xl font-display font-black mt-1">{d.date}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Session Cards List */}
-          <div className="space-y-4">
-            {trainingSessions.map((session, idx) => (
-              <div
-                key={idx}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 rounded-2xl bg-[#F7F1E8] border border-[#171044]/5 gap-4 hover:border-[#171044]/20 transition-all hover:scale-[1.01]"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#171044] text-white flex items-center justify-center text-xl shrink-0">
-                    {session.icon}
-                  </div>
-                  <div>
-                    <h4 className="font-display font-black text-lg text-[#171044]">{session.title}</h4>
-                    <p className="text-xs text-[#171044]/70 font-semibold flex items-center gap-3 mt-1">
-                      <span className="flex items-center gap-1"><Clock size={13} /> {session.time}</span>
-                      <span className="flex items-center gap-1"><MapPin size={13} /> {session.field}</span>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold px-3 py-1 bg-white rounded-full text-[#171044] border border-[#171044]/10">
-                    {session.coach}
-                  </span>
-                  <button className="px-4 py-2 bg-[#171044] text-white rounded-full font-display font-bold text-xs hover:bg-[#FF5A00] transition-colors">
-                    Join Session
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom Water Bottle Strip */}
-          <div className="bg-[#171044] text-[#D8F500] px-6 py-3.5 rounded-2xl text-xs font-display font-extrabold flex items-center justify-between">
-            <span>Don't forget your water bottle! 💧 Stay hydrated during warm-ups.</span>
-            <span className="hidden sm:inline text-white/70 font-normal">Active Arena • Field A & B</span>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* ==================================================
-          4. MEET OUR COACHES + SECTION (3 COACHES VISIBLE ON DESKTOP)
-         ================================================== */}
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-      >
-        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 md:mb-10 gap-4">
-          <div>
-            <h2 className="text-4xl md:text-5xl font-black font-display text-[#171044] tracking-tight uppercase">
-              Meet Our Coaches <CrossAccent color="orange" size="lg" />
-            </h2>
-            <p className="mt-2 text-base text-[#171044]/70 font-medium">
-              Certified world-class mentors dedicated to youth athletic development.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Slider Navigation Arrows */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={prevCoaches}
-                className="w-10 h-10 rounded-full bg-white border border-[#171044]/15 flex items-center justify-center text-[#171044] hover:bg-[#171044] hover:text-white transition-colors shadow-sm active:scale-95"
-                aria-label="Previous Coaches"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button
-                onClick={nextCoaches}
-                className="w-10 h-10 rounded-full bg-white border border-[#171044]/15 flex items-center justify-center text-[#171044] hover:bg-[#171044] hover:text-white transition-colors shadow-sm active:scale-95"
-                aria-label="Next Coaches"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-
-            <Link to="/coaches">
-              <Button variant="outline" size="sm">
-                View All Coaches
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        {/* 3 Spacious Coach Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {visibleCoaches.map((coach, idx) => (
-            <motion.div
-              key={`${coach.id}-${idx}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: idx * 0.1 }}
+          {[
+            {
+              name: 'Football',
+              icon: '⚽',
+              bg: 'bg-[#171044]',
+              btnBg: 'bg-[#D8F500] text-[#171044]',
+              desc: 'Tactical periodization, position intelligence, and match exposure under accredited mentors.',
+            },
+            {
+              name: 'Basketball',
+              icon: '🏀',
+              bg: 'bg-[#FF5A00]',
+              btnBg: 'bg-white text-[#FF5A00]',
+              desc: 'Precision shooting, court vision, vertical power development, and competitive league play.',
+            },
+            {
+              name: 'Tennis',
+              icon: '🎾',
+              bg: 'bg-[#D8F500]',
+              text: 'text-[#171044]',
+              btnBg: 'bg-[#171044] text-white',
+              desc: 'Serve mechanics, hard court strategy, footwork drills, and junior tournament preparation.',
+            },
+            {
+              name: 'Swimming',
+              icon: '🏊‍♂️',
+              bg: 'bg-[#4B2A9B]',
+              btnBg: 'bg-[#D8F500] text-[#171044]',
+              desc: 'Hydrodynamic stroke perfection, flip-turn velocity, and endurance conditioning in Olympic pools.',
+            },
+            {
+              name: 'Athletics',
+              icon: '🏃‍♂️',
+              bg: 'bg-gradient-to-br from-[#FF5A00] to-[#171044]',
+              btnBg: 'bg-white text-[#171044]',
+              desc: 'Sprint biomechanics, explosive starting block power, middle-distance pacing, and field events.',
+            },
+            {
+              name: 'Volleyball',
+              icon: '🏐',
+              bg: 'bg-[#171044]',
+              btnBg: 'bg-[#FF5A00] text-white',
+              desc: 'Spike elevation, rotational defensive coverage, setting precision, and team communication.',
+            },
+          ].map((sport) => (
+            <div
+              key={sport.name}
+              className={`${sport.bg} ${sport.text || 'text-white'} p-8 rounded-[2rem] shadow-xl flex flex-col justify-between group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 relative overflow-hidden min-h-[300px]`}
             >
-              <Link to="/coaches" className="group block h-full">
-                <div className="bg-white rounded-[2rem] p-5 shadow-xl border border-[#171044]/10 space-y-5 h-full flex flex-col justify-between group-hover:-translate-y-2 group-hover:shadow-2xl transition-all duration-300">
-                  {/* Large Prominent Coach Portrait Photo */}
-                  <div className="w-full h-80 rounded-[1.5rem] overflow-hidden border-2 border-[#171044]/10 group-hover:border-[#FF5A00] transition-colors relative">
-                    <img
-                      loading="lazy"
-                      decoding="async"
-                      src={coach.image}
-                      alt={coach.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-4 right-4 bg-[#171044]/90 text-[#D8F500] text-xs font-black px-3.5 py-1.5 rounded-full border border-white/20">
-                      {coach.sport}
-                    </div>
-                  </div>
-
-                  {/* Coach Name & Role */}
-                  <div className="space-y-1 text-center pt-1">
-                    <h3 className="font-display font-black text-2xl text-[#171044] group-hover:text-[#FF5A00] transition-colors">
-                      {coach.name}
-                    </h3>
-                    <p className="text-xs font-extrabold text-[#171044]/60 uppercase tracking-wider">
-                      {coach.role}
-                    </p>
-                  </div>
+              <div className="space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center font-bold text-3xl group-hover:rotate-12 transition-transform">
+                  {sport.icon}
                 </div>
-              </Link>
-            </motion.div>
+                <h3 className="text-3xl font-black font-display uppercase tracking-tight">
+                  {sport.name}
+                </h3>
+                <p className="text-sm opacity-85 leading-relaxed font-medium">{sport.desc}</p>
+              </div>
+              <div className="pt-6">
+                <Link to="/programs">
+                  <button
+                    className={`px-6 py-2.5 ${sport.btnBg} font-display font-black text-xs uppercase tracking-wider rounded-full flex items-center gap-2 transition-all hover:scale-105`}
+                  >
+                    <span>Explore</span> <ArrowRight size={14} />
+                  </button>
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       </motion.section>
 
       {/* ==================================================
-          5. OUR + TEAMS & PLAYER PROGRESS SPOTLIGHT
+          4. DYNAMIC ACHIEVEMENTS SECTION (STEP 14B)
          ================================================== */}
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
-      >
-        {/* Left Column: Our Teams Feature (U16 Strikers) */}
-        <div className="lg:col-span-5 space-y-6">
+      {achievements.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8"
+        >
           <SectionHeader
-            title="Our + Teams"
-            subtitle="Stronger together. One team, one dream."
+            title="Achievements +"
+            subtitle="Celebrating academy titles, championship trophies, and player progression milestones."
             crossColor="orange"
-            align="left"
+            action={
+              <Link to="/achievements">
+                <Button variant="outline" size="sm" iconRight={<ArrowRight size={16} />}>
+                  View All Achievements
+                </Button>
+              </Link>
+            }
           />
 
-          <div className="bg-[#171044] text-white p-7 rounded-[2.5rem] shadow-2xl space-y-6 relative overflow-hidden group hover:shadow-2xl transition-all">
-            <div className="flex items-center justify-between">
-              <AthleticBadge variant="lime">U16 Strikers</AthleticBadge>
-              <span className="text-xs font-bold text-white/70">Academy Premier League</span>
-            </div>
-
-            {/* Team Photo Container */}
-            <div className="rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg">
-              <img loading="lazy" decoding="async" src={u16TeamImg} alt="U16 Strikers Team" className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />
-            </div>
-
-            {/* Metrics Bar */}
-            <div className="grid grid-cols-4 gap-2 bg-white/10 backdrop-blur-md p-4 rounded-2xl text-center border border-white/10">
-              <div>
-                <div className="text-2xl font-black font-display text-[#D8F500]">18</div>
-                <div className="text-[10px] font-bold uppercase text-white/70">Players</div>
-              </div>
-              <div>
-                <div className="text-2xl font-black font-display text-white">24</div>
-                <div className="text-[10px] font-bold uppercase text-white/70">Matches</div>
-              </div>
-              <div>
-                <div className="text-2xl font-black font-display text-[#FF5A00]">17</div>
-                <div className="text-[10px] font-bold uppercase text-white/70">Wins</div>
-              </div>
-              <div>
-                <div className="text-2xl font-black font-display text-white">2</div>
-                <div className="text-[10px] font-bold uppercase text-white/70">Draws</div>
-              </div>
-            </div>
-
-            <Link to="/teams" className="block text-center">
-              <button className="w-full py-3 bg-white text-[#171044] font-display font-black text-xs uppercase tracking-wider rounded-full hover:bg-[#D8F500] transition-colors">
-                View Team Roster
-              </button>
-            </Link>
-          </div>
-        </div>
-
-        {/* Right Column: Player Progress Spotlight (#09 Alex Morgan) */}
-        <div className="lg:col-span-7 space-y-6">
-          <SectionHeader
-            title="Player Progress +"
-            subtitle="Individual growth and technical assessment tracking."
-            crossColor="orange"
-            align="left"
-          />
-
-          <div className="bg-[#171044] text-white p-7 rounded-[2.5rem] shadow-2xl grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
-            {/* Player Info & Radial Score Meter */}
-            <div className="sm:col-span-7 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-[#FF5A00] tracking-widest uppercase">#09 FORWARD</div>
-                  <h3 className="text-3xl font-black font-display uppercase tracking-tight text-white">
-                    Alex Morgan
-                  </h3>
-                  <p className="text-xs text-white/70 font-medium">U16 Strikers • Age 15 • Joined 2022</p>
-                </div>
-                <RadialScoreMeter score={87} color="purple" size="md" />
-              </div>
-
-              {/* Stat Sliders */}
-              <div className="space-y-2 pt-2 text-xs">
-                {[
-                  { stat: 'Speed', val: 92 },
-                  { stat: 'Stamina', val: 85 },
-                  { stat: 'Shooting', val: 90 },
-                  { stat: 'Passing', val: 84 },
-                  { stat: 'Dribbling', val: 93 },
-                ].map((s) => (
-                  <div key={s.stat} className="space-y-1">
-                    <div className="flex justify-between font-bold text-white/80">
-                      <span>{s.stat}</span>
-                      <span className="text-[#D8F500]">{s.val}</span>
-                    </div>
-                    <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        whileInView={{ width: `${s.val}%` }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                        className="bg-[#D8F500] h-full rounded-full"
-                      />
-                    </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {achievements.slice(0, 6).map((ach) => (
+              <div
+                key={ach.id}
+                className="bg-white rounded-[2rem] p-6 shadow-xl border border-[#171044]/10 flex flex-col justify-between group hover:-translate-y-1 hover:shadow-2xl transition-all duration-300"
+              >
+                <div className="space-y-4">
+                  {/* Thumbnail */}
+                  <div className="w-full h-44 rounded-2xl overflow-hidden bg-[#171044] text-[#D8F500] flex items-center justify-center relative border border-[#171044]/10">
+                    <SafeImage
+                      src={ach.imageUrl}
+                      alt={ach.title}
+                      name={ach.title}
+                      fallbackKind="program"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {ach.featured && (
+                      <div className="absolute top-3 right-3 bg-[#D8F500] text-[#171044] text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow">
+                        ★ Featured
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
 
-              {/* Badges */}
-              <div className="flex items-center gap-3 pt-2">
-                <span className="px-3 py-1 bg-[#FF5A00]/20 text-[#FF5A00] text-[11px] font-bold rounded-full border border-[#FF5A00]/30">
-                  +14% Speed
-                </span>
-                <span className="px-3 py-1 bg-[#D8F500]/20 text-[#D8F500] text-[11px] font-bold rounded-full border border-[#D8F500]/30">
-                  +11% Fitness
-                </span>
-                <span className="px-3 py-1 bg-white/10 text-white text-[11px] font-bold rounded-full border border-white/20">
-                  +17% Technique
-                </span>
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <AthleticBadge variant="purple">{ach.category}</AthleticBadge>
+                      <span className="text-[11px] font-semibold text-[#171044]/60 flex items-center gap-1">
+                        <Calendar size={12} />
+                        {new Date(ach.achievedOn).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                        })}
+                      </span>
+                    </div>
 
-            {/* Player Portrait Image */}
-            <div className="sm:col-span-5 relative">
-              <div className="rounded-2xl overflow-hidden border-2 border-white/20 shadow-xl">
-                <img loading="lazy" decoding="async" src={alexMorganPortraitImg} alt="Alex Morgan Portrait" className="w-full h-64 object-cover" />
+                    <h3 className="text-xl font-black font-display text-[#171044] group-hover:text-[#FF5A00] transition-colors leading-tight">
+                      {ach.title}
+                    </h3>
+
+                    <p className="text-xs text-[#171044]/75 leading-relaxed font-medium line-clamp-2">
+                      {ach.description}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
-        </div>
-      </motion.section>
+        </motion.section>
+      )}
 
       {/* ==================================================
-          6. ACTIVE NB CUP 2024 / TOURNAMENT SPOTLIGHT + BRACKET
+          5. MEET OUR COACHES (LIVE API DATA)
+         ================================================== */}
+      {coaches.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+        >
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 md:mb-10 gap-4">
+            <div>
+              <h2 className="text-4xl md:text-5xl font-black font-display text-[#171044] tracking-tight uppercase">
+                Meet Our Coaches <CrossAccent color="orange" size="lg" />
+              </h2>
+              <p className="mt-2 text-base text-[#171044]/70 font-medium">
+                Certified mentors dedicated to youth athletic development.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              {coaches.length > 3 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={prevCoaches}
+                    className="w-10 h-10 rounded-full bg-white border border-[#171044]/15 flex items-center justify-center text-[#171044] hover:bg-[#171044] hover:text-white transition-colors shadow-sm active:scale-95"
+                    aria-label="Previous Coaches"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    onClick={nextCoaches}
+                    className="w-10 h-10 rounded-full bg-white border border-[#171044]/15 flex items-center justify-center text-[#171044] hover:bg-[#171044] hover:text-white transition-colors shadow-sm active:scale-95"
+                    aria-label="Next Coaches"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              )}
+
+              <Link to="/coaches">
+                <Button variant="outline" size="sm">
+                  View All Coaches
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {visibleCoaches.map((coach, idx) => (
+              <motion.div
+                key={`${coach.id}-${idx}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: idx * 0.1 }}
+              >
+                <Link to={`/coaches/${coach.id}`} className="group block h-full">
+                  <div className="bg-white rounded-[2rem] p-5 shadow-xl border border-[#171044]/10 space-y-5 h-full flex flex-col justify-between group-hover:-translate-y-2 group-hover:shadow-2xl transition-all duration-300">
+                    <div className="w-full h-80 rounded-[1.5rem] overflow-hidden border-2 border-[#171044]/10 group-hover:border-[#FF5A00] transition-colors relative bg-[#171044]">
+                      <SafeImage
+                        src={coach.photo}
+                        alt={coach.name || coach.title}
+                        name={coach.name || coach.title}
+                        fallbackKind="coach"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      {coach.sports && coach.sports.length > 0 && (
+                        <div className="absolute top-4 right-4 bg-[#171044]/90 text-[#D8F500] text-xs font-black px-3.5 py-1.5 rounded-full border border-white/20">
+                          {coach.sports[0].name}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1 text-center pt-1">
+                      <h3 className="font-display font-black text-2xl text-[#171044] group-hover:text-[#FF5A00] transition-colors">
+                        {coach.name || coach.title}
+                      </h3>
+                      <p className="text-xs font-extrabold text-[#171044]/60 uppercase tracking-wider">
+                        {coach.title}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
+      {/* ==================================================
+          6. TOURNAMENT SPOTLIGHT (REAL DATA)
          ================================================== */}
       <motion.section
         initial={{ opacity: 0, y: 30 }}
@@ -734,57 +595,35 @@ export const HomePage: React.FC = () => {
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8"
       >
         <SectionHeader
-          title="Active NB Cup 2024 +"
-          subtitle="The biggest youth tournament of the year."
+          title="Tournament Spotlight +"
+          subtitle="Competitive regional and national championship events."
           crossColor="orange"
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Tournament Overview Card with Trophy Image */}
-          <div className="lg:col-span-5 bg-white p-8 rounded-[2.5rem] shadow-xl border border-[#171044]/10 space-y-6 relative overflow-hidden">
-            <div className="rounded-2xl overflow-hidden h-48 border border-[#171044]/10">
-              <img loading="lazy" decoding="async" src={trophySpotlightImg} alt="Trophy Spotlight" className="w-full h-full object-cover" />
+          <div className="lg:col-span-6 bg-white p-8 rounded-[2.5rem] shadow-xl border border-[#171044]/10 space-y-6 relative overflow-hidden">
+            <div className="rounded-2xl overflow-hidden h-52 border border-[#171044]/10">
+              <img
+                loading="lazy"
+                decoding="async"
+                src={trophySpotlightImg}
+                alt="Trophy Spotlight"
+                className="w-full h-full object-cover"
+              />
             </div>
 
             <div className="space-y-2">
               <AthleticBadge variant="orange">
-                {publicOverview?.nextTournaments?.[0] ? 'UPCOMING TOURNAMENT' : 'TOURNAMENT SPOTLIGHT'}
+                {publicOverview?.nextTournaments?.[0] ? 'UPCOMING TOURNAMENT' : 'FEATURED EVENT'}
               </AthleticBadge>
               <h3 className="text-3xl font-black font-display text-[#171044] uppercase">
-                {publicOverview?.nextTournaments?.[0]?.name || 'Active NB Cup 2026'}
+                {publicOverview?.nextTournaments?.[0]?.name || 'Academy Championships'}
               </h3>
               <p className="text-xs text-[#171044]/70 font-medium leading-relaxed">
                 {publicOverview?.nextTournaments?.[0]
                   ? `${publicOverview.nextTournaments[0].category} • ${publicOverview.nextTournaments[0].ageGroup} • Running from ${new Date(publicOverview.nextTournaments[0].startDate).toLocaleDateString()} to ${new Date(publicOverview.nextTournaments[0].endDate).toLocaleDateString()}`
                   : 'Teams competing across regional venues for the ultimate championship trophy.'}
               </p>
-            </div>
-
-            <div className="grid grid-cols-4 gap-2 bg-[#F7F1E8] p-4 rounded-2xl text-center">
-              <div>
-                <div className="text-xl font-black font-display text-[#171044]">
-                  {publicOverview ? publicOverview.activeTeams : '24'}
-                </div>
-                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Teams</div>
-              </div>
-              <div>
-                <div className="text-xl font-black font-display text-[#171044]">
-                  {publicOverview?.nextTournaments ? publicOverview.nextTournaments.length : '1'}
-                </div>
-                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Events</div>
-              </div>
-              <div>
-                <div className="text-xl font-black font-display text-[#171044]">
-                  {publicOverview ? publicOverview.sportsCount : '6'}
-                </div>
-                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Sports</div>
-              </div>
-              <div>
-                <div className="text-xl font-black font-display text-[#171044]">
-                  {publicOverview ? publicOverview.activeCoaches : '8'}
-                </div>
-                <div className="text-[10px] font-bold text-[#171044]/70 uppercase">Staff</div>
-              </div>
             </div>
 
             <Link to="/tournaments">
@@ -794,262 +633,51 @@ export const HomePage: React.FC = () => {
             </Link>
           </div>
 
-          {/* Knockout Stage Bracket Visualizer */}
-          <div className="lg:col-span-7 bg-[#F7F1E8] p-7 rounded-[2.5rem] border border-[#171044]/15 space-y-6">
-            <div className="flex items-center justify-between border-b border-[#171044]/10 pb-4">
-              <h4 className="font-display font-black text-xl text-[#171044] uppercase flex items-center gap-2">
-                Knockout Stage <CrossAccent color="orange" size="sm" />
-              </h4>
-              <span className="text-xs font-bold text-[#FF5A00] bg-[#FF5A00]/10 px-3 py-1 rounded-full">
-                June 15 Final
+          <div className="lg:col-span-6 bg-[#171044] text-white p-8 rounded-[2.5rem] shadow-xl space-y-6">
+            <h3 className="text-2xl font-black font-display uppercase tracking-tight text-[#D8F500]">
+              Upcoming Tournaments
+            </h3>
+            <p className="text-sm text-white/80 leading-relaxed font-medium">
+              Registered academy squads and affiliated club teams qualify for open registration tournaments throughout the active season.
+            </p>
+
+            <div className="space-y-3">
+              {publicOverview?.nextTournaments && publicOverview.nextTournaments.length > 0 ? (
+                publicOverview.nextTournaments.slice(0, 3).map((t) => (
+                  <Link
+                    key={t.id}
+                    to={`/tournaments/${t.id}`}
+                    className="block p-4 rounded-2xl bg-white/10 hover:bg-white/15 transition-all border border-white/10"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-display font-bold text-sm text-white">{t.name}</div>
+                      <span className="text-xs text-[#D8F500] font-black">{t.category}</span>
+                    </div>
+                    <div className="text-[11px] text-white/60 mt-1 flex items-center gap-2">
+                      <span>{t.ageGroup}</span>
+                      <span>•</span>
+                      <span>{new Date(t.startDate).toLocaleDateString()}</span>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="p-6 text-center text-white/60 text-xs font-semibold">
+                  Tournament schedule for upcoming term is being finalized.
+                </div>
+              )}
+            </div>
+
+            <Link to="/tournaments" className="block text-center pt-2">
+              <span className="text-xs text-[#D8F500] font-bold hover:underline">
+                View All Scheduled Events →
               </span>
-            </div>
-
-            {/* Bracket Flow */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              {/* Quarter Final */}
-              <div className="space-y-3">
-                <div className="text-[11px] font-extrabold uppercase text-[#171044]/60 tracking-wider">
-                  Quarter Final
-                </div>
-                <div className="p-3 bg-white rounded-xl shadow-sm border border-[#171044]/10 text-xs font-bold text-[#171044] flex justify-between">
-                  <span>U16 Strikers</span>
-                  <span className="text-[#FF5A00]">3</span>
-                </div>
-                <div className="p-3 bg-white rounded-xl shadow-sm border border-[#171044]/10 text-xs font-bold text-[#171044]/60 flex justify-between">
-                  <span>Thunder FC</span>
-                  <span>1</span>
-                </div>
-                <div className="p-3 bg-white rounded-xl shadow-sm border border-[#171044]/10 text-xs font-bold text-[#171044] flex justify-between mt-4">
-                  <span>Victory FC</span>
-                  <span className="text-[#FF5A00]">4</span>
-                </div>
-              </div>
-
-              {/* Semi Final */}
-              <div className="space-y-3">
-                <div className="text-[11px] font-extrabold uppercase text-[#171044]/60 tracking-wider">
-                  Semi Final
-                </div>
-                <div className="p-4 bg-[#171044] text-white rounded-2xl shadow-md space-y-2 border border-white/10">
-                  <div className="flex justify-between text-xs font-bold text-[#D8F500]">
-                    <span>U16 Strikers</span>
-                    <span>2</span>
-                  </div>
-                  <div className="flex justify-between text-xs font-bold text-white/70">
-                    <span>Victory FC</span>
-                    <span>1</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Final Box */}
-              <div className="bg-[#D8F500] p-6 rounded-2xl text-center space-y-3 shadow-lg border border-[#171044]/10 animate-pulse">
-                <div className="text-3xl">🏆</div>
-                <div className="text-xs font-black font-display uppercase tracking-widest text-[#171044]">
-                  FINAL CHAMPION
-                </div>
-                <div className="text-xl font-black font-display text-[#171044]">U16 STRIKERS</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* ==================================================
-          7. LIVE MATCH BROADCAST CENTER
-         ================================================== */}
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-      >
-        <div className="bg-[#171044] text-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl space-y-8 relative overflow-hidden border border-white/10">
-          {/* Header Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
-            <div className="flex items-center gap-3">
-              <AthleticBadge variant="live">LIVE MATCH BROADCAST</AthleticBadge>
-              <span className="text-xs font-bold text-white/70 font-mono">68:42 2nd Half</span>
-            </div>
-            <span className="text-xs font-bold text-[#D8F500] uppercase tracking-wider">
-              Academy Arena • Field A
-            </span>
-          </div>
-
-          {/* Scoreboard Hero */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center text-center">
-            {/* Team A */}
-            <div className="space-y-2">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-white/10 flex items-center justify-center text-3xl font-black border border-white/20">
-                ⚡
-              </div>
-              <h3 className="text-2xl font-black font-display text-white">U16 Strikers</h3>
-              <span className="text-xs font-bold text-[#D8F500]">Home</span>
-            </div>
-
-            {/* Score */}
-            <div className="space-y-1">
-              <div className="text-6xl md:text-7xl font-black font-display tracking-wider text-white">
-                2 <span className="text-[#FF5A00]">-</span> 1
-              </div>
-              <p className="text-xs text-white/70 font-bold uppercase tracking-widest">Quarter Final</p>
-            </div>
-
-            {/* Team B */}
-            <div className="space-y-2">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-white/10 flex items-center justify-center text-3xl font-black border border-white/20">
-                🦅
-              </div>
-              <h3 className="text-2xl font-black font-display text-white">Blue Hawks</h3>
-              <span className="text-xs font-bold text-white/70">Away</span>
-            </div>
-          </div>
-
-          {/* Match Timeline Events */}
-          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-xs space-y-2">
-            <div className="flex items-center gap-3 text-white/90 font-medium">
-              <span className="font-bold text-[#D8F500] font-mono">12'</span> ⚽ Goal — Alex Morgan (U16 Strikers)
-            </div>
-            <div className="flex items-center gap-3 text-white/90 font-medium">
-              <span className="font-bold text-[#FF5A00] font-mono">41'</span> 🟨 Yellow Card — Blue Hawks #04
-            </div>
-            <div className="flex items-center gap-3 text-white/90 font-medium">
-              <span className="font-bold text-[#D8F500] font-mono">62'</span> ⚽ Goal — Alex Morgan (U16 Strikers)
-            </div>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* ==================================================
-          8. RESULTS + & LEADERBOARDS + SECTIONS
-         ================================================== */}
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8"
-      >
-        {/* Match Results List */}
-        <div className="lg:col-span-6 bg-white p-7 rounded-[2.5rem] shadow-xl border border-[#171044]/10 space-y-6">
-          <div className="flex items-center justify-between border-b border-[#171044]/10 pb-4">
-            <h3 className="text-2xl font-black font-display text-[#171044]">
-              Match Results <CrossAccent color="orange" size="sm" />
-            </h3>
-            <div className="flex gap-1.5">
-              <span className="px-3 py-1 bg-[#171044] text-white text-xs font-bold rounded-full">All</span>
-              <span className="px-3 py-1 bg-[#F7F1E8] text-[#171044] text-xs font-bold rounded-full">Today</span>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {[
-              { t1: 'U16 Strikers', s1: 2, t2: 'Blue Hawks', s2: 1, date: 'Today' },
-              { t1: 'Thunder FC', s1: 1, t2: 'United Youth', s2: 0, date: 'Yesterday' },
-              { t1: 'Rising Stars', s1: 3, t2: 'Young Titans', s2: 2, date: 'May 22' },
-              { t1: 'Victory FC', s1: 4, t2: 'Elite Squad', s2: 0, date: 'May 21' },
-            ].map((r, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-4 rounded-xl bg-[#F7F1E8] border border-[#171044]/5 text-sm font-bold text-[#171044]"
-              >
-                <span className="w-1/3 text-right">{r.t1}</span>
-                <span className="px-3 py-1 bg-[#171044] text-white rounded-lg font-mono font-black text-xs">
-                  {r.s1} - {r.s2}
-                </span>
-                <span className="w-1/3 text-left">{r.t2}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Leaderboards */}
-        <div className="lg:col-span-6 bg-white p-7 rounded-[2.5rem] shadow-xl border border-[#171044]/10 space-y-6">
-          <div className="flex items-center justify-between border-b border-[#171044]/10 pb-4">
-            <h3 className="text-2xl font-black font-display text-[#171044]">
-              Leaderboard <CrossAccent color="orange" size="sm" />
-            </h3>
-            <span className="px-3 py-1 bg-[#FF5A00] text-white text-xs font-bold rounded-full">Top Scorers</span>
-          </div>
-
-          <div className="space-y-3">
-            {[
-              { rank: 1, name: 'Alex Morgan', team: 'U16 Strikers', goals: 14 },
-              { rank: 2, name: 'Liam Anderson', team: 'Thunder FC', goals: 11 },
-              { rank: 3, name: 'Noah Williams', team: 'Rising Stars', goals: 10 },
-              { rank: 4, name: 'Ethan Brown', team: 'Victory FC', goals: 9 },
-            ].map((p) => (
-              <div
-                key={p.rank}
-                className="flex items-center justify-between p-3.5 rounded-xl bg-[#F7F1E8] border border-[#171044]/5 text-xs font-bold text-[#171044]"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-[#171044] text-white flex items-center justify-center font-black text-xs">
-                    {p.rank}
-                  </span>
-                  <div>
-                    <div className="font-black text-sm">{p.name}</div>
-                    <div className="text-[10px] text-[#171044]/60">{p.team}</div>
-                  </div>
-                </div>
-                <div className="px-3 py-1 bg-[#FF5A00] text-white font-black font-mono rounded-lg">
-                  {p.goals} Goals
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </motion.section>
-
-      {/* ==================================================
-          9. PHOTO GALLERY + SECTION
-         ================================================== */}
-      <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8"
-      >
-        <SectionHeader
-          title="Photo Gallery +"
-          subtitle="Capturing moments of victory, teamwork, and athletic excellence."
-          crossColor="orange"
-          action={
-            <Link to="/gallery">
-              <Button variant="outline" size="sm" iconRight={<ArrowRight size={16} />}>
-                View Full Gallery
-              </Button>
             </Link>
-          }
-        />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {galleryImages.map((img) => (
-            <div
-              key={img.id}
-              className="rounded-3xl overflow-hidden shadow-xl border-2 border-white group relative h-64 cursor-pointer"
-            >
-              <img
-                src={img.img}
-                alt={img.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#171044]/90 via-transparent to-transparent p-5 flex flex-col justify-end text-white">
-                <AthleticBadge variant="lime" size="sm" className="w-max mb-1">
-                  {img.cat}
-                </AthleticBadge>
-                <h4 className="font-display font-black text-base">{img.title}</h4>
-              </div>
-            </div>
-          ))}
+          </div>
         </div>
       </motion.section>
 
       {/* ==================================================
-          10. CONTACT US + SECTION
+          7. CONTACT US + SECTION (REAL API & SITE_CONFIG)
          ================================================== */}
       <motion.section
         initial={{ opacity: 0, y: 30 }}
@@ -1065,7 +693,7 @@ export const HomePage: React.FC = () => {
               Contact Us <CrossAccent color="orange" size="lg" />
             </h2>
             <p className="text-sm text-[#171044]/80 font-medium leading-relaxed">
-              Have questions about academy tryouts, programs, or facility bookings? Get in touch with our team.
+              Have questions about academy tryouts, sports programs, or tournament entry? Get in touch with our staff.
             </p>
 
             <div className="space-y-4 text-xs font-bold text-[#171044]">
@@ -1075,7 +703,7 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-[10px] text-[#171044]/60 uppercase">Phone</div>
-                  <div className="text-sm font-black">(505) 123-4567</div>
+                  <div className="text-sm font-black">{SITE_CONFIG.CONTACT_PHONE}</div>
                 </div>
               </div>
 
@@ -1085,7 +713,7 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-[10px] text-[#171044]/60 uppercase">Email</div>
-                  <div className="text-sm font-black">info@activeathletiq.com</div>
+                  <div className="text-sm font-black">{SITE_CONFIG.CONTACT_EMAIL}</div>
                 </div>
               </div>
 
@@ -1095,7 +723,7 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-[10px] text-[#171044]/60 uppercase">Location</div>
-                  <div className="text-sm font-black">123 Sports Way, Active Arena</div>
+                  <div className="text-sm font-black">{SITE_CONFIG.CONTACT_ADDRESS}</div>
                 </div>
               </div>
             </div>
@@ -1108,15 +736,22 @@ export const HomePage: React.FC = () => {
                 <div className="text-4xl">✅</div>
                 <h3 className="text-2xl font-black font-display text-[#D8F500]">Message Received!</h3>
                 <p className="text-xs text-white/80">Our academy coordinator will reach out to you within 24 hours.</p>
+                <button
+                  onClick={() => setContactSubmitted(false)}
+                  className="px-6 py-2.5 bg-white text-[#171044] font-display font-bold text-xs uppercase rounded-full mt-2"
+                >
+                  Send Another Message
+                </button>
               </div>
             ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setContactSubmitted(true);
-                }}
-                className="space-y-4"
-              >
+              <form onSubmit={handleContactSubmit} className="space-y-4">
+                {contactError && (
+                  <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-200 text-xs font-semibold flex items-center gap-2">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{contactError}</span>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs font-extrabold uppercase tracking-wider text-white/80 block mb-1">
                     Your Name
@@ -1125,6 +760,8 @@ export const HomePage: React.FC = () => {
                     type="text"
                     required
                     placeholder="Enter your full name"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
                     className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-white/40 focus:outline-none focus:border-[#D8F500] transition-colors"
                   />
                 </div>
@@ -1137,6 +774,8 @@ export const HomePage: React.FC = () => {
                     type="email"
                     required
                     placeholder="name@example.com"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
                     className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-white/40 focus:outline-none focus:border-[#D8F500] transition-colors"
                   />
                 </div>
@@ -1149,15 +788,18 @@ export const HomePage: React.FC = () => {
                     rows={4}
                     required
                     placeholder="Tell us how we can help..."
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value)}
                     className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-white/40 focus:outline-none focus:border-[#D8F500] transition-colors"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-4 bg-[#FF5A00] text-white font-display font-black text-xs uppercase tracking-wider rounded-xl shadow-lg hover:bg-[#e04f00] transition-all duration-300 hover:scale-[1.02] active:scale-98 flex items-center justify-center gap-2"
+                  disabled={contactSubmitting}
+                  className="w-full py-4 bg-[#FF5A00] text-white font-display font-black text-xs uppercase tracking-wider rounded-xl shadow-lg hover:bg-[#e04f00] transition-all duration-300 hover:scale-[1.02] active:scale-98 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  <span>Send Message</span> <Send size={14} />
+                  <span>{contactSubmitting ? 'Sending...' : 'Send Message'}</span> <Send size={14} />
                 </button>
               </form>
             )}

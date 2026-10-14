@@ -90,6 +90,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
           { name: 'Training Calendar', path: '/dashboard/training', icon: Calendar },
           { name: 'Documents & Waivers', path: '/dashboard/documents', icon: FileText },
           { name: 'Announcements', path: '/dashboard/announcements', icon: Bell },
+          { name: 'Achievements', path: '/dashboard/achievements', icon: Award },
         ];
       case 'Coach':
         return [
